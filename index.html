@@ -243,6 +243,11 @@ body{
 .auth-note{font-size:11.5px;color:var(--ink-3);margin-top:30px;opacity:.7}
 .logout-btn{display:block;width:100%;margin:30px 0 10px;background:transparent;border:1px solid var(--line-2);color:var(--ink-3);border-radius:11px;padding:13px;font-size:14px;cursor:pointer;transition:.15s}
 .logout-btn:hover{border-color:#E08A7A;color:#E08A7A}
+.prof-actions{display:flex;gap:10px;margin:30px 0 10px}
+.prof-actions .logout-btn{margin:0;flex:1}
+.logout-btn.danger{border-color:rgba(224,138,122,0.45);color:#E08A7A}
+.logout-btn.danger:hover{border-color:#E08A7A;background:rgba(224,138,122,0.1)}
+.delete-warn{font-size:13.5px;color:var(--ink-2);line-height:1.55;margin:6px 2px 4px}
 .rail-empty{color:var(--ink-3);font-size:13px;text-align:center;padding:18px 14px;line-height:1.55}
 .prof-back{color:var(--cognac);font-size:13px;cursor:pointer;margin-bottom:14px;display:inline-block}
 .prof-back:hover{text-decoration:underline}
@@ -270,6 +275,9 @@ body{
 .pd-third b{font-size:16px;color:var(--cognac)}
 .pd-note{font-size:14px;color:var(--ink-2);line-height:1.55;margin:10px 0}
 .pd-likes{font-size:13px;color:var(--ink-3);margin-top:12px}
+.pd-like{display:inline-flex;align-items:center;gap:7px;margin-top:14px;background:var(--card);border:1px solid var(--line-2);color:var(--ink-2);border-radius:22px;padding:9px 16px;font-size:14px;cursor:pointer;transition:.15s}
+.pd-like:hover{border-color:var(--cognac)}
+.pd-like.on{border-color:#E08A7A;color:#E08A7A;background:rgba(224,138,122,0.1)}
 .btn-danger{background:transparent;border:1px solid #E08A7A;color:#E08A7A;border-radius:11px;padding:13px 18px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
 .btn-danger:hover{background:rgba(224,138,122,0.12)}
 
@@ -674,7 +682,10 @@ body{
     <div class="sec-label">Distribution des notes</div>
     <div class="hist" id="hist"></div>
 
-    <button class="logout-btn" id="prof-logout" onclick="logout()">Se déconnecter</button>
+    <div class="prof-actions" id="prof-actions">
+      <button class="logout-btn" id="prof-logout" onclick="logout()">Se déconnecter</button>
+      <button class="logout-btn danger" id="prof-delete" onclick="openDeleteConfirm()">Supprimer mon compte</button>
+    </div>
   </section>
 
   <!-- COMPOSE FAB -->
@@ -784,6 +795,19 @@ body{
     <div id="post-detail-body"></div>
     <div class="sheet-actions" id="post-detail-actions">
       <button class="btn-ghost" onclick="closeSheet('post-overlay')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SUPPRESSION DE COMPTE ===== -->
+<div class="overlay" id="delete-overlay">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <h3 class="serif">Supprimer votre compte ?</h3>
+    <p class="delete-warn">Cette action est <b>définitive et irréversible</b>. Votre profil, toutes vos dégustations, votre cave personnelle et vos « j'aime » seront supprimés.</p>
+    <div class="sheet-actions">
+      <button class="btn-ghost" onclick="closeSheet('delete-overlay')">Annuler</button>
+      <button class="btn-danger" id="delete-confirm-btn" onclick="confirmDeleteAccount()">Supprimer définitivement</button>
     </div>
   </div>
 </div>
@@ -915,6 +939,28 @@ async function authSubmit(){
 }
 async function logout(){
   if(sb) await sb.auth.signOut();
+  currentUser=null;
+  document.getElementById('auth-screen').classList.add('show');
+}
+function openDeleteConfirm(){ document.getElementById('delete-overlay').classList.add('open'); }
+async function confirmDeleteAccount(){
+  if(!currentUser||!sb)return;
+  const uid=currentUser.id;
+  const btn=document.getElementById('delete-confirm-btn');
+  if(btn){btn.disabled=true;btn.textContent='Suppression…';}
+  try{
+    await sb.from('post_likes').delete().eq('user_id',uid);
+    await sb.from('posts').delete().eq('user_id',uid);
+    await sb.from('cave_items').delete().eq('user_id',uid);
+    await sb.from('profiles').delete().eq('id',uid);
+  }catch(e){
+    alert("Échec de la suppression. Réessayez.");
+    if(btn){btn.disabled=false;btn.textContent='Supprimer définitivement';}
+    return;
+  }
+  if(sb) await sb.auth.signOut();
+  if(btn){btn.disabled=false;btn.textContent='Supprimer définitivement';}
+  document.getElementById('delete-overlay').classList.remove('open');
   currentUser=null;
   document.getElementById('auth-screen').classList.add('show');
 }
@@ -1118,11 +1164,18 @@ function renderFeed(){
 async function toggleLike(id){
   const p=feed.find(x=>x.id===id); if(!p||!currentUser||!sb)return;
   const liked=!p.liked;
-  p.liked=liked; p.likes+=liked?1:-1; renderFeed();
+  p.liked=liked; p.likes+=liked?1:-1; renderFeed(); refreshDetailLike(p);
   try{
     if(liked){await sb.from('post_likes').insert({post_id:id,user_id:currentUser.id});}
     else{await sb.from('post_likes').delete().eq('post_id',id).eq('user_id',currentUser.id);}
-  }catch(e){p.liked=!liked;p.likes+=liked?-1:1;renderFeed();}
+  }catch(e){p.liked=!liked;p.likes+=liked?-1:1;renderFeed();refreshDetailLike(p);}
+}
+function refreshDetailLike(p){
+  const btn=document.getElementById('pd-like-btn');
+  if(btn && btn.dataset.pid===p.id){
+    btn.classList.toggle('on',p.liked);
+    btn.innerHTML=`<span>${p.liked?'❤️':'🤍'}</span> ${p.likes} j'aime`;
+  }
 }
 
 /* ================= DISCOVER ================= */
@@ -1229,7 +1282,7 @@ function renderProfileFor(id){
 
   // contrôles réservés à soi
   show('prof-bio-edit', isSelf?'inline-block':'none');
-  show('prof-logout', isSelf?'block':'none');
+  show('prof-actions', isSelf?'flex':'none');
   show('prof-back', isSelf?'none':'block');
   document.getElementById('prof-posts-label').textContent = isSelf?'Mes dégustations':'Ses dégustations';
 
@@ -1355,7 +1408,7 @@ function openPostDetail(id){
     ${thirdsLine}
     ${p.note?`<p class="pd-note">${p.note}</p>`:''}
     ${flav?`<div class="flavors" style="margin-top:6px">${flav}</div>`:''}
-    <div class="pd-likes">❤️ ${p.likes} j'aime</div>`;
+    <button class="pd-like ${p.liked?'on':''}" id="pd-like-btn" data-pid="${p.id}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes} j'aime</button>`;
   // bouton supprimer réservé à l'auteur
   const actions=document.getElementById('post-detail-actions');
   actions.innerHTML='<button class="btn-ghost" onclick="closeSheet(\'post-overlay\')">Fermer</button>'
