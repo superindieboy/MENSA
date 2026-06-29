@@ -255,6 +255,11 @@ body{
 .pp-origin{font-size:11.5px;color:var(--ink-3);margin-top:2px}
 .pp-note{font-size:12.5px;color:var(--ink-2);margin:6px 0 0;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pp-flavors{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.terroir-pick{display:flex;flex-wrap:wrap;gap:7px}
+.tchip{font-size:12.5px;padding:7px 12px;border-radius:20px;border:1px solid var(--line-2);color:var(--ink-2);cursor:pointer;transition:.15s;user-select:none}
+.tchip:hover{border-color:var(--cognac)}
+.tchip.on{background:var(--cognac);border-color:var(--cognac);color:#1A120A;font-weight:600}
+.f-err{color:#E08A7A;font-size:13px;text-align:center;margin:4px 0 2px;min-height:18px}
 
 /* ===== SEARCH + FILTERS ===== */
 .search{
@@ -692,7 +697,20 @@ body{
     <div id="f-spec"></div>
 
     <div class="field">
-      <label>Terroir</label>
+      <label>Terroir <span style="color:var(--ink-3);font-weight:400">— requis</span></label>
+      <div class="terroir-pick" id="f-terroir">
+        <span class="tchip" data-t="cuba" onclick="pickTerroir(this)">Cuba</span>
+        <span class="tchip" data-t="nica" onclick="pickTerroir(this)">Nicaragua</span>
+        <span class="tchip" data-t="rep" onclick="pickTerroir(this)">Rép. dom.</span>
+        <span class="tchip" data-t="hon" onclick="pickTerroir(this)">Honduras</span>
+        <span class="tchip" data-t="cr" onclick="pickTerroir(this)">Costa Rica</span>
+        <span class="tchip" data-t="mex" onclick="pickTerroir(this)">Mexique</span>
+        <span class="tchip" data-t="bre" onclick="pickTerroir(this)">Brésil</span>
+        <span class="tchip" data-t="autre" onclick="pickTerroir(this)">Autre</span>
+      </div>
+    </div>
+    <div class="field">
+      <label>Origine <span style="color:var(--ink-3);font-weight:400">— région · pays (optionnel)</span></label>
       <input id="f-origin" placeholder="Ex : La Havane · Cuba">
     </div>
     <div class="field">
@@ -727,6 +745,7 @@ body{
       <label>Arômes (séparés par des virgules)</label>
       <input id="f-flavors" placeholder="café, cuir, cèdre, poivre">
     </div>
+    <div class="f-err" id="f-err"></div>
     <div class="sheet-actions">
       <button class="btn-ghost" onclick="closeSheet('fumee-overlay')">Annuler</button>
       <button class="btn-primary" onclick="saveFumee()">Publier le cigare</button>
@@ -903,16 +922,20 @@ async function checkAuth(){
 
 /* ================= CHARGEMENT DES DONNÉES PARTAGÉES ================= */
 async function loadAll(){
-  await Promise.all([loadProfiles(), loadPosts(), loadCave()]);
+  await loadProfiles();
+  await Promise.all([loadPosts(), loadCave()]);
   renderRails();renderMembers();renderFeed();renderCave();renderProfile();
 }
 async function loadProfiles(){
-  const {data}=await sb.from('profiles').select('id,name,bio').order('created_at');
+  const {data,error}=await sb.from('profiles').select('id,name,bio').order('created_at');
+  if(error)console.error('loadProfiles',error);
   members.length=0;
   (data||[]).forEach(p=>members.push({id:p.id,name:p.name,init:initialsOf(p.name),av:avIndex(p.id),count:0,bio:p.bio}));
 }
 async function loadPosts(){
-  const {data}=await sb.from('posts').select('*, profiles(name)').order('created_at',{ascending:false});
+  const {data,error}=await sb.from('posts').select('*').order('created_at',{ascending:false});
+  if(error)console.error('loadPosts',error);
+  const nameById={}; members.forEach(m=>nameById[m.id]=m.name);
   let likes=[]; try{const r=await sb.from('post_likes').select('post_id,user_id'); likes=r.data||[];}catch(e){}
   const likeCount={}, likedMine={};
   likes.forEach(l=>{likeCount[l.post_id]=(likeCount[l.post_id]||0)+1; if(currentUser&&l.user_id===currentUser.id)likedMine[l.post_id]=true;});
@@ -921,7 +944,7 @@ async function loadPosts(){
   members.forEach(m=>m.count=countByUser[m.id]||0);
   feed.length=0;
   (data||[]).forEach(p=>{
-    const uname=(p.profiles&&p.profiles.name)||'Membre';
+    const uname=nameById[p.user_id]||(currentUser&&p.user_id===currentUser.id?currentUser.name:'Membre');
     feed.push({id:p.id, user_id:p.user_id, user:uname, init:initialsOf(uname), av:avIndex(p.user_id),
       count:countByUser[p.user_id]||0, time:timeAgo(p.created_at), name:p.cigar_name, origin:p.origin||'',
       terroir:p.terroir||'cuba', rating:p.rating||0, thirds:{t1:p.t1,t2:p.t2,t3:p.t3}, note:p.note||'',
@@ -999,15 +1022,16 @@ function posterCard(it){
     badge=`<div class="poster-av club">M</div>`;
     sub=`${it.event} · ${it.voters} avis`;
   }else{
-    const c=avColors[it.av];
+    const c=avColors[it.av]||avColors[0];
     badge=`<div class="poster-av" style="background:${c[0]};color:${c[1]}">${it.who}</div>`;
     sub=`par ${it.by}`;
   }
-  return `<div class="poster" onclick="go('discover')">
+  const click = it.uid ? `openMemberProfile('${it.uid}')` : `go('discover')`;
+  return `<div class="poster" onclick="${click}">
     <div class="poster-art" style="background:${p.fill}">
       <div class="poster-cig">${cigarHtml(it.terroir,88)}</div>
       ${badge}
-      <div class="poster-rating"><span style="color:var(--gold)">●</span> ${it.rating.toFixed(1)}</div>
+      <div class="poster-rating"><span style="color:var(--gold)">●</span> ${(it.rating||0).toFixed(1)}</div>
     </div>
     <div class="poster-name">${it.name}</div>
     <div class="poster-sub">${sub}</div>
@@ -1015,7 +1039,8 @@ function posterCard(it){
 }
 function renderRails(){
   const emptyRail='<div class="rail-empty">Aucune publication pour le moment.</div>';
-  document.getElementById('rail-members').innerHTML=memberLogs.length?memberLogs.map(posterCard).join(''):emptyRail;
+  const memberItems=feed.slice(0,12).map(p=>({terroir:p.terroir,av:p.av,who:p.init,by:p.user,rating:p.rating,name:p.name,uid:p.user_id}));
+  document.getElementById('rail-members').innerHTML=memberItems.length?memberItems.map(posterCard).join(''):emptyRail;
   document.getElementById('rail-club').innerHTML=clubLogs.length?clubLogs.map(posterCard).join(''):emptyRail;
 }
 function renderMembers(){
@@ -1205,6 +1230,7 @@ function goProfile(){ if(currentUser){viewedMemberId=currentUser.id; renderProfi
 
 /* ================= CATALOGUE ================= */
 let selectedCigar=null;
+let selectedTerroir=null;
 function terroirOf(country){const s=(country||'').toLowerCase();if(s.includes('cuba'))return'cuba';if(s.includes('nicaragua'))return'nica';if(s.includes('dom'))return'rep';if(s.includes('honduras'))return'hon';return'cuba';}
 function forceLabel(n){return n>=4?'Corsé':n<=1?'Doux':'Médium';}
 
@@ -1262,6 +1288,13 @@ function acPick(id){
   document.getElementById('f-flavors').value=(c.flavors||[]).join(', ');
   document.getElementById('ac-list').classList.remove('open');
   document.getElementById('f-spec').innerHTML=specCardHtml(c,'✓ Fiche catalogue');
+  setTerroir(c.terroir||null);
+}
+function pickTerroir(el){ setTerroir(el.dataset.t); }
+function setTerroir(code){
+  selectedTerroir = code || null;
+  document.querySelectorAll('#f-terroir .tchip').forEach(ch=>ch.classList.toggle('on', ch.dataset.t===selectedTerroir));
+  if(selectedTerroir){const e=document.getElementById('f-err'); if(e)e.textContent='';}
 }
 function acCreate(){
   selectedCigar=null;
@@ -1318,6 +1351,9 @@ function openFumeeSheet(){
   selectedCigar=null;
   document.getElementById('f-spec').innerHTML='';
   document.getElementById('ac-list').classList.remove('open');
+  ['f-name','f-origin','f-note','f-flavors'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('f-err').textContent='';
+  setTerroir(null);
   resetThirds();
   document.getElementById('fumee-overlay').classList.add('open');
 }
@@ -1365,20 +1401,23 @@ document.querySelectorAll('#fumee-overlay .stars-track').forEach(tr=>{
 });
 async function saveFumee(){
   if(!currentUser||!sb)return closeSheet('fumee-overlay');
-  const name=document.getElementById('f-name').value.trim()||'Cigare sans nom';
+  const err=document.getElementById('f-err'); err.textContent='';
+  const name=document.getElementById('f-name').value.trim();
+  if(!(thirds.t1>0 && thirds.t2>0 && thirds.t3>0)){err.textContent='Notez les trois tiers avant de publier.';return;}
+  if(!selectedTerroir){err.textContent='Choisissez un terroir avant de publier.';return;}
   const origin=document.getElementById('f-origin').value.trim()||'Origine inconnue';
   const note=document.getElementById('f-note').value.trim()||'Pas encore de notes.';
   const flavors=document.getElementById('f-flavors').value.split(',').map(x=>x.trim()).filter(Boolean);
-  let terroir=selectedCigar?selectedCigar.terroir:'cuba';
-  if(!selectedCigar){const ol=origin.toLowerCase();if(ol.includes('nicaragua'))terroir='nica';else if(ol.includes('dom'))terroir='rep';else if(ol.includes('honduras'))terroir='hon';}
-  const row={user_id:currentUser.id,cigar_name:name,origin,terroir,rating:fRating||4,
-    t1:thirds.t1||null,t2:thirds.t2||null,t3:thirds.t3||null,note,flavors:flavors.length?flavors:['à découvrir'],place:''};
+  const terroir=selectedTerroir;
+  const rating=(thirds.t1+thirds.t2+thirds.t3)/3;
+  const row={user_id:currentUser.id,cigar_name:name||'Cigare sans nom',origin,terroir,rating:Math.round(rating*10)/10,
+    t1:thirds.t1,t2:thirds.t2,t3:thirds.t3,note,flavors:flavors.length?flavors:['à découvrir'],place:''};
   const btn=document.querySelector('#fumee-overlay .btn-primary'); if(btn)btn.disabled=true;
   try{ await sb.from('posts').insert(row); }catch(e){ alert("Échec de la publication. Réessayez."); if(btn)btn.disabled=false; return; }
   if(btn)btn.disabled=false;
   closeSheet('fumee-overlay');
   ['f-name','f-origin','f-note','f-flavors'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('f-spec').innerHTML='';selectedCigar=null;
+  document.getElementById('f-spec').innerHTML='';selectedCigar=null;setTerroir(null);
   resetThirds();
   await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();go('feed');
 }
