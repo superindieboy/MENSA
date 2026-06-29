@@ -260,6 +260,18 @@ body{
 .tchip:hover{border-color:var(--cognac)}
 .tchip.on{background:var(--cognac);border-color:var(--cognac);color:#1A120A;font-weight:600}
 .f-err{color:#E08A7A;font-size:13px;text-align:center;margin:4px 0 2px;min-height:18px}
+.pd-head{display:flex;gap:12px;align-items:center;margin-bottom:14px}
+.pd-visual{position:relative;border-radius:14px;height:180px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:14px}
+.pd-name{font-size:20px;margin-bottom:4px;color:var(--ink)}
+.pd-origin{font-size:13px;color:var(--ink-3);margin-bottom:6px}
+.pd-thirds{display:flex;gap:8px;margin:14px 0}
+.pd-third{flex:1;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 6px;text-align:center}
+.pd-third span{display:block;font-size:10.5px;color:var(--ink-3);margin-bottom:4px}
+.pd-third b{font-size:16px;color:var(--cognac)}
+.pd-note{font-size:14px;color:var(--ink-2);line-height:1.55;margin:10px 0}
+.pd-likes{font-size:13px;color:var(--ink-3);margin-top:12px}
+.btn-danger{background:transparent;border:1px solid #E08A7A;color:#E08A7A;border-radius:11px;padding:13px 18px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+.btn-danger:hover{background:rgba(224,138,122,0.12)}
 
 /* ===== SEARCH + FILTERS ===== */
 .search{
@@ -765,6 +777,17 @@ body{
   </div>
 </div>
 
+<!-- ===== DÉTAIL D'UNE DÉGUSTATION ===== -->
+<div class="overlay" id="post-overlay">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div id="post-detail-body"></div>
+    <div class="sheet-actions" id="post-detail-actions">
+      <button class="btn-ghost" onclick="closeSheet('post-overlay')">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== CAVE SHEET ===== -->
 <div class="overlay" id="cave-overlay">
   <div class="sheet">
@@ -1026,7 +1049,7 @@ function posterCard(it){
     badge=`<div class="poster-av" style="background:${c[0]};color:${c[1]}">${it.who}</div>`;
     sub=`par ${it.by}`;
   }
-  const click = it.uid ? `openMemberProfile('${it.uid}')` : `go('discover')`;
+  const click = it.pid ? `openPostDetail('${it.pid}')` : (it.uid ? `openMemberProfile('${it.uid}')` : `go('discover')`);
   return `<div class="poster" onclick="${click}">
     <div class="poster-art" style="background:${p.fill}">
       <div class="poster-cig">${cigarHtml(it.terroir,88)}</div>
@@ -1039,7 +1062,7 @@ function posterCard(it){
 }
 function renderRails(){
   const emptyRail='<div class="rail-empty">Aucune publication pour le moment.</div>';
-  const memberItems=feed.slice(0,12).map(p=>({terroir:p.terroir,av:p.av,who:p.init,by:p.user,rating:p.rating,name:p.name,uid:p.user_id}));
+  const memberItems=feed.slice(0,12).map(p=>({terroir:p.terroir,av:p.av,who:p.init,by:p.user,rating:p.rating,name:p.name,pid:p.id}));
   document.getElementById('rail-members').innerHTML=memberItems.length?memberItems.map(posterCard).join(''):emptyRail;
   document.getElementById('rail-club').innerHTML=clubLogs.length?clubLogs.map(posterCard).join(''):emptyRail;
 }
@@ -1071,11 +1094,11 @@ function renderFeed(){
         <div style="flex:1"><div class="post-user">${p.user}</div><div class="post-meta">${p.time} · <span class="count">${p.count} cigares</span></div></div>
         <button class="icon-btn" style="border:none;background:none">⋯</button>
       </div>
-      <div class="post-visual" style="background:${p2.fill}">
+      <div class="post-visual" style="background:${p2.fill};cursor:pointer" onclick="openPostDetail('${p.id}')">
         ${cigarHtml(p.terroir,130)}
         <div class="post-rating"><span style="color:var(--gold)">●</span> ${p.rating.toFixed(1)}</div>
       </div>
-      <div class="post-body">
+      <div class="post-body" style="cursor:pointer" onclick="openPostDetail('${p.id}')">
         <div class="cig-name">${p.name}</div>
         <span class="origin" style="background:${oColors[0]};color:${oColors[1]}">📍 ${p.origin}</span>
         ${(p.thirds&&(p.thirds.t1||p.thirds.t2||p.thirds.t3))?`<div class="thirds-line">${['1ᵉʳ','2ᵉ','3ᵉ'].map((l,j)=>{const v=[p.thirds.t1,p.thirds.t2,p.thirds.t3][j];return `<span><b>${l}</b> ${v?v.toFixed(1):'—'}</span>`}).join('')}</div>`:''}
@@ -1182,7 +1205,7 @@ function slugify(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u03
 function profPostCard(p){
   const pal=palette[p.terroir]||palette.cuba;
   const flav=(p.flavors||[]).slice(0,5).map(f=>`<span class="flavor">${f}</span>`).join('');
-  return `<div class="pp-card">
+  return `<div class="pp-card" onclick="openPostDetail('${p.id}')" style="cursor:pointer">
     <div class="pp-thumb" style="background:${pal.fill}">${cigarHtml(p.terroir,52)}</div>
     <div class="pp-body">
       <div class="pp-top"><span class="pp-name">${p.name}</span><span class="pp-rate"><span style="color:var(--gold)">●</span> ${(p.rating||0).toFixed(1)}</span></div>
@@ -1310,6 +1333,42 @@ function openCigarDetail(id){
     (c.profile?`<p style="font-size:13px;color:var(--ink-2);margin:-4px 2px 4px;line-height:1.55">${c.profile}</p>`:'');
   document.getElementById('detail-log').onclick=()=>{closeSheet('detail-overlay');openFumeeSheet();acPick(c.id);};
   document.getElementById('detail-overlay').classList.add('open');
+}
+
+function openPostDetail(id){
+  const p=feed.find(x=>x.id===id);if(!p)return;
+  const pal=palette[p.terroir]||palette.cuba;
+  const c=avColors[p.av]||avColors[0];
+  const thirdsLine=(p.thirds&&(p.thirds.t1||p.thirds.t2||p.thirds.t3))
+    ? `<div class="pd-thirds">${['Premier tiers','Deuxième tiers','Dernier tiers'].map((l,j)=>{const v=[p.thirds.t1,p.thirds.t2,p.thirds.t3][j];return `<div class="pd-third"><span>${l}</span><b>${v?v.toFixed(1):'—'}</b></div>`}).join('')}</div>` : '';
+  const flav=(p.flavors||[]).map(f=>`<span class="flavor">${f}</span>`).join('');
+  document.getElementById('post-detail-body').innerHTML=`
+    <div class="pd-head" onclick="closeSheet('post-overlay');openMemberProfile('${p.user_id}')" style="cursor:pointer">
+      <div class="av" style="background:${c[0]};color:${c[1]}">${p.init}</div>
+      <div><div class="post-user">${p.user}</div><div class="post-meta">${p.time}</div></div>
+    </div>
+    <div class="pd-visual" style="background:${pal.fill}">${cigarHtml(p.terroir,130)}
+      <div class="post-rating"><span style="color:var(--gold)">●</span> ${(p.rating||0).toFixed(1)}</div>
+    </div>
+    <div class="pd-name serif">${p.name}</div>
+    ${p.origin?`<div class="pd-origin">📍 ${p.origin}</div>`:''}
+    ${thirdsLine}
+    ${p.note?`<p class="pd-note">${p.note}</p>`:''}
+    ${flav?`<div class="flavors" style="margin-top:6px">${flav}</div>`:''}
+    <div class="pd-likes">❤️ ${p.likes} j'aime</div>`;
+  // bouton supprimer réservé à l'auteur
+  const actions=document.getElementById('post-detail-actions');
+  actions.innerHTML='<button class="btn-ghost" onclick="closeSheet(\'post-overlay\')">Fermer</button>'
+    + ((currentUser&&p.user_id===currentUser.id)?`<button class="btn-danger" onclick="deletePost('${p.id}')">Supprimer</button>`:'');
+  document.getElementById('post-overlay').classList.add('open');
+}
+async function deletePost(id){
+  if(!currentUser||!sb)return;
+  if(!confirm('Supprimer définitivement cette dégustation ?'))return;
+  try{ await sb.from('posts').delete().eq('id',id).eq('user_id',currentUser.id); }
+  catch(e){ alert("Échec de la suppression. Réessayez."); return; }
+  closeSheet('post-overlay');
+  await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();
 }
 
 /* --- Scan de bague via Claude (vision) --- */
