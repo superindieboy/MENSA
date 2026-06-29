@@ -896,6 +896,8 @@ function timeAgo(iso){
 function fmtDate(iso){const d=new Date(iso);return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;}
 
 let currentUser=null, authMode='login';
+const ADMIN_EMAILS=['hippolyte.sable@gmail.com'];
+function isAdmin(){ return !!(currentUser && ADMIN_EMAILS.includes((currentUser.email||'').toLowerCase())); }
 
 function show(id,disp){const e=document.getElementById(id);if(e)e.style.display=disp;}
 function toggleAuthMode(){
@@ -1409,16 +1411,19 @@ function openPostDetail(id){
     ${p.note?`<p class="pd-note">${p.note}</p>`:''}
     ${flav?`<div class="flavors" style="margin-top:6px">${flav}</div>`:''}
     <button class="pd-like ${p.liked?'on':''}" id="pd-like-btn" data-pid="${p.id}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes} j'aime</button>`;
-  // bouton supprimer réservé à l'auteur
+  // bouton supprimer : auteur ou modérateur (admin)
   const actions=document.getElementById('post-detail-actions');
+  const mine = currentUser && p.user_id===currentUser.id;
+  const canDelete = mine || isAdmin();
+  const delLabel = mine ? 'Supprimer' : 'Supprimer (modération)';
   actions.innerHTML='<button class="btn-ghost" onclick="closeSheet(\'post-overlay\')">Fermer</button>'
-    + ((currentUser&&p.user_id===currentUser.id)?`<button class="btn-danger" onclick="deletePost('${p.id}')">Supprimer</button>`:'');
+    + (canDelete?`<button class="btn-danger" onclick="deletePost('${p.id}')">${delLabel}</button>`:'');
   document.getElementById('post-overlay').classList.add('open');
 }
 async function deletePost(id){
   if(!currentUser||!sb)return;
   if(!confirm('Supprimer définitivement cette dégustation ?'))return;
-  try{ await sb.from('posts').delete().eq('id',id).eq('user_id',currentUser.id); }
+  try{ await sb.from('posts').delete().eq('id',id); }
   catch(e){ alert("Échec de la suppression. Réessayez."); return; }
   closeSheet('post-overlay');
   await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();
