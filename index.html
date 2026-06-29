@@ -635,9 +635,8 @@ body{
       <input id="search-input" placeholder="Cigare, vitole, maison, terroir…" oninput="renderDiscover()">
     </div>
     <div class="filters" id="filters"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+    <div style="margin-bottom:14px">
       <span id="disc-count" style="font-size:12px;color:var(--ink-3)"></span>
-      <button onclick="syncCatalog()" style="font-size:12px;font-weight:500;color:var(--cognac);background:none;border:1px solid var(--line-2);border-radius:20px;padding:5px 12px;cursor:pointer;font-family:inherit">⟳ Synchroniser (Cigar API)</button>
     </div>
     <div class="grid" id="disc-grid"></div>
 
@@ -818,7 +817,7 @@ body{
     <div class="sheet-grip"></div>
     <h3 class="serif">Ajouter à la cave</h3>
     <div class="field"><label>Cigare</label><input id="c-name" placeholder="Ex : Trinidad Reyes"></div>
-    <div class="field"><label>Pays</label><input id="c-country" placeholder="Cuba"></div>
+    <div class="field"><label>Terroir</label><input id="c-country" placeholder="Ex : Cuba, Nicaragua, Honduras…"></div>
     <div class="field"><label>Vitole / format</label><input id="c-detail" placeholder="Ex : Robusto"></div>
     <div class="field"><label>Quantité</label><input id="c-qty" type="number" value="5" min="1"></div>
     <div class="sheet-actions">
