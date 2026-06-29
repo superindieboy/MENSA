@@ -244,6 +244,17 @@ body{
 .logout-btn{display:block;width:100%;margin:30px 0 10px;background:transparent;border:1px solid var(--line-2);color:var(--ink-3);border-radius:11px;padding:13px;font-size:14px;cursor:pointer;transition:.15s}
 .logout-btn:hover{border-color:#E08A7A;color:#E08A7A}
 .rail-empty{color:var(--ink-3);font-size:13px;text-align:center;padding:18px 14px;line-height:1.55}
+.prof-back{color:var(--cognac);font-size:13px;cursor:pointer;margin-bottom:14px;display:inline-block}
+.prof-back:hover{text-decoration:underline}
+.pp-card{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px;margin-bottom:10px}
+.pp-thumb{flex-shrink:0;width:64px;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.pp-body{flex:1;min-width:0}
+.pp-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.pp-name{font-weight:600;font-size:14.5px;color:var(--ink)}
+.pp-rate{flex-shrink:0;font-size:13px;color:var(--ink-2)}
+.pp-origin{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.pp-note{font-size:12.5px;color:var(--ink-2);margin:6px 0 0;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pp-flavors{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
 
 /* ===== SEARCH + FILTERS ===== */
 .search{
@@ -579,7 +590,7 @@ body{
     <div class="rail">
       <div class="rail-head">
         <div class="rail-title"><span class="ico">👥</span> Les membres</div>
-        <span class="rail-all" onclick="go('profile')">Voir tous ↗</span>
+        <span class="rail-all" onclick="goProfile()">Voir tous ↗</span>
       </div>
       <div class="rail-scroll" id="rail-people"></div>
     </div>
@@ -621,6 +632,7 @@ body{
 
   <!-- ============ PROFIL ============ -->
   <section class="screen" id="profile">
+    <div class="prof-back" id="prof-back" style="display:none" onclick="goProfile()">← Mon profil</div>
     <div class="prof-hero">
       <div class="prof-av" id="prof-av">H</div>
       <div style="flex:1">
@@ -636,13 +648,16 @@ body{
     </div>
     <div class="prof-bio-row">
       <p class="prof-bio" id="prof-bio">Aucune bio pour le moment.</p>
-      <button class="bio-edit" onclick="openBioSheet()">✎ Modifier</button>
+      <button class="bio-edit" id="prof-bio-edit" onclick="openBioSheet()">✎ Modifier</button>
     </div>
 
-    <div class="sec-label">Distribution de mes notes</div>
+    <div class="sec-label" id="prof-posts-label">Dégustations</div>
+    <div id="prof-posts"></div>
+
+    <div class="sec-label">Distribution des notes</div>
     <div class="hist" id="hist"></div>
 
-    <button class="logout-btn" onclick="logout()">Se déconnecter</button>
+    <button class="logout-btn" id="prof-logout" onclick="logout()">Se déconnecter</button>
   </section>
 
   <!-- COMPOSE FAB -->
@@ -655,7 +670,7 @@ body{
       <button class="tab active" data-screen="feed" onclick="go('feed')"><span class="tab-ico">🏠</span>Fil</button>
       <button class="tab" data-screen="discover" onclick="go('discover')"><span class="tab-ico">🔍</span>Découvrir</button>
       <button class="tab" data-screen="cave" onclick="go('cave')"><span class="tab-ico">🗄️</span>Cave</button>
-      <button class="tab" data-screen="profile" onclick="go('profile')"><span class="tab-ico">👤</span>Profil</button>
+      <button class="tab" data-screen="profile" onclick="goProfile()"><span class="tab-ico">👤</span>Profil</button>
     </div>
   </nav>
 </div>
@@ -866,6 +881,7 @@ async function enterApp(user){
   try{const {data}=await sb.from('profiles').select('*').eq('id',user.id).single(); prof=data;}catch(e){}
   const name = (prof&&prof.name) || (user.user_metadata&&user.user_metadata.name) || user.email.split('@')[0];
   currentUser={id:user.id, email:user.email, name, init:initialsOf(name), bio:(prof&&prof.bio)||''};
+  viewedMemberId=user.id;
   document.getElementById('prof-av').textContent=currentUser.init;
   document.getElementById('prof-name').textContent=currentUser.name;
   document.getElementById('prof-handle').textContent='@'+currentUser.email.split('@')[0];
@@ -1008,7 +1024,7 @@ function renderMembers(){
   el.innerHTML=members.map(m=>{
     const c=avColors[m.av];
     const crown=m.founder?`<div class="member-crown">★</div>`:'';
-    return `<div class="member" onclick="go('profile')">
+    return `<div class="member" onclick="openMemberProfile('${m.id}')">
       <div class="member-ph">
         <div class="member-av" style="background:${c[0]};color:${c[1]}">${m.init}</div>${crown}
       </div>
@@ -1025,7 +1041,7 @@ function renderFeed(){
     const c=avColors[p.av]||avColors[0];
     const oColors={cuba:['#FAC775','#633806'],nica:['#C0DD97','#27500A'],rep:['#F5C4B3','#712B13'],hon:['#CECBF6','#3C3489']}[p.terroir]||['#FAC775','#633806'];
     return `<article class="post">
-      <div class="post-head">
+      <div class="post-head" onclick="openMemberProfile('${p.user_id}')" style="cursor:pointer">
         <div class="av" style="background:${c[0]};color:${c[1]}">${p.init}</div>
         <div style="flex:1"><div class="post-user">${p.user}</div><div class="post-meta">${p.time} · <span class="count">${p.count} cigares</span></div></div>
         <button class="icon-btn" style="border:none;background:none">⋯</button>
@@ -1136,21 +1152,56 @@ function renderCave(){
 }
 
 /* ================= PROFILE ================= */
-function renderProfile(){
-  const mine = currentUser ? feed.filter(p=>p.user_id===currentUser.id) : [];
-  document.getElementById('ps-fumees').textContent=mine.length;
-  const ps=document.getElementById('ps-followers'); if(ps) ps.textContent='0';
-  const pf=document.getElementById('ps-following'); if(pf) pf.textContent='0';
+let viewedMemberId=null;
+function slugify(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'').slice(0,20);}
+function profPostCard(p){
+  const pal=palette[p.terroir]||palette.cuba;
+  const flav=(p.flavors||[]).slice(0,5).map(f=>`<span class="flavor">${f}</span>`).join('');
+  return `<div class="pp-card">
+    <div class="pp-thumb" style="background:${pal.fill}">${cigarHtml(p.terroir,52)}</div>
+    <div class="pp-body">
+      <div class="pp-top"><span class="pp-name">${p.name}</span><span class="pp-rate"><span style="color:var(--gold)">●</span> ${(p.rating||0).toFixed(1)}</span></div>
+      <div class="pp-origin">${p.origin||''} · ${p.time}</div>
+      ${p.note?`<p class="pp-note">${p.note}</p>`:''}
+      ${flav?`<div class="pp-flavors">${flav}</div>`:''}
+    </div>
+  </div>`;
+}
+function renderProfileFor(id){
+  if(!id){return;}
+  const isSelf = currentUser && id===currentUser.id;
+  const m = isSelf ? currentUser : (members.find(x=>x.id===id)||{id,name:'Membre',init:'?',bio:''});
+  const posts = feed.filter(p=>p.user_id===id);
 
-  // histogramme dérivé des notes du membre
+  document.getElementById('prof-av').textContent=m.init||initialsOf(m.name);
+  document.getElementById('prof-name').textContent=m.name||'Membre';
+  document.getElementById('prof-handle').textContent='@'+(isSelf?currentUser.email.split('@')[0]:slugify(m.name));
+  document.getElementById('prof-bio').textContent=(m.bio&&m.bio.trim())?m.bio:BIO_PLACEHOLDER;
+  document.getElementById('ps-fumees').textContent=posts.length;
+
+  // contrôles réservés à soi
+  show('prof-bio-edit', isSelf?'inline-block':'none');
+  show('prof-logout', isSelf?'block':'none');
+  show('prof-back', isSelf?'none':'block');
+  document.getElementById('prof-posts-label').textContent = isSelf?'Mes dégustations':'Ses dégustations';
+
+  // liste des dégustations
+  document.getElementById('prof-posts').innerHTML = posts.length
+    ? posts.map(profPostCard).join('')
+    : `<div class="rail-empty" style="padding:18px 0">Aucune dégustation pour le moment.</div>`;
+
+  // histogramme
   const labels=['5','4','3','2','1'];
-  const dist=labels.map(l=>mine.filter(p=>Math.round(p.rating)===+l).length);
+  const dist=labels.map(l=>posts.filter(p=>Math.round(p.rating)===+l).length);
   const max=Math.max(1,...dist);
   document.getElementById('hist').innerHTML=dist.map((d,i)=>`
     <div class="hrow"><div class="hlabel">${labels[i]}●</div>
     <div class="hbar-bg"><div class="hbar" style="width:${d/max*100}%"></div></div>
     <div class="hcount">${d}</div></div>`).join('');
 }
+function renderProfile(){ renderProfileFor(viewedMemberId || (currentUser&&currentUser.id)); }
+function openMemberProfile(id){ if(!id)return; viewedMemberId=id; renderProfileFor(id); go('profile'); }
+function goProfile(){ if(currentUser){viewedMemberId=currentUser.id; renderProfileFor(currentUser.id);} go('profile'); }
 
 /* ================= CATALOGUE ================= */
 let selectedCigar=null;
