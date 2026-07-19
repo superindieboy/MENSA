@@ -1422,6 +1422,7 @@ function openPostDetail(id){
   const thirdsLine=(p.thirds&&(p.thirds.t1||p.thirds.t2||p.thirds.t3))
     ? `<div class="pd-thirds">${['Premier tiers','Deuxième tiers','Dernier tiers'].map((l,j)=>{const v=[p.thirds.t1,p.thirds.t2,p.thirds.t3][j];return `<div class="pd-third"><span>${l}</span><b>${v?v.toFixed(1):'—'}</b></div>`}).join('')}</div>` : '';
   const flav=(p.flavors||[]).map(f=>`<span class="flavor">${f}</span>`).join('');
+  const cInfo=catalog.find(x=>(x.name||'').trim().toLowerCase()===(p.name||'').trim().toLowerCase());
   document.getElementById('post-detail-body').innerHTML=`
     <div class="pd-head" onclick="closeSheet('post-overlay');openMemberProfile('${p.user_id}')" style="cursor:pointer">
       <div class="av" style="background:${c[0]};color:${c[1]}">${p.init}</div>
@@ -1435,7 +1436,8 @@ function openPostDetail(id){
     ${thirdsLine}
     ${p.note?`<p class="pd-note">${p.note}</p>`:''}
     ${flav?`<div class="flavors" style="margin-top:6px">${flav}</div>`:''}
-    <button class="pd-like ${p.liked?'on':''}" id="pd-like-btn" data-pid="${p.id}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes} j'aime</button>`;
+    <button class="pd-like ${p.liked?'on':''}" id="pd-like-btn" data-pid="${p.id}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes} j'aime</button>
+    ${cInfo?`<div class="sec-label" style="margin:18px 0 10px">Fiche catalogue</div>${specCardHtml(cInfo,'Fiche catalogue')}`:''}`;
   // bouton supprimer : auteur ou modérateur (admin)
   const actions=document.getElementById('post-detail-actions');
   const mine = currentUser && p.user_id===currentUser.id;
