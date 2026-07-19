@@ -1442,6 +1442,7 @@ function openPostDetail(id){
   const canDelete = mine || isAdmin();
   const delLabel = mine ? 'Supprimer' : 'Supprimer (modération)';
   actions.innerHTML='<button class="btn-ghost" onclick="closeSheet(\'post-overlay\')">Fermer</button>'
+    + (currentUser?`<button class="btn-primary" onclick="openCaveSheetFromPost('${p.id}')">Ajouter à ma cave</button>`:'')
     + (canDelete?`<button class="btn-danger" onclick="deletePost('${p.id}')">${delLabel}</button>`:'');
   document.getElementById('post-overlay').classList.add('open');
 }
@@ -1502,6 +1503,16 @@ function openFumeeSheet(){
   document.getElementById('fumee-overlay').classList.add('open');
 }
 function openCaveSheet(){document.getElementById('cave-overlay').classList.add('open')}
+function openCaveSheetFromPost(id){
+  const p=feed.find(x=>x.id===id);if(!p)return;
+  closeSheet('post-overlay');
+  const terroirLabel={cuba:'Cuba',nica:'Nicaragua',rep:'République Dominicaine',hon:'Honduras'}[p.terroir]||'';
+  document.getElementById('c-name').value=p.name||'';
+  document.getElementById('c-country').value=terroirLabel;
+  document.getElementById('c-detail').value='';
+  document.getElementById('c-qty').value=5;
+  openCaveSheet();
+}
 function closeSheet(id){document.getElementById(id).classList.remove('open')}
 const BIO_PLACEHOLDER='Aucune bio pour le moment.';
 function openBioSheet(){
