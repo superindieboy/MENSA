@@ -997,15 +997,15 @@ async function loadAll(){
   renderRails();renderMembers();renderFeed();renderCave();renderProfile();renderDiscover();
 }
 async function loadProfiles(){
-  const {data,error}=await sb.from('profiles').select('id,name,bio').order('created_at');
+  const {data,error}=await sb.from('profiles').select('id,name,bio,email').order('created_at');
   if(error)console.error('loadProfiles',error);
   members.length=0;
-  (data||[]).forEach(p=>members.push({id:p.id,name:p.name,init:initialsOf(p.name),av:avIndex(p.id),count:0,bio:p.bio}));
+  (data||[]).forEach(p=>members.push({id:p.id,name:p.name,init:initialsOf(p.name),av:avIndex(p.id),count:0,bio:p.bio,email:p.email}));
 }
 async function loadPosts(){
   const {data,error}=await sb.from('posts').select('*').order('created_at',{ascending:false});
   if(error)console.error('loadPosts',error);
-  const nameById={}; members.forEach(m=>nameById[m.id]=m.name);
+  const nameById={}, emailById={}; members.forEach(m=>{nameById[m.id]=m.name; emailById[m.id]=m.email;});
   let likes=[]; try{const r=await sb.from('post_likes').select('post_id,user_id'); likes=r.data||[];}catch(e){}
   const likeCount={}, likedMine={};
   likes.forEach(l=>{likeCount[l.post_id]=(likeCount[l.post_id]||0)+1; if(currentUser&&l.user_id===currentUser.id)likedMine[l.post_id]=true;});
@@ -1018,9 +1018,12 @@ async function loadPosts(){
     feed.push({id:p.id, user_id:p.user_id, user:uname, init:initialsOf(uname), av:avIndex(p.user_id),
       count:countByUser[p.user_id]||0, time:timeAgo(p.created_at), name:p.cigar_name, origin:p.origin||'',
       terroir:p.terroir||'cuba', rating:p.rating||0, thirds:{t1:p.t1,t2:p.t2,t3:p.t3}, note:p.note||'',
-      flavors:p.flavors||[], place:p.place||'', likes:likeCount[p.id]||0, liked:!!likedMine[p.id], comments:0});
+      flavors:p.flavors||[], place:p.place||'', likes:likeCount[p.id]||0, liked:!!likedMine[p.id], comments:0,
+      _authorEmail:emailById[p.user_id]||''});
   });
   syncCatalogScores();
+  clubLogs.length=0;
+  feed.filter(p=>p._authorEmail===CLUB_AUTO_EMAIL).forEach(p=>clubLogs.push({terroir:p.terroir,av:p.av,who:p.init,by:p.user,rating:p.rating,name:p.name,pid:p.id}));
 }
 /* Note globale d'un cigare du catalogue = moyenne des notes individuelles postées par les membres pour ce cigare */
 function syncCatalogScores(){
@@ -1070,6 +1073,8 @@ const countryMeta={cuba:{label:'Cuba',flag:['#0A4DA8','#fff','#CE1126']},nica:{l
 const memberLogs=[];
 
 // Rail 2 — cigares fumés au sein du club MENSA
+// Alimenté automatiquement par les dégustations de ce compte (voir loadPosts)
+const CLUB_AUTO_EMAIL='hippolyte.sable@gmail.com';
 const clubLogs=[];
 
 // Membres du club
