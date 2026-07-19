@@ -1166,7 +1166,7 @@ function renderFeed(){
         <div class="cig-name">${p.name}</div>
         <span class="origin" style="background:${oColors[0]};color:${oColors[1]}">📍 ${p.origin}</span>
         ${(p.thirds&&(p.thirds.t1||p.thirds.t2||p.thirds.t3))?`<div class="thirds-line">${['1ᵉʳ','2ᵉ','3ᵉ'].map((l,j)=>{const v=[p.thirds.t1,p.thirds.t2,p.thirds.t3][j];return `<span><b>${l}</b> ${v?v.toFixed(1):'—'}</span>`}).join('')}</div>`:''}
-        <p class="note">${p.note}</p>
+        ${p.note?`<p class="note">${p.note}</p>`:''}
         <div class="flavors">${p.flavors.map(f=>`<span class="flavor">${f}</span>`).join('')}</div>
         ${p.place?`<div class="post-place">📍 Fumé à ${p.place}</div>`:''}
       </div>
@@ -1539,7 +1539,7 @@ async function saveFumee(){
   if(!(thirds.t1>0 && thirds.t2>0 && thirds.t3>0)){err.textContent='Notez les trois tiers avant de publier.';return;}
   if(!selectedTerroir){err.textContent='Choisissez un terroir avant de publier.';return;}
   const origin=document.getElementById('f-origin').value.trim()||'Origine inconnue';
-  const note=document.getElementById('f-note').value.trim()||'Pas encore de notes.';
+  const note=document.getElementById('f-note').value.trim();
   const flavors=document.getElementById('f-flavors').value.split(',').map(x=>x.trim()).filter(Boolean);
   const terroir=selectedTerroir;
   const rating=(thirds.t1+thirds.t2+thirds.t3)/3;
