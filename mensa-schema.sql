@@ -88,6 +88,7 @@ alter table public.post_likes enable row level security;
 create policy "profiles_read"        on public.profiles   for select using (auth.uid() is not null);
 create policy "profiles_insert_self" on public.profiles   for insert with check (auth.uid() = id);
 create policy "profiles_update_self" on public.profiles   for update using (auth.uid() = id);
+create policy "profiles_delete_self" on public.profiles   for delete using (auth.uid() = id);
 
 -- POSTS
 create policy "posts_read"        on public.posts      for select using (auth.uid() is not null);

@@ -994,7 +994,7 @@ async function checkAuth(){
 async function loadAll(){
   await loadProfiles();
   await Promise.all([loadPosts(), loadCave()]);
-  renderRails();renderMembers();renderFeed();renderCave();renderProfile();
+  renderRails();renderMembers();renderFeed();renderCave();renderProfile();renderDiscover();
 }
 async function loadProfiles(){
   const {data,error}=await sb.from('profiles').select('id,name,bio').order('created_at');
@@ -1019,6 +1019,23 @@ async function loadPosts(){
       count:countByUser[p.user_id]||0, time:timeAgo(p.created_at), name:p.cigar_name, origin:p.origin||'',
       terroir:p.terroir||'cuba', rating:p.rating||0, thirds:{t1:p.t1,t2:p.t2,t3:p.t3}, note:p.note||'',
       flavors:p.flavors||[], place:p.place||'', likes:likeCount[p.id]||0, liked:!!likedMine[p.id], comments:0});
+  });
+  syncCatalogScores();
+}
+/* Note globale d'un cigare du catalogue = moyenne des notes individuelles postées par les membres pour ce cigare */
+function syncCatalogScores(){
+  const stats={};
+  feed.forEach(p=>{
+    const key=(p.name||'').trim().toLowerCase();
+    if(!key)return;
+    if(!stats[key])stats[key]={sum:0,count:0};
+    stats[key].sum+=p.rating||0;
+    stats[key].count++;
+  });
+  catalog.forEach(c=>{
+    const s=stats[(c.name||'').trim().toLowerCase()];
+    c.score=s?Math.round((s.sum/s.count)*10)/10:0;
+    c.votes=s?s.count:0;
   });
 }
 async function loadCave(){
@@ -1425,7 +1442,7 @@ async function deletePost(id){
   try{ await sb.from('posts').delete().eq('id',id); }
   catch(e){ alert("Échec de la suppression. Réessayez."); return; }
   closeSheet('post-overlay');
-  await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();
+  await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();
 }
 
 /* --- Scan de bague via Claude (vision) --- */
@@ -1535,7 +1552,7 @@ async function saveFumee(){
   ['f-name','f-origin','f-note','f-flavors'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-spec').innerHTML='';selectedCigar=null;setTerroir(null);
   resetThirds();
-  await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();go('feed');
+  await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();go('feed');
 }
 async function saveCave(){
   if(!currentUser||!sb)return closeSheet('cave-overlay');
