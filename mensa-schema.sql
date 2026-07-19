@@ -29,6 +29,7 @@ create table if not exists public.posts (
   note       text,
   flavors    text[] default '{}',
   place      text default '',
+  is_club    boolean not null default false,  -- affiché aussi dans "Par le club" (réservé au compte admin)
   created_at timestamptz default now()
 );
 

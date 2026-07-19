@@ -477,6 +477,8 @@ body{
 .sheet h3{font-family:var(--serif);font-size:22px;font-weight:600;margin-bottom:18px}
 .field{margin-bottom:16px}
 .field label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:7px}
+.field label.check-row{display:flex;align-items:center;gap:9px;margin-bottom:0}
+.field label.check-row input{width:17px;height:17px;flex:none}
 .field input,.field textarea{
   width:100%;border:1px solid var(--line-2);border-radius:var(--r-sm);padding:11px 13px;
   font-family:inherit;font-size:14px;color:var(--ink);background:var(--card);outline:none;
@@ -767,6 +769,9 @@ body{
       <label>Arômes (séparés par des virgules)</label>
       <input id="f-flavors" placeholder="café, cuir, cèdre, poivre">
     </div>
+    <div class="field" id="f-club-field" style="display:none">
+      <label class="check-row"><input type="checkbox" id="f-club"> Publier aussi dans « Par le club »</label>
+    </div>
     <div class="f-err" id="f-err"></div>
     <div class="sheet-actions">
       <button class="btn-ghost" onclick="closeSheet('fumee-overlay')">Annuler</button>
@@ -997,15 +1002,15 @@ async function loadAll(){
   renderRails();renderMembers();renderFeed();renderCave();renderProfile();renderDiscover();
 }
 async function loadProfiles(){
-  const {data,error}=await sb.from('profiles').select('id,name,bio,email').order('created_at');
+  const {data,error}=await sb.from('profiles').select('id,name,bio').order('created_at');
   if(error)console.error('loadProfiles',error);
   members.length=0;
-  (data||[]).forEach(p=>members.push({id:p.id,name:p.name,init:initialsOf(p.name),av:avIndex(p.id),count:0,bio:p.bio,email:p.email}));
+  (data||[]).forEach(p=>members.push({id:p.id,name:p.name,init:initialsOf(p.name),av:avIndex(p.id),count:0,bio:p.bio}));
 }
 async function loadPosts(){
   const {data,error}=await sb.from('posts').select('*').order('created_at',{ascending:false});
   if(error)console.error('loadPosts',error);
-  const nameById={}, emailById={}; members.forEach(m=>{nameById[m.id]=m.name; emailById[m.id]=m.email;});
+  const nameById={}; members.forEach(m=>nameById[m.id]=m.name);
   let likes=[]; try{const r=await sb.from('post_likes').select('post_id,user_id'); likes=r.data||[];}catch(e){}
   const likeCount={}, likedMine={};
   likes.forEach(l=>{likeCount[l.post_id]=(likeCount[l.post_id]||0)+1; if(currentUser&&l.user_id===currentUser.id)likedMine[l.post_id]=true;});
@@ -1019,11 +1024,11 @@ async function loadPosts(){
       count:countByUser[p.user_id]||0, time:timeAgo(p.created_at), name:p.cigar_name, origin:p.origin||'',
       terroir:p.terroir||'cuba', rating:p.rating||0, thirds:{t1:p.t1,t2:p.t2,t3:p.t3}, note:p.note||'',
       flavors:p.flavors||[], place:p.place||'', likes:likeCount[p.id]||0, liked:!!likedMine[p.id], comments:0,
-      _authorEmail:emailById[p.user_id]||''});
+      isClub:!!p.is_club});
   });
   syncCatalogScores();
   clubLogs.length=0;
-  feed.filter(p=>p._authorEmail===CLUB_AUTO_EMAIL).forEach(p=>clubLogs.push({terroir:p.terroir,av:p.av,who:p.init,by:p.user,rating:p.rating,name:p.name,pid:p.id}));
+  feed.filter(p=>p.isClub).forEach(p=>clubLogs.push({terroir:p.terroir,av:p.av,who:p.init,by:p.user,rating:p.rating,name:p.name,pid:p.id}));
 }
 /* Note globale d'un cigare du catalogue = moyenne des notes individuelles postées par les membres pour ce cigare */
 function syncCatalogScores(){
@@ -1073,8 +1078,7 @@ const countryMeta={cuba:{label:'Cuba',flag:['#0A4DA8','#fff','#CE1126']},nica:{l
 const memberLogs=[];
 
 // Rail 2 — cigares fumés au sein du club MENSA
-// Alimenté automatiquement par les dégustations de ce compte (voir loadPosts)
-const CLUB_AUTO_EMAIL='hippolyte.sable@gmail.com';
+// Alimenté par les dégustations cochées "Publier dans Par le club" (voir loadPosts)
 const clubLogs=[];
 
 // Membres du club
@@ -1491,6 +1495,8 @@ function openFumeeSheet(){
   document.getElementById('ac-list').classList.remove('open');
   ['f-name','f-origin','f-note','f-flavors'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('f-err').textContent='';
+  document.getElementById('f-club-field').style.display=isAdmin()?'block':'none';
+  document.getElementById('f-club').checked=false;
   setTerroir(null);
   resetThirds();
   document.getElementById('fumee-overlay').classList.add('open');
@@ -1548,8 +1554,9 @@ async function saveFumee(){
   const flavors=document.getElementById('f-flavors').value.split(',').map(x=>x.trim()).filter(Boolean);
   const terroir=selectedTerroir;
   const rating=(thirds.t1+thirds.t2+thirds.t3)/3;
+  const isClub=isAdmin()&&document.getElementById('f-club').checked;
   const row={user_id:currentUser.id,cigar_name:name||'Cigare sans nom',origin,terroir,rating:Math.round(rating*10)/10,
-    t1:thirds.t1,t2:thirds.t2,t3:thirds.t3,note,flavors:flavors.length?flavors:['à découvrir'],place:''};
+    t1:thirds.t1,t2:thirds.t2,t3:thirds.t3,note,flavors:flavors.length?flavors:['à découvrir'],place:'',is_club:isClub};
   const btn=document.querySelector('#fumee-overlay .btn-primary'); if(btn)btn.disabled=true;
   try{ await sb.from('posts').insert(row); }catch(e){ alert("Échec de la publication. Réessayez."); if(btn)btn.disabled=false; return; }
   if(btn)btn.disabled=false;
