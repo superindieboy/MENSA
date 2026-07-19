@@ -278,7 +278,7 @@ body{
 .pd-like{display:inline-flex;align-items:center;gap:7px;margin-top:14px;background:var(--card);border:1px solid var(--line-2);color:var(--ink-2);border-radius:22px;padding:9px 16px;font-size:14px;cursor:pointer;transition:.15s}
 .pd-like:hover{border-color:var(--cognac)}
 .pd-like.on{border-color:#E08A7A;color:#E08A7A;background:rgba(224,138,122,0.1)}
-.btn-danger{background:transparent;border:1px solid #E08A7A;color:#E08A7A;border-radius:11px;padding:13px 18px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+.btn-danger{flex:1;min-width:100px;background:transparent;border:1px solid #E08A7A;color:#E08A7A;border-radius:11px;padding:13px 18px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
 .btn-danger:hover{background:rgba(224,138,122,0.12)}
 
 /* ===== SEARCH + FILTERS ===== */
@@ -544,9 +544,9 @@ body{
 .rate-pick{display:flex;gap:6px}
 .rate-pick .b{font-size:28px;color:var(--line-2);cursor:pointer;transition:.1s}
 .rate-pick .b.on{color:var(--gold)}
-.sheet-actions{display:flex;gap:10px;margin-top:8px}
-.btn-ghost{flex:1;padding:13px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:none;color:var(--ink-2);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer}
-.btn-primary{flex:2;padding:13px;border-radius:var(--r-sm);border:none;background:var(--cognac);color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.sheet-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.btn-ghost{flex:1;min-width:100px;padding:13px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:none;color:var(--ink-2);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer}
+.btn-primary{flex:2;min-width:140px;padding:13px;border-radius:var(--r-sm);border:none;background:var(--cognac);color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
 
 @media(max-width:560px){
   .cave-stats{grid-template-columns:repeat(3,1fr)}
@@ -1445,6 +1445,7 @@ function openPostDetail(id){
   const delLabel = mine ? 'Supprimer' : 'Supprimer (modération)';
   actions.innerHTML='<button class="btn-ghost" onclick="closeSheet(\'post-overlay\')">Fermer</button>'
     + (currentUser?`<button class="btn-primary" onclick="openCaveSheetFromPost('${p.id}')">Ajouter à ma cave</button>`:'')
+    + (currentUser?`<button class="btn-primary" onclick="openFumeeSheetFromPost('${p.id}')">Ajouter une dégustation</button>`:'')
     + (canDelete?`<button class="btn-danger" onclick="deletePost('${p.id}')">${delLabel}</button>`:'');
   document.getElementById('post-overlay').classList.add('open');
 }
@@ -1503,6 +1504,18 @@ function openFumeeSheet(){
   setTerroir(null);
   resetThirds();
   document.getElementById('fumee-overlay').classList.add('open');
+}
+function openFumeeSheetFromPost(id){
+  const p=feed.find(x=>x.id===id);if(!p)return;
+  closeSheet('post-overlay');
+  openFumeeSheet();
+  const c=catalog.find(x=>(x.name||'').trim().toLowerCase()===(p.name||'').trim().toLowerCase());
+  if(c){ acPick(c.id); }
+  else{
+    document.getElementById('f-name').value=p.name||'';
+    document.getElementById('f-origin').value=p.origin||'';
+    setTerroir(p.terroir||null);
+  }
 }
 function openCaveSheet(){document.getElementById('cave-overlay').classList.add('open')}
 function openCaveSheetFromPost(id){
