@@ -1443,10 +1443,10 @@ function openPostDetail(id){
   const mine = currentUser && p.user_id===currentUser.id;
   const canDelete = mine || isAdmin();
   const delLabel = mine ? 'Supprimer' : 'Supprimer (modération)';
-  actions.innerHTML='<button class="btn-ghost" onclick="closeSheet(\'post-overlay\')">Fermer</button>'
-    + (currentUser?`<button class="btn-primary" onclick="openCaveSheetFromPost('${p.id}')">Ajouter à ma cave</button>`:'')
-    + (currentUser?`<button class="btn-primary" onclick="openFumeeSheetFromPost('${p.id}')">Ajouter une dégustation</button>`:'')
-    + (canDelete?`<button class="btn-danger" onclick="deletePost('${p.id}')">${delLabel}</button>`:'');
+  actions.innerHTML=(currentUser?`<button class="btn-primary" style="flex-basis:100%" onclick="openFumeeSheetFromPost('${p.id}')">Ajouter une dégustation</button>`:'')
+    + (currentUser?`<button class="btn-primary" style="flex-basis:100%" onclick="openCaveSheetFromPost('${p.id}')">Ajouter à ma cave</button>`:'')
+    + (canDelete?`<button class="btn-danger" onclick="deletePost('${p.id}')">${delLabel}</button>`:'')
+    + '<button class="btn-ghost" onclick="closeSheet(\'post-overlay\')">Fermer</button>';
   document.getElementById('post-overlay').classList.add('open');
 }
 async function deletePost(id){
