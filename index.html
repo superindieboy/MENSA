@@ -1507,9 +1507,10 @@ function openCaveSheetFromPost(id){
   const p=feed.find(x=>x.id===id);if(!p)return;
   closeSheet('post-overlay');
   const terroirLabel={cuba:'Cuba',nica:'Nicaragua',rep:'République Dominicaine',hon:'Honduras'}[p.terroir]||'';
+  const c=catalog.find(x=>(x.name||'').trim().toLowerCase()===(p.name||'').trim().toLowerCase());
   document.getElementById('c-name').value=p.name||'';
   document.getElementById('c-country').value=terroirLabel;
-  document.getElementById('c-detail').value='';
+  document.getElementById('c-detail').value=(c&&c.module)||'';
   document.getElementById('c-qty').value=5;
   openCaveSheet();
 }
