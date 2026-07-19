@@ -708,7 +708,7 @@ body{
 <div class="overlay" id="fumee-overlay">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <h3 class="serif">Noter un cigare</h3>
+    <h3 class="serif" id="fumee-title">Noter un cigare</h3>
 
     <div class="field">
       <label>Rechercher dans le catalogue</label>
@@ -775,7 +775,7 @@ body{
     <div class="f-err" id="f-err"></div>
     <div class="sheet-actions">
       <button class="btn-ghost" onclick="closeSheet('fumee-overlay')">Annuler</button>
-      <button class="btn-primary" onclick="saveFumee()">Publier le cigare</button>
+      <button class="btn-primary" id="fumee-submit-btn" onclick="saveFumee()">Publier le cigare</button>
     </div>
   </div>
 </div>
@@ -1445,6 +1445,7 @@ function openPostDetail(id){
   const delLabel = mine ? 'Supprimer' : 'Supprimer (modération)';
   actions.innerHTML=(currentUser?`<button class="btn-primary" style="flex-basis:100%" onclick="openFumeeSheetFromPost('${p.id}')">Ajouter une dégustation</button>`:'')
     + (currentUser?`<button class="btn-primary" style="flex-basis:100%" onclick="openCaveSheetFromPost('${p.id}')">Ajouter à ma cave</button>`:'')
+    + (mine?`<button class="btn-ghost" onclick="openEditPostSheet('${p.id}')">Modifier</button>`:'')
     + (canDelete?`<button class="btn-danger" onclick="deletePost('${p.id}')">${delLabel}</button>`:'')
     + '<button class="btn-ghost" onclick="closeSheet(\'post-overlay\')">Fermer</button>';
   document.getElementById('post-overlay').classList.add('open');
@@ -1493,8 +1494,12 @@ async function syncCatalog(){
 
 /* ================= SHEETS ================= */
 let fRating=0;
+let editingPostId=null;
 function openFumeeSheet(){
   selectedCigar=null;
+  editingPostId=null;
+  document.getElementById('fumee-title').textContent='Noter un cigare';
+  document.getElementById('fumee-submit-btn').textContent='Publier le cigare';
   document.getElementById('f-spec').innerHTML='';
   document.getElementById('ac-list').classList.remove('open');
   ['f-name','f-origin','f-note','f-flavors'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
@@ -1516,6 +1521,29 @@ function openFumeeSheetFromPost(id){
     document.getElementById('f-origin').value=p.origin||'';
     setTerroir(p.terroir||null);
   }
+}
+function setThirds(t1,t2,t3){
+  thirds.t1=t1||0; thirds.t2=t2||0; thirds.t3=t3||0;
+  document.querySelectorAll('#fumee-overlay .stars-track').forEach(tr=>paint(tr,thirds[tr.dataset.key]));
+  updateGlobal();
+}
+function openEditPostSheet(id){
+  const p=feed.find(x=>x.id===id);if(!p)return;
+  if(!currentUser||p.user_id!==currentUser.id)return;
+  closeSheet('post-overlay');
+  openFumeeSheet();
+  editingPostId=id;
+  document.getElementById('fumee-title').textContent='Modifier la dégustation';
+  document.getElementById('fumee-submit-btn').textContent='Enregistrer les modifications';
+  document.getElementById('f-name').value=p.name||'';
+  document.getElementById('f-origin').value=p.origin||'';
+  document.getElementById('f-note').value=p.note||'';
+  document.getElementById('f-flavors').value=(p.flavors||[]).join(', ');
+  document.getElementById('f-club').checked=!!p.isClub;
+  setTerroir(p.terroir||null);
+  setThirds(p.thirds&&p.thirds.t1, p.thirds&&p.thirds.t2, p.thirds&&p.thirds.t3);
+  const c=catalog.find(x=>(x.name||'').trim().toLowerCase()===(p.name||'').trim().toLowerCase());
+  if(c){ selectedCigar=c; document.getElementById('f-spec').innerHTML=specCardHtml(c,'✓ Fiche catalogue'); }
 }
 function openCaveSheet(){document.getElementById('cave-overlay').classList.add('open')}
 function openCaveSheetFromPost(id){
@@ -1585,8 +1613,12 @@ async function saveFumee(){
   const row={user_id:currentUser.id,cigar_name:name||'Cigare sans nom',origin,terroir,rating:Math.round(rating*10)/10,
     t1:thirds.t1,t2:thirds.t2,t3:thirds.t3,note,flavors:flavors.length?flavors:['à découvrir'],place:'',is_club:isClub};
   const btn=document.querySelector('#fumee-overlay .btn-primary'); if(btn)btn.disabled=true;
-  try{ await sb.from('posts').insert(row); }catch(e){ alert("Échec de la publication. Réessayez."); if(btn)btn.disabled=false; return; }
+  try{
+    if(editingPostId){ await sb.from('posts').update(row).eq('id',editingPostId); }
+    else{ await sb.from('posts').insert(row); }
+  }catch(e){ alert("Échec de l'enregistrement. Réessayez."); if(btn)btn.disabled=false; return; }
   if(btn)btn.disabled=false;
+  editingPostId=null;
   closeSheet('fumee-overlay');
   ['f-name','f-origin','f-note','f-flavors'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-spec').innerHTML='';selectedCigar=null;setTerroir(null);
