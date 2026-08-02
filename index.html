@@ -732,6 +732,7 @@ body{
         <span class="tchip" data-t="bre" onclick="pickTerroir(this)">Brésil</span>
         <span class="tchip" data-t="autre" onclick="pickTerroir(this)">Autre</span>
       </div>
+      <input id="f-terroir-autre" style="display:none;margin-top:9px" placeholder="Précisez le pays / la région">
     </div>
     <div class="field">
       <label>Votre note par tiers <span style="color:var(--ink-3);font-weight:400">— sur 5, demi-points possibles</span></label>
@@ -1393,6 +1394,9 @@ function setTerroir(code){
   selectedTerroir = code || null;
   document.querySelectorAll('#f-terroir .tchip').forEach(ch=>ch.classList.toggle('on', ch.dataset.t===selectedTerroir));
   if(selectedTerroir){const e=document.getElementById('f-err'); if(e)e.textContent='';}
+  const autreField=document.getElementById('f-terroir-autre');
+  autreField.style.display=selectedTerroir==='autre'?'block':'none';
+  if(selectedTerroir!=='autre')autreField.value='';
 }
 function acCreate(){
   selectedCigar=null;
@@ -1534,6 +1538,7 @@ function openEditPostSheet(id){
   document.getElementById('f-flavors').value=(p.flavors||[]).join(', ');
   document.getElementById('f-club').checked=!!p.isClub;
   setTerroir(p.terroir||null);
+  if(p.terroir==='autre')document.getElementById('f-terroir-autre').value=p.origin||'';
   setThirds(p.thirds&&p.thirds.t1, p.thirds&&p.thirds.t2, p.thirds&&p.thirds.t3);
   const c=catalog.find(x=>(x.name||'').trim().toLowerCase()===(p.name||'').trim().toLowerCase());
   if(c){ selectedCigar=c; document.getElementById('f-spec').innerHTML=specCardHtml(c,'✓ Fiche catalogue'); }
@@ -1598,7 +1603,8 @@ async function saveFumee(){
   if(!(thirds.t1>0 && thirds.t2>0 && thirds.t3>0)){err.textContent='Notez les trois tiers avant de publier.';return;}
   if(!selectedTerroir){err.textContent='Choisissez un terroir avant de publier.';return;}
   const terroirLabels={cuba:'Cuba',nica:'Nicaragua',rep:'Rép. dominicaine',hon:'Honduras',cr:'Costa Rica',mex:'Mexique',bre:'Brésil',autre:'Autre'};
-  const origin=(selectedCigar&&selectedCigar.country)||terroirLabels[selectedTerroir]||'';
+  const autreText=document.getElementById('f-terroir-autre').value.trim();
+  const origin=(selectedTerroir==='autre'&&autreText)||(selectedCigar&&selectedCigar.country)||terroirLabels[selectedTerroir]||'';
   const note=document.getElementById('f-note').value.trim();
   const flavors=document.getElementById('f-flavors').value.split(',').map(x=>x.trim()).filter(Boolean);
   const terroir=selectedTerroir;
