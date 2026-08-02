@@ -143,6 +143,7 @@ create policy "likes_delete_own"  on public.post_likes for delete using (auth.ui
 create policy "posts_delete_admin"    on public.posts         for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "posts_update_admin"    on public.posts         for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "cave_update_admin"     on public.cave_items    for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+create policy "cave_delete_admin"     on public.cave_items    for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "catalog_update_admin"  on public.catalog_items for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "catalog_delete_admin"  on public.catalog_items for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 

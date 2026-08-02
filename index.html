@@ -1416,7 +1416,7 @@ function renderCave(){
     const m=countryMeta[k];
     h+=`<div class="shelf"><div class="shelf-head"><div class="shelf-title">${flagHtml(m.flag)} ${m.label}</div><span class="shelf-count">${cave[k].length} réf.</span></div>`;
     cave[k].forEach(c=>{
-      const mine=currentUser&&c.user_id===currentUser.id;
+      const mine=currentUser&&(c.user_id===currentUser.id||isAdmin());
       h+=`<div class="cave-item"${mine?` onclick="openEditCaveSheet('${c.id}')"`:''}>
         <div class="cave-bar" style="background:${barColors[k]}"></div>
         <div class="cave-info"><div class="cave-name">${c.name}</div><div class="cave-detail">${c.detail}</div>
@@ -1821,9 +1821,10 @@ function findCaveItem(id){
 }
 function openEditCaveSheet(id){
   const it=findCaveItem(id);if(!it)return;
-  if(!currentUser||it.user_id!==currentUser.id)return;
+  if(!currentUser||(it.user_id!==currentUser.id&&!isAdmin()))return;
   editingCaveId=id;
-  document.getElementById('cave-title').textContent='Modifier la référence';
+  const mine=it.user_id===currentUser.id;
+  document.getElementById('cave-title').textContent=mine?'Modifier la référence':'Modifier la référence (modération)';
   document.getElementById('cave-submit-btn').textContent='Enregistrer';
   document.getElementById('c-name').value=it.name||'';
   document.getElementById('c-country').value=CAVE_TERROIR_LABELS[it.terroir]||'';
@@ -1839,8 +1840,15 @@ function openEditCaveSheet(id){
 async function deleteCaveItem(){
   if(!editingCaveId||!currentUser||!sb)return;
   if(!confirm('Retirer définitivement cette référence de la cave ?'))return;
-  try{ await sb.from('cave_items').delete().eq('id',editingCaveId); }
-  catch(e){ alert("Échec de la suppression. Réessayez."); return; }
+  // .select() renvoie les lignes réellement supprimées : un refus RLS ne lève
+  // pas d'erreur, il ne supprime simplement rien.
+  let deleted=[];
+  try{
+    const {data,error}=await sb.from('cave_items').delete().eq('id',editingCaveId).select();
+    if(error)throw error;
+    deleted=data||[];
+  }catch(e){ alert("Échec de la suppression. Réessayez."); return; }
+  if(!deleted.length){ alert("Suppression refusée : vous n'avez pas les droits sur cette référence."); return; }
   closeSheet('cave-overlay');
   caveAddMode(); clearCaveFields();
   await loadCave(); renderCave();
