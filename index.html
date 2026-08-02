@@ -1081,8 +1081,10 @@ async function loadMemberCatalog(){
       vitola:r.vitola||'',module:r.module||'',length:r.length||null,ring:r.ring||null,wrapper:r.wrapper||'',
       binder:r.binder||'',filler:r.filler||'',strength:r.strength||null,force:r.strength?forceLabel(r.strength):'',
       score:0,votes:0,flavors:[],profile:'Fiche ajoutée par un membre'};
-    // une fiche en base prend le pas sur la fiche embarquée de même nom (édition admin)
-    const i=catalog.findIndex(c=>(c.name||'').trim().toLowerCase()===key);
+    // une fiche en base prend le pas sur celle qu'elle corrige : par identifiant
+    // d'origine si elle en garde la trace (cas d'un renommage), sinon par nom
+    let i = r.replaces ? catalog.findIndex(c=>c.id===r.replaces) : -1;
+    if(i<0) i = catalog.findIndex(c=>(c.name||'').trim().toLowerCase()===key);
     if(i<0){ catalog.push(entry); return; }
     if(catalog[i].id.startsWith('mensa-')){ entry.flavors=catalog[i].flavors; entry.profile=catalog[i].profile; }
     entry.score=catalog[i].score; entry.votes=catalog[i].votes;
@@ -1600,18 +1602,28 @@ async function saveCigarCard(){
   const row={name,brand:val('ec-brand'),vitola:val('ec-vitola'),module:val('ec-module'),country:val('ec-country'),
     terroir:ecTerroir||'autre',length:+val('ec-length')||null,ring:+val('ec-ring')||null,
     wrapper:val('ec-wrapper'),binder:val('ec-binder'),filler:val('ec-filler'),strength:+val('ec-strength')||null};
+  // Le lien entre une fiche et les dégustations / la cave se fait par le nom :
+  // un renommage doit être répercuté sur l'existant, sinon l'historique est orphelin.
+  const previous=catalog.find(x=>x.id===editingCigarId);
+  const oldName=previous?previous.name:'';
   const btn=document.getElementById('ec-submit-btn'); btn.disabled=true;
   try{
     if(editingCigarId.startsWith('m-')){
       await sb.from('catalog_items').update(row).eq('id',editingCigarId.slice(2));
     }else{
-      await sb.from('catalog_items').insert({user_id:currentUser.id,...row});
+      await sb.from('catalog_items').insert({user_id:currentUser.id,replaces:editingCigarId,...row});
+    }
+    if(oldName && oldName!==name){
+      await sb.from('posts').update({cigar_name:name}).eq('cigar_name',oldName);
+      await sb.from('cave_items').update({name}).eq('name',oldName);
     }
   }catch(e){ alert("Échec de l'enregistrement de la fiche. Réessayez."); btn.disabled=false; return; }
   btn.disabled=false;
   editingCigarId=null;
   closeSheet('cigar-edit-overlay');
-  await loadMemberCatalog(); syncCatalogScores(); renderDiscover(); renderRails();
+  await loadMemberCatalog();
+  await Promise.all([loadPosts(), loadCave()]);
+  renderDiscover(); renderRails(); renderFeed(); renderCave(); renderProfile();
 }
 
 function openPostDetail(id){
