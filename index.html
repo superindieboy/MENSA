@@ -1664,8 +1664,15 @@ function openPostDetail(id){
 async function deletePost(id){
   if(!currentUser||!sb)return;
   if(!confirm('Supprimer définitivement cette dégustation ?'))return;
-  try{ await sb.from('posts').delete().eq('id',id); }
-  catch(e){ alert("Échec de la suppression. Réessayez."); return; }
+  // .select() renvoie les lignes réellement supprimées : un refus RLS ne lève
+  // pas d'erreur, il ne supprime simplement rien.
+  let deleted=[];
+  try{
+    const {data,error}=await sb.from('posts').delete().eq('id',id).select();
+    if(error)throw error;
+    deleted=data||[];
+  }catch(e){ alert("Échec de la suppression. Réessayez."); return; }
+  if(!deleted.length){ alert("Suppression refusée : vous n'avez pas les droits sur cette dégustation."); return; }
   closeSheet('post-overlay');
   await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();
 }
