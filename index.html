@@ -734,10 +734,6 @@ body{
       </div>
     </div>
     <div class="field">
-      <label>Origine <span style="color:var(--ink-3);font-weight:400">— région · pays (optionnel)</span></label>
-      <input id="f-origin" placeholder="Ex : La Havane · Cuba">
-    </div>
-    <div class="field">
       <label>Votre note par tiers <span style="color:var(--ink-3);font-weight:400">— sur 5, demi-points possibles</span></label>
       <div class="thirds">
         <div class="third">
@@ -1387,7 +1383,6 @@ function acPick(id){
   const c=catalog.find(x=>x.id===id);if(!c)return;
   selectedCigar=c;
   document.getElementById('f-name').value=c.name;
-  document.getElementById('f-origin').value=c.country;
   document.getElementById('f-flavors').value=(c.flavors||[]).join(', ');
   document.getElementById('ac-list').classList.remove('open');
   document.getElementById('f-spec').innerHTML=specCardHtml(c,'✓ Fiche catalogue');
@@ -1502,7 +1497,7 @@ function openFumeeSheet(){
   document.getElementById('fumee-submit-btn').textContent='Publier le cigare';
   document.getElementById('f-spec').innerHTML='';
   document.getElementById('ac-list').classList.remove('open');
-  ['f-name','f-origin','f-note','f-flavors'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['f-name','f-note','f-flavors'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('f-err').textContent='';
   document.getElementById('f-club-field').style.display=isAdmin()?'block':'none';
   document.getElementById('f-club').checked=false;
@@ -1518,7 +1513,6 @@ function openFumeeSheetFromPost(id){
   if(c){ acPick(c.id); }
   else{
     document.getElementById('f-name').value=p.name||'';
-    document.getElementById('f-origin').value=p.origin||'';
     setTerroir(p.terroir||null);
   }
 }
@@ -1536,7 +1530,6 @@ function openEditPostSheet(id){
   document.getElementById('fumee-title').textContent='Modifier la dégustation';
   document.getElementById('fumee-submit-btn').textContent='Enregistrer les modifications';
   document.getElementById('f-name').value=p.name||'';
-  document.getElementById('f-origin').value=p.origin||'';
   document.getElementById('f-note').value=p.note||'';
   document.getElementById('f-flavors').value=(p.flavors||[]).join(', ');
   document.getElementById('f-club').checked=!!p.isClub;
@@ -1604,7 +1597,8 @@ async function saveFumee(){
   const name=document.getElementById('f-name').value.trim();
   if(!(thirds.t1>0 && thirds.t2>0 && thirds.t3>0)){err.textContent='Notez les trois tiers avant de publier.';return;}
   if(!selectedTerroir){err.textContent='Choisissez un terroir avant de publier.';return;}
-  const origin=document.getElementById('f-origin').value.trim()||'Origine inconnue';
+  const terroirLabels={cuba:'Cuba',nica:'Nicaragua',rep:'Rép. dominicaine',hon:'Honduras',cr:'Costa Rica',mex:'Mexique',bre:'Brésil',autre:'Autre'};
+  const origin=(selectedCigar&&selectedCigar.country)||terroirLabels[selectedTerroir]||'';
   const note=document.getElementById('f-note').value.trim();
   const flavors=document.getElementById('f-flavors').value.split(',').map(x=>x.trim()).filter(Boolean);
   const terroir=selectedTerroir;
@@ -1620,7 +1614,7 @@ async function saveFumee(){
   if(btn)btn.disabled=false;
   editingPostId=null;
   closeSheet('fumee-overlay');
-  ['f-name','f-origin','f-note','f-flavors'].forEach(id=>document.getElementById(id).value='');
+  ['f-name','f-note','f-flavors'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-spec').innerHTML='';selectedCigar=null;setTerroir(null);
   resetThirds();
   await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();go('feed');
