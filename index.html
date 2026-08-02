@@ -720,6 +720,23 @@ body{
 
     <div id="f-spec"></div>
 
+    <div class="field" id="f-newcigar-toggle">
+      <button type="button" class="btn-ghost" style="width:100%" onclick="toggleNewCigarFields()" id="f-newcigar-toggle-btn">+ Ce cigare n'est pas dans le catalogue ? Ajouter sa fiche</button>
+    </div>
+    <div id="f-newcigar-fields" style="display:none">
+      <div class="field"><label>Marque</label><input id="nc-brand" placeholder="Ex : Montecristo"></div>
+      <div class="field"><label>Vitole</label><input id="nc-vitola" placeholder="Ex : Robusto"></div>
+      <div class="field"><label>Module</label><input id="nc-module" placeholder="Ex : DE Gros robusto"></div>
+      <div class="field" style="display:flex;gap:10px">
+        <div style="flex:1"><label>Longueur (mm)</label><input id="nc-length" type="number" min="0"></div>
+        <div style="flex:1"><label>Diamètre (RG)</label><input id="nc-ring" type="number" min="0"></div>
+      </div>
+      <div class="field"><label>Cape</label><input id="nc-wrapper" placeholder="Ex : Équateur"></div>
+      <div class="field"><label>Sous-cape</label><input id="nc-binder" placeholder="Ex : Nicaragua"></div>
+      <div class="field"><label>Tripe</label><input id="nc-filler" placeholder="Ex : Nicaragua, Honduras"></div>
+      <div class="field"><label>Force (1 à 5)</label><input id="nc-strength" type="number" min="1" max="5"></div>
+    </div>
+
     <div class="field">
       <label>Terroir <span style="color:var(--ink-3);font-weight:400">— requis</span></label>
       <div class="terroir-pick" id="f-terroir">
@@ -995,8 +1012,24 @@ async function checkAuth(){
 /* ================= CHARGEMENT DES DONNÉES PARTAGÉES ================= */
 async function loadAll(){
   await loadProfiles();
+  await loadMemberCatalog();
   await Promise.all([loadPosts(), loadCave()]);
   renderRails();renderMembers();renderFeed();renderCave();renderProfile();renderDiscover();
+}
+/* Fiches cigare ajoutées par les membres, fusionnées avec le catalogue embarqué */
+async function loadMemberCatalog(){
+  const {data,error}=await sb.from('catalog_items').select('*').order('created_at');
+  if(error){console.error('loadMemberCatalog',error);return;}
+  const known=new Set(catalog.map(c=>(c.name||'').trim().toLowerCase()));
+  (data||[]).forEach(r=>{
+    const key=(r.name||'').trim().toLowerCase();
+    if(!key||known.has(key))return;
+    known.add(key);
+    catalog.push({id:'m-'+r.id,name:r.name,brand:r.brand||'—',country:r.country||'—',terroir:r.terroir||'autre',
+      vitola:r.vitola||'',module:r.module||'',length:r.length||null,ring:r.ring||null,wrapper:r.wrapper||'',
+      binder:r.binder||'',filler:r.filler||'',strength:r.strength||null,force:r.strength?forceLabel(r.strength):'',
+      score:0,votes:0,flavors:[],profile:'Fiche ajoutée par un membre'});
+  });
 }
 async function loadProfiles(){
   const {data,error}=await sb.from('profiles').select('id,name,bio').order('created_at');
@@ -1387,6 +1420,8 @@ function acPick(id){
   document.getElementById('f-flavors').value=(c.flavors||[]).join(', ');
   document.getElementById('ac-list').classList.remove('open');
   document.getElementById('f-spec').innerHTML=specCardHtml(c,'✓ Fiche catalogue');
+  resetNewCigarFields();
+  document.getElementById('f-newcigar-toggle').style.display='none';
   setTerroir(c.terroir||null);
 }
 function pickTerroir(el){ setTerroir(el.dataset.t); }
@@ -1402,6 +1437,9 @@ function acCreate(){
   selectedCigar=null;
   document.getElementById('ac-list').classList.remove('open');
   document.getElementById('f-spec').innerHTML='';
+  document.getElementById('f-newcigar-toggle').style.display='block';
+  const box=document.getElementById('f-newcigar-fields');
+  if(box.style.display==='none')toggleNewCigarFields();
 }
 
 function openCigarDetail(id){
@@ -1505,9 +1543,25 @@ function openFumeeSheet(){
   document.getElementById('f-err').textContent='';
   document.getElementById('f-club-field').style.display=isAdmin()?'block':'none';
   document.getElementById('f-club').checked=false;
+  resetNewCigarFields();
   setTerroir(null);
   resetThirds();
   document.getElementById('fumee-overlay').classList.add('open');
+}
+const NEW_CIGAR_FIELDS=['nc-brand','nc-vitola','nc-module','nc-length','nc-ring','nc-wrapper','nc-binder','nc-filler','nc-strength'];
+function resetNewCigarFields(){
+  NEW_CIGAR_FIELDS.forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('f-newcigar-fields').style.display='none';
+  document.getElementById('f-newcigar-toggle-btn').textContent="+ Ce cigare n'est pas dans le catalogue ? Ajouter sa fiche";
+  document.getElementById('f-newcigar-toggle').style.display='block';
+}
+function toggleNewCigarFields(){
+  const box=document.getElementById('f-newcigar-fields');
+  const open=box.style.display!=='none';
+  box.style.display=open?'none':'block';
+  document.getElementById('f-newcigar-toggle-btn').textContent=open
+    ? "+ Ce cigare n'est pas dans le catalogue ? Ajouter sa fiche"
+    : "− Masquer la fiche catalogue";
 }
 function openFumeeSheetFromPost(id){
   const p=feed.find(x=>x.id===id);if(!p)return;
@@ -1615,15 +1669,30 @@ async function saveFumee(){
   const btn=document.querySelector('#fumee-overlay .btn-primary'); if(btn)btn.disabled=true;
   try{
     if(editingPostId){ await sb.from('posts').update(row).eq('id',editingPostId); }
-    else{ await sb.from('posts').insert(row); }
+    else{ await sb.from('posts').insert(row); await saveNewCigarCard(name,terroir,origin); }
   }catch(e){ alert("Échec de l'enregistrement. Réessayez."); if(btn)btn.disabled=false; return; }
   if(btn)btn.disabled=false;
   editingPostId=null;
   closeSheet('fumee-overlay');
   ['f-name','f-note','f-flavors'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-spec').innerHTML='';selectedCigar=null;setTerroir(null);
+  resetNewCigarFields();
   resetThirds();
   await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();go('feed');
+}
+/* Enregistre la fiche catalogue saisie manuellement, si le cigare n'existe pas déjà */
+async function saveNewCigarCard(name,terroir,country){
+  if(!name)return;
+  if(document.getElementById('f-newcigar-fields').style.display==='none')return;
+  const val=id=>document.getElementById(id).value.trim();
+  const filled=NEW_CIGAR_FIELDS.some(id=>val(id));
+  if(!filled)return;
+  if(catalog.some(c=>(c.name||'').trim().toLowerCase()===name.trim().toLowerCase()))return;
+  const strength=+val('nc-strength')||null;
+  await sb.from('catalog_items').insert({user_id:currentUser.id,name,brand:val('nc-brand'),vitola:val('nc-vitola'),
+    module:val('nc-module'),country,terroir,length:+val('nc-length')||null,ring:+val('nc-ring')||null,
+    wrapper:val('nc-wrapper'),binder:val('nc-binder'),filler:val('nc-filler'),strength});
+  await loadMemberCatalog();
 }
 async function saveCave(){
   if(!currentUser||!sb)return closeSheet('cave-overlay');

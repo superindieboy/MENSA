@@ -45,6 +45,25 @@ create table if not exists public.cave_items (
   created_at timestamptz default now()
 );
 
+-- Fiches cigare ajoutées par les membres (complète le catalogue embarqué)
+create table if not exists public.catalog_items (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users on delete cascade,
+  name       text not null,
+  brand      text default '',
+  vitola     text default '',
+  module     text default '',
+  country    text default '',
+  terroir    text,
+  length     int,
+  ring       int,
+  wrapper    text default '',
+  binder     text default '',
+  filler     text default '',
+  strength   int,
+  created_at timestamptz default now()
+);
+
 -- "J'aime" sur les dégustations (1 par membre et par post)
 create table if not exists public.post_likes (
   post_id    uuid references public.posts on delete cascade,
@@ -80,10 +99,11 @@ create trigger on_auth_user_created
 -- Tout membre CONNECTÉ peut lire les données du club.
 -- Chacun ne peut écrire / modifier / supprimer QUE ses propres entrées.
 
-alter table public.profiles   enable row level security;
-alter table public.posts      enable row level security;
-alter table public.cave_items enable row level security;
-alter table public.post_likes enable row level security;
+alter table public.profiles      enable row level security;
+alter table public.posts         enable row level security;
+alter table public.cave_items    enable row level security;
+alter table public.catalog_items enable row level security;
+alter table public.post_likes    enable row level security;
 
 -- PROFILES
 create policy "profiles_read"        on public.profiles   for select using (auth.uid() is not null);
@@ -102,6 +122,12 @@ create policy "cave_read"         on public.cave_items for select using (auth.ui
 create policy "cave_insert_own"   on public.cave_items for insert with check (auth.uid() = user_id);
 create policy "cave_update_own"   on public.cave_items for update using (auth.uid() = user_id);
 create policy "cave_delete_own"   on public.cave_items for delete using (auth.uid() = user_id);
+
+-- CATALOGUE (fiches ajoutées par les membres, lisibles par tous)
+create policy "catalog_read"       on public.catalog_items for select using (auth.uid() is not null);
+create policy "catalog_insert_own" on public.catalog_items for insert with check (auth.uid() = user_id);
+create policy "catalog_update_own" on public.catalog_items for update using (auth.uid() = user_id);
+create policy "catalog_delete_own" on public.catalog_items for delete using (auth.uid() = user_id);
 
 -- LIKES
 create policy "likes_read"        on public.post_likes for select using (auth.uid() is not null);
