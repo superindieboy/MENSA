@@ -1072,8 +1072,18 @@ async function loadPosts(){
       isClub:!!p.is_club});
   });
   syncCatalogScores();
+  // "Par le club" présente la fiche du cigare, pas la dégustation qui l'a signalé
   clubLogs.length=0;
-  feed.filter(p=>p.isClub).forEach(p=>clubLogs.push({terroir:p.terroir,av:p.av,who:p.init,by:p.user,rating:p.rating,name:p.name,pid:p.id}));
+  const seenClub=new Set();
+  feed.filter(p=>p.isClub).forEach(p=>{
+    const key=(p.name||'').trim().toLowerCase();
+    if(!key||seenClub.has(key))return;
+    seenClub.add(key);
+    const c=catalog.find(x=>(x.name||'').trim().toLowerCase()===key);
+    clubLogs.push({club:true, name:p.name, terroir:(c&&c.terroir)||p.terroir,
+      rating:(c&&c.score)||p.rating, cid:c?c.id:null,
+      sub:c?[c.brand,c.country].filter(x=>x&&x!=='—').join(' · '):(p.origin||'')});
+  });
 }
 /* Note globale d'un cigare du catalogue = moyenne des notes individuelles postées par les membres pour ce cigare */
 function syncCatalogScores(){
@@ -1163,12 +1173,16 @@ function posterCard(it){
   if(it.event){
     badge=`<div class="poster-av club">M</div>`;
     sub=`${it.event} · ${it.voters} avis`;
+  }else if(it.club){
+    badge=`<div class="poster-av club">M</div>`;
+    sub=it.sub||'Fiche catalogue';
   }else{
     const c=avColors[it.av]||avColors[0];
     badge=`<div class="poster-av" style="background:${c[0]};color:${c[1]}">${it.who}</div>`;
     sub=`par ${it.by}`;
   }
-  const click = it.pid ? `openPostDetail('${it.pid}')` : (it.uid ? `openMemberProfile('${it.uid}')` : `go('discover')`);
+  const click = it.cid ? `openCigarDetail('${it.cid}')`
+    : (it.pid ? `openPostDetail('${it.pid}')` : (it.uid ? `openMemberProfile('${it.uid}')` : `go('discover')`));
   return `<div class="poster" onclick="${click}">
     <div class="poster-art" style="background:${p.fill}">
       <div class="poster-cig">${cigarHtml(it.terroir,88)}</div>
@@ -1216,10 +1230,12 @@ function openListing(kind){
       : feed.map(p=>({terroir:p.terroir,av:p.av,who:p.init,by:p.user,rating:p.rating,name:p.name,pid:p.id}));
     eyebrow.textContent=isClub?'Le club':'Votre cercle';
     title.textContent=isClub?'Par le club':'Par les membres';
-    sub.textContent=`${items.length} dégustation${items.length>1?'s':''}.`;
+    sub.textContent=isClub
+      ? `${items.length} référence${items.length>1?'s':''} retenue${items.length>1?'s':''} par le club.`
+      : `${items.length} dégustation${items.length>1?'s':''}.`;
     body.innerHTML=items.length
       ? `<div class="poster-grid">${items.map(posterCard).join('')}</div>`
-      : '<div class="rail-empty">Aucune publication pour le moment.</div>';
+      : `<div class="rail-empty">${isClub?'Aucune référence pour le moment.':'Aucune publication pour le moment.'}</div>`;
   }
   go('listing');
 }
