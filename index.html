@@ -853,6 +853,7 @@ body{
     <div class="field"><label>Terroir</label><input id="c-country" placeholder="Ex : Cuba, Nicaragua, Honduras…"></div>
     <div class="field"><label>Module</label><input id="c-detail" placeholder="Ex : Robusto"></div>
     <div class="field"><label>Quantité</label><input id="c-qty" type="number" value="5" min="1"></div>
+    <div class="field"><label>Date d'ajout <span style="color:var(--ink-3);font-weight:400">— aujourd'hui par défaut</span></label><input id="c-added" type="date"></div>
     <div class="sheet-actions" id="cave-actions">
       <button class="btn-ghost" onclick="closeSheet('cave-overlay')">Annuler</button>
       <button class="btn-primary" id="cave-submit-btn" onclick="saveCave()">Ajouter</button>
@@ -1093,7 +1094,7 @@ function syncCatalogScores(){
 async function loadCave(){
   const {data}=await sb.from('cave_items').select('*').order('created_at');
   Object.keys(cave).forEach(k=>cave[k].length=0);
-  (data||[]).forEach(it=>{const k=cave[it.terroir]?it.terroir:'cuba';cave[k].push({id:it.id,user_id:it.user_id,name:it.name,detail:it.detail||'—',terroir:k,qty:it.qty||1,added:it.added?fmtDate(it.added):''});});
+  (data||[]).forEach(it=>{const k=cave[it.terroir]?it.terroir:'cuba';cave[k].push({id:it.id,user_id:it.user_id,name:it.name,detail:it.detail||'—',terroir:k,qty:it.qty||1,added:it.added?fmtDate(it.added):'',addedRaw:it.added||''});});
 }
 
 /* ================= STATE ================= */
@@ -1650,9 +1651,11 @@ function caveAddMode(){
   document.getElementById('cave-submit-btn').textContent='Ajouter';
   const del=document.getElementById('cave-delete-btn'); if(del)del.remove();
 }
+function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function clearCaveFields(){
   ['c-name','c-country','c-detail'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('c-qty').value=5;
+  document.getElementById('c-added').value=todayISO();
 }
 function openCaveSheet(){
   caveAddMode(); clearCaveFields();
@@ -1667,6 +1670,7 @@ function openCaveSheetFromPost(id){
   document.getElementById('c-country').value=CAVE_TERROIR_LABELS[p.terroir]||'';
   document.getElementById('c-detail').value=(c&&c.module)||'';
   document.getElementById('c-qty').value=5;
+  document.getElementById('c-added').value=todayISO();
   document.getElementById('cave-overlay').classList.add('open');
 }
 function findCaveItem(id){
@@ -1683,6 +1687,7 @@ function openEditCaveSheet(id){
   document.getElementById('c-country').value=CAVE_TERROIR_LABELS[it.terroir]||'';
   document.getElementById('c-detail').value=it.detail==='—'?'':(it.detail||'');
   document.getElementById('c-qty').value=it.qty||1;
+  document.getElementById('c-added').value=(it.addedRaw||'').slice(0,10)||todayISO();
   const actions=document.getElementById('cave-actions');
   if(!document.getElementById('cave-delete-btn')){
     actions.insertAdjacentHTML('beforeend',`<button class="btn-danger" id="cave-delete-btn" onclick="deleteCaveItem()">Supprimer</button>`);
@@ -1790,9 +1795,10 @@ async function saveCave(){
   const detail=document.getElementById('c-detail').value.trim()||'—';
   const qty=+document.getElementById('c-qty').value||1;
   let k='cuba';if(country.includes('nicaragua'))k='nica';else if(country.includes('dom'))k='rep';else if(country.includes('honduras'))k='hon';
+  const added=document.getElementById('c-added').value||todayISO();
   try{
-    if(editingCaveId){ await sb.from('cave_items').update({name,detail,terroir:k,qty}).eq('id',editingCaveId); }
-    else{ await sb.from('cave_items').insert({user_id:currentUser.id,name,detail,terroir:k,qty}); }
+    if(editingCaveId){ await sb.from('cave_items').update({name,detail,terroir:k,qty,added}).eq('id',editingCaveId); }
+    else{ await sb.from('cave_items').insert({user_id:currentUser.id,name,detail,terroir:k,qty,added}); }
   }catch(e){ alert("Échec de l'enregistrement. Réessayez."); return; }
   closeSheet('cave-overlay');
   caveAddMode(); clearCaveFields();
