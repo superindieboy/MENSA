@@ -61,6 +61,7 @@ create table if not exists public.catalog_items (
   binder     text default '',
   filler     text default '',
   strength   int,
+  replaces   text,                   -- id de la fiche embarquée corrigée (ex. mensa-0002)
   created_at timestamptz default now()
 );
 
@@ -133,6 +134,17 @@ create policy "catalog_delete_own" on public.catalog_items for delete using (aut
 create policy "likes_read"        on public.post_likes for select using (auth.uid() is not null);
 create policy "likes_insert_own"  on public.post_likes for insert with check (auth.uid() = user_id);
 create policy "likes_delete_own"  on public.post_likes for delete using (auth.uid() = user_id);
+
+-- ---------- ADMINISTRATEUR ----------
+-- Modération des publications, et correction de n'importe quelle fiche du
+-- catalogue. Le renommage d'une fiche se répercute sur les dégustations et
+-- les caves existantes : d'où les droits d'update au-delà de ses propres lignes.
+
+create policy "posts_delete_admin"    on public.posts         for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+create policy "posts_update_admin"    on public.posts         for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+create policy "cave_update_admin"     on public.cave_items    for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+create policy "catalog_update_admin"  on public.catalog_items for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+create policy "catalog_delete_admin"  on public.catalog_items for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 
 -- =====================================================================
 --  Terminé. Pensez ensuite à désactiver la confirmation par email
