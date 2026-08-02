@@ -301,6 +301,9 @@ body{
 
 /* ===== DISCOVER GRID ===== */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:26px}
+.poster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:16px 14px;padding-top:6px}
+.people-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:20px 12px;padding-top:6px}
+.poster-grid .poster,.people-grid .member{width:auto}
 .disc-card{
   background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
   cursor:pointer;transition:.18s;box-shadow:var(--shadow);
@@ -601,7 +604,7 @@ body{
     <div class="rail">
       <div class="rail-head">
         <div class="rail-title"><span class="ico">👤</span> Par les membres</div>
-        <span class="rail-all" onclick="go('discover')">Tout voir ↗</span>
+        <span class="rail-all" onclick="openListing('members')">Tout voir ↗</span>
       </div>
       <div class="rail-scroll" id="rail-members"></div>
     </div>
@@ -609,7 +612,7 @@ body{
     <div class="rail">
       <div class="rail-head">
         <div class="rail-title"><span class="ico">🏛️</span> Par le club</div>
-        <span class="rail-all" onclick="go('discover')">Tout voir ↗</span>
+        <span class="rail-all" onclick="openListing('club')">Tout voir ↗</span>
       </div>
       <div class="rail-scroll" id="rail-club"></div>
     </div>
@@ -617,13 +620,22 @@ body{
     <div class="rail">
       <div class="rail-head">
         <div class="rail-title"><span class="ico">👥</span> Les membres</div>
-        <span class="rail-all" onclick="goProfile()">Voir tous ↗</span>
+        <span class="rail-all" onclick="openListing('people')">Voir tous ↗</span>
       </div>
       <div class="rail-scroll" id="rail-people"></div>
     </div>
 
     <div class="sec-label">En détail</div>
     <div id="feed-list"></div>
+  </section>
+
+  <!-- ============ LISTE COMPLÈTE (depuis « Tout voir ») ============ -->
+  <section class="screen" id="listing">
+    <div class="prof-back" onclick="go('feed')">← Le Fil</div>
+    <div class="eyebrow" id="listing-eyebrow"></div>
+    <h1 class="screen-title serif" id="listing-title"></h1>
+    <p class="screen-sub" id="listing-sub"></p>
+    <div id="listing-body"></div>
   </section>
 
   <!-- ============ DÉCOUVRIR ============ -->
@@ -1121,7 +1133,8 @@ function go(s){
   document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   document.getElementById(s).classList.add('active');
-  document.querySelector('.tab[data-screen="'+s+'"]').classList.add('active');
+  const tab=document.querySelector('.tab[data-screen="'+s+'"]');
+  if(tab)tab.classList.add('active');
   document.getElementById('fab').style.display = s==='feed' ? 'flex':'none';
   document.getElementById('fab-cave').style.display = s==='cave' ? 'flex':'none';
   window.scrollTo({top:0,behavior:'smooth'});
@@ -1169,20 +1182,48 @@ function renderRails(){
   document.getElementById('rail-members').innerHTML=memberItems.length?memberItems.map(posterCard).join(''):emptyRail;
   document.getElementById('rail-club').innerHTML=clubLogs.length?clubLogs.map(posterCard).join(''):emptyRail;
 }
+/* Page complète d'une rubrique du Fil (« Tout voir » / « Voir tous ») */
+function memberCardHtml(m){
+  const c=avColors[m.av]||avColors[0];
+  const crown=m.founder?`<div class="member-crown">★</div>`:'';
+  return `<div class="member" onclick="openMemberProfile('${m.id}')">
+    <div class="member-ph">
+      <div class="member-av" style="background:${c[0]};color:${c[1]}">${m.init}</div>${crown}
+    </div>
+    <div class="member-name">${m.name}</div>
+    <div class="member-count">${m.count} cigares</div>
+  </div>`;
+}
+function openListing(kind){
+  const eyebrow=document.getElementById('listing-eyebrow');
+  const title=document.getElementById('listing-title');
+  const sub=document.getElementById('listing-sub');
+  const body=document.getElementById('listing-body');
+  if(kind==='people'){
+    eyebrow.textContent='Le cercle';
+    title.textContent='Les membres';
+    sub.textContent=`${members.length} membre${members.length>1?'s':''} dans le club.`;
+    body.innerHTML=members.length
+      ? `<div class="people-grid">${members.map(memberCardHtml).join('')}</div>`
+      : '<div class="rail-empty">Aucun membre pour le moment.</div>';
+  }else{
+    const isClub=kind==='club';
+    const items=isClub
+      ? clubLogs.slice()
+      : feed.map(p=>({terroir:p.terroir,av:p.av,who:p.init,by:p.user,rating:p.rating,name:p.name,pid:p.id}));
+    eyebrow.textContent=isClub?'Le club':'Votre cercle';
+    title.textContent=isClub?'Par le club':'Par les membres';
+    sub.textContent=`${items.length} dégustation${items.length>1?'s':''}.`;
+    body.innerHTML=items.length
+      ? `<div class="poster-grid">${items.map(posterCard).join('')}</div>`
+      : '<div class="rail-empty">Aucune publication pour le moment.</div>';
+  }
+  go('listing');
+}
 function renderMembers(){
   const el=document.getElementById('rail-people');
   if(!members.length){el.innerHTML='<div class="rail-empty">Aucun membre pour le moment.</div>';return;}
-  el.innerHTML=members.map(m=>{
-    const c=avColors[m.av];
-    const crown=m.founder?`<div class="member-crown">★</div>`:'';
-    return `<div class="member" onclick="openMemberProfile('${m.id}')">
-      <div class="member-ph">
-        <div class="member-av" style="background:${c[0]};color:${c[1]}">${m.init}</div>${crown}
-      </div>
-      <div class="member-name">${m.name}</div>
-      <div class="member-count">${m.count} cigares</div>
-    </div>`;
-  }).join('');
+  el.innerHTML=members.map(memberCardHtml).join('');
 }
 function renderFeed(){
   const el=document.getElementById('feed-list');
