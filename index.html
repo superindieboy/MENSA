@@ -813,9 +813,48 @@ body{
   <div class="sheet">
     <div class="sheet-grip"></div>
     <div id="detail-body"></div>
-    <div class="sheet-actions">
+    <div class="sheet-actions" id="detail-actions">
       <button class="btn-ghost" onclick="closeSheet('detail-overlay')">Fermer</button>
       <button class="btn-primary" id="detail-log">Noter ce cigare</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ÉDITION D'UNE FICHE CATALOGUE (admin) ===== -->
+<div class="overlay" id="cigar-edit-overlay">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <h3 class="serif">Modifier la fiche</h3>
+    <div class="field"><label>Nom du cigare</label><input id="ec-name"></div>
+    <div class="field"><label>Marque</label><input id="ec-brand" placeholder="Ex : Montecristo"></div>
+    <div class="field"><label>Vitole</label><input id="ec-vitola" placeholder="Ex : Robusto"></div>
+    <div class="field"><label>Module</label><input id="ec-module" placeholder="Ex : DE Gros robusto"></div>
+    <div class="field"><label>Pays</label><input id="ec-country" placeholder="Ex : Cuba"></div>
+    <div class="field">
+      <label>Terroir</label>
+      <div class="terroir-pick" id="ec-terroir">
+        <span class="tchip" data-t="cuba" onclick="pickEcTerroir(this)">Cuba</span>
+        <span class="tchip" data-t="nica" onclick="pickEcTerroir(this)">Nicaragua</span>
+        <span class="tchip" data-t="rep" onclick="pickEcTerroir(this)">Rép. dom.</span>
+        <span class="tchip" data-t="hon" onclick="pickEcTerroir(this)">Honduras</span>
+        <span class="tchip" data-t="cr" onclick="pickEcTerroir(this)">Costa Rica</span>
+        <span class="tchip" data-t="mex" onclick="pickEcTerroir(this)">Mexique</span>
+        <span class="tchip" data-t="bre" onclick="pickEcTerroir(this)">Brésil</span>
+        <span class="tchip" data-t="autre" onclick="pickEcTerroir(this)">Autre</span>
+      </div>
+    </div>
+    <div class="field" style="display:flex;gap:10px">
+      <div style="flex:1"><label>Longueur (mm)</label><input id="ec-length" type="number" min="0"></div>
+      <div style="flex:1"><label>Diamètre (RG)</label><input id="ec-ring" type="number" min="0"></div>
+    </div>
+    <div class="field"><label>Cape</label><input id="ec-wrapper" placeholder="Ex : Équateur"></div>
+    <div class="field"><label>Sous-cape</label><input id="ec-binder" placeholder="Ex : Nicaragua"></div>
+    <div class="field"><label>Tripe</label><input id="ec-filler" placeholder="Ex : Nicaragua, Honduras"></div>
+    <div class="field"><label>Force (1 à 5)</label><input id="ec-strength" type="number" min="1" max="5"></div>
+    <div class="f-err" id="ec-err"></div>
+    <div class="sheet-actions">
+      <button class="btn-ghost" onclick="closeSheet('cigar-edit-overlay')">Annuler</button>
+      <button class="btn-primary" id="ec-submit-btn" onclick="saveCigarCard()">Enregistrer</button>
     </div>
   </div>
 </div>
@@ -1035,15 +1074,19 @@ async function loadAll(){
 async function loadMemberCatalog(){
   const {data,error}=await sb.from('catalog_items').select('*').order('created_at');
   if(error){console.error('loadMemberCatalog',error);return;}
-  const known=new Set(catalog.map(c=>(c.name||'').trim().toLowerCase()));
   (data||[]).forEach(r=>{
     const key=(r.name||'').trim().toLowerCase();
-    if(!key||known.has(key))return;
-    known.add(key);
-    catalog.push({id:'m-'+r.id,name:r.name,brand:r.brand||'—',country:r.country||'—',terroir:r.terroir||'autre',
+    if(!key)return;
+    const entry={id:'m-'+r.id,name:r.name,brand:r.brand||'—',country:r.country||'—',terroir:r.terroir||'autre',
       vitola:r.vitola||'',module:r.module||'',length:r.length||null,ring:r.ring||null,wrapper:r.wrapper||'',
       binder:r.binder||'',filler:r.filler||'',strength:r.strength||null,force:r.strength?forceLabel(r.strength):'',
-      score:0,votes:0,flavors:[],profile:'Fiche ajoutée par un membre'});
+      score:0,votes:0,flavors:[],profile:'Fiche ajoutée par un membre'};
+    // une fiche en base prend le pas sur la fiche embarquée de même nom (édition admin)
+    const i=catalog.findIndex(c=>(c.name||'').trim().toLowerCase()===key);
+    if(i<0){ catalog.push(entry); return; }
+    if(catalog[i].id.startsWith('mensa-')){ entry.flavors=catalog[i].flavors; entry.profile=catalog[i].profile; }
+    entry.score=catalog[i].score; entry.votes=catalog[i].votes;
+    catalog[i]=entry;
   });
 }
 async function loadProfiles(){
@@ -1519,7 +1562,56 @@ function openCigarDetail(id){
     specCardHtml(c,'Fiche catalogue')+
     (c.profile?`<p style="font-size:13px;color:var(--ink-2);margin:-4px 2px 4px;line-height:1.55">${c.profile}</p>`:'');
   document.getElementById('detail-log').onclick=()=>{closeSheet('detail-overlay');openFumeeSheet();acPick(c.id);};
+  const oldEdit=document.getElementById('detail-edit-btn'); if(oldEdit)oldEdit.remove();
+  if(isAdmin()){
+    document.getElementById('detail-actions').insertAdjacentHTML('beforeend',
+      `<button class="btn-ghost" id="detail-edit-btn" style="flex-basis:100%" onclick="openEditCigarSheet('${c.id}')">Modifier la fiche</button>`);
+  }
   document.getElementById('detail-overlay').classList.add('open');
+}
+/* Édition d'une fiche catalogue — réservée au compte admin.
+   Une fiche embarquée (id « mensa-… ») n'existe pas en base : la première
+   modification crée une ligne catalog_items qui prend le pas sur elle. */
+let editingCigarId=null, ecTerroir=null;
+const EC_FIELDS={name:'ec-name',brand:'ec-brand',vitola:'ec-vitola',module:'ec-module',country:'ec-country',
+  length:'ec-length',ring:'ec-ring',wrapper:'ec-wrapper',binder:'ec-binder',filler:'ec-filler',strength:'ec-strength'};
+function pickEcTerroir(el){ setEcTerroir(el.dataset.t); }
+function setEcTerroir(code){
+  ecTerroir=code||null;
+  document.querySelectorAll('#ec-terroir .tchip').forEach(ch=>ch.classList.toggle('on', ch.dataset.t===ecTerroir));
+}
+function openEditCigarSheet(id){
+  if(!isAdmin())return;
+  const c=catalog.find(x=>x.id===id);if(!c)return;
+  editingCigarId=id;
+  closeSheet('detail-overlay');
+  document.getElementById('ec-err').textContent='';
+  const dash=v=>(v==='—'?'':(v==null?'':v));
+  Object.entries(EC_FIELDS).forEach(([k,elId])=>{document.getElementById(elId).value=dash(c[k]);});
+  setEcTerroir(c.terroir||null);
+  document.getElementById('cigar-edit-overlay').classList.add('open');
+}
+async function saveCigarCard(){
+  if(!isAdmin()||!sb||!editingCigarId)return;
+  const err=document.getElementById('ec-err'); err.textContent='';
+  const val=id=>document.getElementById(id).value.trim();
+  const name=val('ec-name');
+  if(!name){err.textContent='Le nom du cigare est requis.';return;}
+  const row={name,brand:val('ec-brand'),vitola:val('ec-vitola'),module:val('ec-module'),country:val('ec-country'),
+    terroir:ecTerroir||'autre',length:+val('ec-length')||null,ring:+val('ec-ring')||null,
+    wrapper:val('ec-wrapper'),binder:val('ec-binder'),filler:val('ec-filler'),strength:+val('ec-strength')||null};
+  const btn=document.getElementById('ec-submit-btn'); btn.disabled=true;
+  try{
+    if(editingCigarId.startsWith('m-')){
+      await sb.from('catalog_items').update(row).eq('id',editingCigarId.slice(2));
+    }else{
+      await sb.from('catalog_items').insert({user_id:currentUser.id,...row});
+    }
+  }catch(e){ alert("Échec de l'enregistrement de la fiche. Réessayez."); btn.disabled=false; return; }
+  btn.disabled=false;
+  editingCigarId=null;
+  closeSheet('cigar-edit-overlay');
+  await loadMemberCatalog(); syncCatalogScores(); renderDiscover(); renderRails();
 }
 
 function openPostDetail(id){
