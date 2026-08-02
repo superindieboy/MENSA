@@ -1898,7 +1898,8 @@ async function saveFumee(){
   const btn=document.querySelector('#fumee-overlay .btn-primary'); if(btn)btn.disabled=true;
   try{
     if(editingPostId){ await sb.from('posts').update(row).eq('id',editingPostId); }
-    else{ await sb.from('posts').insert(row); await saveNewCigarCard(name,terroir,origin); }
+    else{ await sb.from('posts').insert(row); }
+    await saveNewCigarCard(row.cigar_name,terroir,origin);
   }catch(e){ alert("Échec de l'enregistrement. Réessayez."); if(btn)btn.disabled=false; return; }
   if(btn)btn.disabled=false;
   editingPostId=null;
@@ -1912,11 +1913,11 @@ async function saveFumee(){
 /* Enregistre la fiche catalogue saisie manuellement, si le cigare n'existe pas déjà */
 async function saveNewCigarCard(name,terroir,country){
   if(!name)return;
-  if(document.getElementById('f-newcigar-fields').style.display==='none')return;
-  const val=id=>document.getElementById(id).value.trim();
-  const filled=NEW_CIGAR_FIELDS.some(id=>val(id));
-  if(!filled)return;
   if(catalog.some(c=>(c.name||'').trim().toLowerCase()===name.trim().toLowerCase()))return;
+  // Tout cigare dégusté entre au catalogue, même sans détail : sinon il resterait
+  // introuvable à la recherche. Le panneau de fiche ne fait qu'enrichir la saisie.
+  const open=document.getElementById('f-newcigar-fields').style.display!=='none';
+  const val=id=>open?document.getElementById(id).value.trim():'';
   const strength=+val('nc-strength')||null;
   await sb.from('catalog_items').insert({user_id:currentUser.id,name,brand:val('nc-brand'),vitola:val('nc-vitola'),
     module:val('nc-module'),country,terroir,length:+val('nc-length')||null,ring:+val('nc-ring')||null,
