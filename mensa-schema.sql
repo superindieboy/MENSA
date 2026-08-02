@@ -33,7 +33,7 @@ create table if not exists public.posts (
   created_at timestamptz default now()
 );
 
--- Cave commune du club
+-- Cave personnelle de chaque membre (privée : lui seul y accède)
 create table if not exists public.cave_items (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid not null references auth.users on delete cascade,
@@ -119,7 +119,7 @@ create policy "posts_update_own"  on public.posts      for update using (auth.ui
 create policy "posts_delete_own"  on public.posts      for delete using (auth.uid() = user_id);
 
 -- CAVE
-create policy "cave_read"         on public.cave_items for select using (auth.uid() is not null);
+create policy "cave_read_own"     on public.cave_items for select using (auth.uid() = user_id);
 create policy "cave_insert_own"   on public.cave_items for insert with check (auth.uid() = user_id);
 create policy "cave_update_own"   on public.cave_items for update using (auth.uid() = user_id);
 create policy "cave_delete_own"   on public.cave_items for delete using (auth.uid() = user_id);
@@ -137,13 +137,12 @@ create policy "likes_delete_own"  on public.post_likes for delete using (auth.ui
 
 -- ---------- ADMINISTRATEUR ----------
 -- Modération des publications, et correction de n'importe quelle fiche du
--- catalogue. Le renommage d'une fiche se répercute sur les dégustations et
--- les caves existantes : d'où les droits d'update au-delà de ses propres lignes.
+-- catalogue. Le renommage d'une fiche se répercute sur les dégustations de
+-- tous les membres : d'où le droit d'update au-delà de ses propres lignes.
+-- Les caves restent privées : aucune policy admin ne les couvre.
 
 create policy "posts_delete_admin"    on public.posts         for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "posts_update_admin"    on public.posts         for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
-create policy "cave_update_admin"     on public.cave_items    for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
-create policy "cave_delete_admin"     on public.cave_items    for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "catalog_update_admin"  on public.catalog_items for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "catalog_delete_admin"  on public.catalog_items for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 

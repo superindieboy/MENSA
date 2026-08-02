@@ -1153,7 +1153,9 @@ function syncCatalogScores(){
   });
 }
 async function loadCave(){
-  const {data}=await sb.from('cave_items').select('*').order('created_at');
+  // Chaque membre a sa propre cave : on ne charge que ses références.
+  if(!currentUser){Object.keys(cave).forEach(k=>cave[k].length=0);return;}
+  const {data}=await sb.from('cave_items').select('*').eq('user_id',currentUser.id).order('created_at');
   Object.keys(cave).forEach(k=>cave[k].length=0);
   (data||[]).forEach(it=>{const k=cave[it.terroir]?it.terroir:'cuba';cave[k].push({id:it.id,user_id:it.user_id,name:it.name,detail:it.detail||'—',terroir:k,qty:it.qty||1,added:it.added?fmtDate(it.added):'',addedRaw:it.added||''});});
 }
@@ -1416,7 +1418,7 @@ function renderCave(){
     const m=countryMeta[k];
     h+=`<div class="shelf"><div class="shelf-head"><div class="shelf-title">${flagHtml(m.flag)} ${m.label}</div><span class="shelf-count">${cave[k].length} réf.</span></div>`;
     cave[k].forEach(c=>{
-      const mine=currentUser&&(c.user_id===currentUser.id||isAdmin());
+      const mine=!!currentUser;
       h+=`<div class="cave-item"${mine?` onclick="openEditCaveSheet('${c.id}')"`:''}>
         <div class="cave-bar" style="background:${barColors[k]}"></div>
         <div class="cave-info"><div class="cave-name">${c.name}</div><div class="cave-detail">${c.detail}</div>
@@ -1622,6 +1624,7 @@ async function saveCigarCard(){
     }
     if(oldName && oldName!==name){
       await sb.from('posts').update({cigar_name:name}).eq('cigar_name',oldName);
+      // Les caves sont privées : ce renommage ne porte que sur la sienne.
       await sb.from('cave_items').update({name}).eq('name',oldName);
     }
   }catch(e){ alert("Échec de l'enregistrement de la fiche. Réessayez."); btn.disabled=false; return; }
@@ -1821,10 +1824,9 @@ function findCaveItem(id){
 }
 function openEditCaveSheet(id){
   const it=findCaveItem(id);if(!it)return;
-  if(!currentUser||(it.user_id!==currentUser.id&&!isAdmin()))return;
+  if(!currentUser||it.user_id!==currentUser.id)return;
   editingCaveId=id;
-  const mine=it.user_id===currentUser.id;
-  document.getElementById('cave-title').textContent=mine?'Modifier la référence':'Modifier la référence (modération)';
+  document.getElementById('cave-title').textContent='Modifier la référence';
   document.getElementById('cave-submit-btn').textContent='Enregistrer';
   document.getElementById('c-name').value=it.name||'';
   document.getElementById('c-country').value=CAVE_TERROIR_LABELS[it.terroir]||'';

@@ -32,12 +32,12 @@ par tes deux valeurs de l'étape 1.4. Enregistre.
 
 **GitHub Pages** : pousse `index.html` dans un dépôt, puis **Settings → Pages → branche `main`**. URL : `https://tonpseudo.github.io/nom-du-repo/`.
 
-Partage l'URL à tes ~10 membres. Ils créent leur compte (email + mot de passe), et **tout le monde voit les mêmes données** : fil, cave commune, membres, notes.
+Partage l'URL à tes ~10 membres. Ils créent leur compte (email + mot de passe) et partagent aussitôt **le fil, le catalogue, les membres et les notes**. Seule la cave reste privée : chacun la sienne.
 
 ## Ce qui fonctionne
 - Inscription / connexion (sécurisées, côté serveur)
 - Fil de dégustations partagé + « j'aime »
-- Cave commune du club
+- Cave personnelle (privée à chaque membre)
 - Liste des membres (alimentée par les inscriptions)
 - Profil + bio (persistés)
 - Recherche dans le catalogue de 615 cigares
