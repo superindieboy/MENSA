@@ -644,7 +644,7 @@ body{
   <section class="screen" id="discover">
     <div class="eyebrow">Catalogue</div>
     <h1 class="screen-title serif">Découvrir</h1>
-    <p class="screen-sub">Explorez plus de 1 200 références notées par la communauté.</p>
+    <p class="screen-sub" id="disc-intro"></p>
 
     <div class="search">
       <i>🔍</i>
@@ -1284,7 +1284,15 @@ function renderFilters(){
   document.getElementById('filters').innerHTML=filterList.map(f=>`<span class="chip ${f===activeFilter?'on':''}" onclick="setFilter('${f}')">${f}</span>`).join('');
 }
 function setFilter(f){activeFilter=f;renderFilters();renderDiscover();}
+/* Sous-titre Découvrir : total du catalogue arrondi à la cinquantaine inférieure */
+function renderDiscoverIntro(){
+  const rounded=Math.floor(catalog.length/50)*50;
+  document.getElementById('disc-intro').textContent = rounded>0
+    ? `Explorez plus de ${rounded.toLocaleString('fr-FR')} références notées par la communauté.`
+    : `Explorez ${catalog.length} référence${catalog.length>1?'s':''} notée${catalog.length>1?'s':''} par la communauté.`;
+}
 function renderDiscover(){
+  renderDiscoverIntro();
   const q=(document.getElementById('search-input').value||'').toLowerCase();
   let list=catalog.filter(c=>{
     if(q && !((c.name+' '+(c.brand||'')+' '+(c.country||'')+' '+(c.module||'')+' '+(c.profile||'')+' '+(c.flavors||[]).join(' ')).toLowerCase().includes(q)))return false;
