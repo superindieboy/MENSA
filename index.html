@@ -894,6 +894,7 @@ body{
   <div class="sheet">
     <div class="sheet-grip"></div>
     <h3 class="serif" id="cave-title">Ajouter à la cave</h3>
+    <div id="cave-spec"></div>
     <div class="field">
       <label>Cigare <span style="color:var(--ink-3);font-weight:400">— cherchez dans le catalogue</span></label>
       <div class="ac-wrap">
@@ -1795,7 +1796,6 @@ function openEditPostSheet(id){
   if(c){ selectedCigar=c; document.getElementById('f-spec').innerHTML=specCardHtml(c,'✓ Fiche catalogue'); }
 }
 let editingCaveId=null;
-const CAVE_TERROIR_LABELS={cuba:'Cuba',nica:'Nicaragua',rep:'République Dominicaine',hon:'Honduras'};
 function caveAddMode(){
   editingCaveId=null;
   document.getElementById('cave-title').textContent='Ajouter à la cave';
@@ -1809,6 +1809,7 @@ function clearCaveFields(){
   document.getElementById('c-added').value=todayISO();
   caveSelectedTerroir=null;
   closeCaveAc();
+  renderCaveSpec('');
 }
 /* Recherche catalogue depuis le formulaire de cave.
    Le terroir retenu vient de la fiche choisie : plus fiable que de le
@@ -1838,6 +1839,7 @@ function caveAcPick(id){
   document.getElementById('c-country').value=(c.country&&c.country!=='—')?c.country:(countryMeta[c.terroir]||{}).label||'';
   const mod=(c.module&&c.module!=='—')?c.module:(c.vitola||'');
   if(mod)document.getElementById('c-detail').value=mod;
+  renderCaveSpec(c.name);
   document.getElementById('cave-ac-list').classList.remove('open');
 }
 function caveTerroirFromText(s){
@@ -1855,6 +1857,12 @@ function closeCaveAc(){
   const l=document.getElementById('cave-ac-list');
   l.classList.remove('open'); l.innerHTML='';
 }
+/* Fiche catalogue du cigare, affichée en tête du formulaire de cave */
+function renderCaveSpec(name){
+  const box=document.getElementById('cave-spec');
+  const c=name?catalog.find(x=>(x.name||'').trim().toLowerCase()===(name||'').trim().toLowerCase()):null;
+  box.innerHTML=c?specCardHtml(c,'Fiche catalogue')+'<div style="height:16px"></div>':'';
+}
 function openCaveSheet(){
   caveAddMode(); clearCaveFields();
   document.getElementById('cave-overlay').classList.add('open');
@@ -1864,8 +1872,9 @@ function openCaveSheetFromPost(id){
   closeSheet('post-overlay');
   caveAddMode();
   const c=catalog.find(x=>(x.name||'').trim().toLowerCase()===(p.name||'').trim().toLowerCase());
+  renderCaveSpec(p.name);
   document.getElementById('c-name').value=p.name||'';
-  document.getElementById('c-country').value=CAVE_TERROIR_LABELS[p.terroir]||'';
+  document.getElementById('c-country').value=(countryMeta[(c&&c.terroir)||p.terroir]||{}).label||'';
   document.getElementById('c-detail').value=(c&&c.module)||'';
   document.getElementById('c-qty').value=5;
   document.getElementById('c-added').value=todayISO();
@@ -1885,8 +1894,9 @@ function openEditCaveSheet(id){
   closeCaveAc();
   document.getElementById('cave-title').textContent='Modifier la référence';
   document.getElementById('cave-submit-btn').textContent='Enregistrer';
+  renderCaveSpec(it.name);
   document.getElementById('c-name').value=it.name||'';
-  document.getElementById('c-country').value=CAVE_TERROIR_LABELS[it.terroir]||'';
+  document.getElementById('c-country').value=(countryMeta[it.terroir]||{}).label||'';
   document.getElementById('c-detail').value=it.detail==='—'?'':(it.detail||'');
   document.getElementById('c-qty').value=it.qty||1;
   document.getElementById('c-added').value=(it.addedRaw||'').slice(0,10)||todayISO();
