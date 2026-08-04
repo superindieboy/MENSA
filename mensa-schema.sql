@@ -31,6 +31,7 @@ create table if not exists public.posts (
   place      text default '',
   is_club    boolean not null default false,  -- affiché aussi dans "Par le club" (réservé au compte admin)
   catalog_id text,                            -- fiche notée : « mensa-0041 » (embarquée) ou « m-<uuid> » (membre)
+  photo_url  text,                            -- photo de la bague, déposée dans l'espace de stockage « bagues »
   created_at timestamptz default now()
 );
 

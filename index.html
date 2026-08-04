@@ -853,6 +853,17 @@ body{
       </div>
     </div>
     <div class="field">
+      <label>Photo de la bague <span style="color:var(--ink-3);font-weight:400">— facultatif</span></label>
+      <input type="file" id="f-photo" accept="image/*" style="display:none" onchange="choisirPhoto(this)">
+      <div id="f-photo-vide">
+        <button type="button" class="btn-ghost" style="width:100%" onclick="document.getElementById('f-photo').click()">📷 Ajouter une photo</button>
+      </div>
+      <div id="f-photo-apercu" style="display:none;position:relative">
+        <img id="f-photo-img" alt="Aperçu de la bague" style="width:100%;max-height:220px;object-fit:cover;border-radius:var(--r-sm);display:block">
+        <button type="button" class="btn-danger" style="position:absolute;top:8px;right:8px;flex:none;min-width:0;padding:7px 12px;font-size:12px;background:rgba(20,12,6,.75)" onclick="retirerPhoto()">Retirer</button>
+      </div>
+    </div>
+    <div class="field">
       <label>Notes de dégustation</label>
       <textarea id="f-note" rows="3" placeholder="Combustion, tirage, arômes, évolution…"></textarea>
     </div>
@@ -1214,7 +1225,7 @@ async function loadPosts(){
       count:countByUser[p.user_id]||0, time:timeAgo(p.created_at), createdAt:p.created_at, name:p.cigar_name, origin:p.origin||'',
       terroir:p.terroir||'cuba', rating:p.rating||0, thirds:{t1:p.t1,t2:p.t2,t3:p.t3}, note:p.note||'',
       flavors:p.flavors||[], place:p.place||'', likes:likeCount[p.id]||0, liked:!!likedMine[p.id],
-      isClub:!!p.is_club, catalogId:p.catalog_id||null});
+      isClub:!!p.is_club, catalogId:p.catalog_id||null, photoUrl:p.photo_url||null});
   });
   syncCatalogScores();
   // "Par le club" présente la fiche du cigare, pas la dégustation qui l'a signalé
@@ -1454,7 +1465,9 @@ function renderFeed(){
         <button class="icon-btn" style="border:none;background:none">⋯</button>
       </div>
       <div class="post-visual" style="background:${p2.fill};cursor:pointer" onclick="openPostDetail('${p.id}')">
-        ${cigarHtml(p.terroir,130)}
+        ${p.photoUrl
+          ? `<img src="${p.photoUrl}" alt="Bague de ${p.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover">`
+          : cigarHtml(p.terroir,130)}
         <div class="post-rating"><span style="color:var(--gold)">●</span> ${p.rating.toFixed(1)}</div>
       </div>
       <div class="post-body" style="cursor:pointer" onclick="openPostDetail('${p.id}')">
@@ -1945,7 +1958,9 @@ function openPostDetail(id){
       <div class="av" style="background:${c[0]};color:${c[1]}">${p.init}</div>
       <div><div class="post-user">${p.user}</div><div class="post-meta">${p.time}</div></div>
     </div>
-    <div class="pd-visual" style="background:${pal.fill}">${cigarHtml(p.terroir,130)}
+    <div class="pd-visual" style="background:${pal.fill}">${p.photoUrl
+      ? `<img src="${p.photoUrl}" alt="Bague de ${p.name}" style="width:100%;height:100%;object-fit:cover">`
+      : cigarHtml(p.terroir,130)}
       <div class="post-rating"><span style="color:var(--gold)">●</span> ${(p.rating||0).toFixed(1)}</div>
     </div>
     <div class="pd-name serif">${p.name}</div>
@@ -1988,17 +2003,74 @@ async function deletePost(id){
 let fRating=0;
 let editingPostId=null;
 let smokingFromCaveId=null;   // référence de cave à décrémenter après publication
+/* Photo de bague. Les clichés d'un téléphone pèsent plusieurs mégaoctets :
+   on les réduit dans le navigateur avant l'envoi. photoEnCours porte le
+   fichier réduit, photoUrl l'adresse d'une photo déjà publiée. */
+let photoEnCours=null, photoUrl=null;
+const PHOTO_MAX=1280;
+function reduireImage(file){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const ech=Math.min(1,PHOTO_MAX/Math.max(img.width,img.height));
+      const c=document.createElement('canvas');
+      c.width=Math.round(img.width*ech); c.height=Math.round(img.height*ech);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(img.src);
+      c.toBlob(b=>b?resolve(b):reject(new Error('Conversion impossible')),'image/jpeg',0.82);
+    };
+    img.onerror=()=>reject(new Error('Image illisible'));
+    img.src=URL.createObjectURL(file);
+  });
+}
+async function choisirPhoto(input){
+  const file=input.files&&input.files[0];
+  input.value='';
+  if(!file)return;
+  if(!/^image\//.test(file.type)){toast('Choisissez une image.','err');return;}
+  try{
+    photoEnCours=await reduireImage(file);
+    photoUrl=null;
+    document.getElementById('f-photo-img').src=URL.createObjectURL(photoEnCours);
+    show('f-photo-vide','none'); show('f-photo-apercu','block');
+  }catch(e){ toast("Cette image n'a pas pu être préparée.",'err'); }
+}
+function retirerPhoto(){
+  photoEnCours=null; photoUrl=null;
+  document.getElementById('f-photo-img').removeAttribute('src');
+  show('f-photo-vide','block'); show('f-photo-apercu','none');
+}
+function afficherPhotoExistante(url){
+  photoEnCours=null; photoUrl=url||null;
+  if(url){
+    document.getElementById('f-photo-img').src=url;
+    show('f-photo-vide','none'); show('f-photo-apercu','block');
+  }else retirerPhoto();
+}
+/* Dépose la photo et renvoie son adresse publique. Un échec n'empêche pas
+   la publication : la dégustation part sans image. */
+async function envoyerPhoto(){
+  if(!photoEnCours||!currentUser||!sb)return photoUrl;
+  const chemin=`${currentUser.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.jpg`;
+  const {error}=await sb.storage.from('bagues').upload(chemin,photoEnCours,{contentType:'image/jpeg'});
+  if(error){ toast("La photo n'a pas pu être envoyée, la dégustation est publiée sans elle.",'err'); return null; }
+  const {data}=sb.storage.from('bagues').getPublicUrl(chemin);
+  return (data&&data.publicUrl)||null;
+}
 /* Supabase ne lève pas d'exception : il renvoie { error }. Sans le lire, une
    publication refusée passait pour un succès et la dégustation disparaissait.
-   Si la colonne catalog_id n'existe pas encore en base, on republie sans elle
-   plutôt que de perdre la dégustation. */
+   Si une colonne récente manque encore en base, on republie sans elle plutôt
+   que de perdre la dégustation. */
+const COLONNES_RECENTES=['catalog_id','photo_url'];
 async function writePost(row,postId){
   const envoi=r=>postId ? sb.from('posts').update(r).eq('id',postId) : sb.from('posts').insert(r);
-  let {error}=await envoi(row);
-  if(error && /catalog_id/i.test(error.message||'')){
-    const sansLien=Object.assign({},row); delete sansLien.catalog_id;
-    ({error}=await envoi(sansLien));
-    if(!error)console.warn("Colonne catalog_id absente : exécutez ajout-lien-fiche.sql dans Supabase.");
+  let corps=Object.assign({},row);
+  let {error}=await envoi(corps);
+  for(const col of COLONNES_RECENTES){
+    if(!error||!new RegExp(col,'i').test(error.message||''))continue;
+    delete corps[col];
+    ({error}=await envoi(corps));
+    if(!error)console.warn(`Colonne ${col} absente : exécutez le script SQL correspondant dans Supabase.`);
   }
   if(error)throw error;
 }
@@ -2006,6 +2078,7 @@ function openFumeeSheet(){
   selectedCigar=null;
   editingPostId=null;
   smokingFromCaveId=null;
+  retirerPhoto();
   document.getElementById('f-cave-note').style.display='none';
   document.getElementById('fumee-title').textContent='Noter un cigare';
   document.getElementById('fumee-submit-btn').textContent='Publier le cigare';
@@ -2068,6 +2141,7 @@ function openEditPostSheet(id){
   setTerroir(p.terroir||null);
   if(p.terroir==='autre')document.getElementById('f-terroir-autre').value=p.origin||'';
   setThirds(p.thirds&&p.thirds.t1, p.thirds&&p.thirds.t2, p.thirds&&p.thirds.t3, p.rating);
+  afficherPhotoExistante(p.photoUrl);
   const c=ficheOf(p);
   if(c){ selectedCigar=c; document.getElementById('f-spec').innerHTML=specCardHtml(c,'✓ Fiche catalogue'); }
 }
@@ -2315,6 +2389,7 @@ async function saveFumee(){
   const picked=(selectedCigar&&normCigar(selectedCigar.name)===normCigar(row.cigar_name))?selectedCigar:null;
   try{
     row.catalog_id=picked?picked.id:await ensureCigarCard(row.cigar_name,terroir,origin);
+    row.photo_url=await envoyerPhoto();
     await writePost(row,editingPostId);
   }catch(e){
     toast("Échec de l'enregistrement.\n"+(e&&e.message?e.message:'Réessayez.'),'err');
@@ -2334,6 +2409,7 @@ async function saveFumee(){
   document.getElementById('f-spec').innerHTML='';selectedCigar=null;setTerroir(null);
   resetNewCigarFields();
   resetThirds();
+  retirerPhoto();
   // sans cela une recherche en cours masquerait la dégustation tout juste publiée
   document.getElementById('feed-search').value=''; resetFeedPaging();
   await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();go('feed');
