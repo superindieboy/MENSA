@@ -661,7 +661,12 @@ body{
     </div>
 
     <div class="sec-label">En détail</div>
+    <div class="search" id="feed-search-wrap" style="display:none">
+      <i>🔍</i>
+      <input id="feed-search" placeholder="Cigare, membre, terroir…" autocomplete="off" oninput="resetFeedPaging();renderFeed()">
+    </div>
     <div id="feed-list"></div>
+    <div id="feed-more" style="margin:4px 0 26px"></div>
   </section>
 
   <!-- ============ LISTE COMPLÈTE (depuis « Tout voir ») ============ -->
@@ -1412,10 +1417,33 @@ function renderMembers(){
   if(!members.length){el.innerHTML='<div class="rail-empty">Aucun membre pour le moment.</div>';return;}
   el.innerHTML=members.map(memberCardHtml).join('');
 }
+/* Le fil se cherche et s'affiche par tranches : il construisait une carte par
+   dégustation, sans limite, et n'offrait aucun filtre alors que Découvrir et
+   la cave en ont un. */
+const FEED_PAGE=15;
+let feedShown=FEED_PAGE;
+function resetFeedPaging(){feedShown=FEED_PAGE;}
+function showMoreFeed(){feedShown+=FEED_PAGE;renderFeed();}
 function renderFeed(){
   const el=document.getElementById('feed-list');
-  if(!feed.length){el.innerHTML='<div class="rail-empty" style="padding:32px 0">Aucune dégustation publiée pour le moment.<br>Appuyez sur ✚ pour partager la première.</div>';return;}
-  el.innerHTML=feed.map((p,i)=>{
+  const more=document.getElementById('feed-more');
+  show('feed-search-wrap', feed.length>3?'flex':'none');
+  const q=normCigar(document.getElementById('feed-search').value);
+  const liste=q?feed.filter(p=>normCigar([p.name,p.user,p.origin,
+    (countryMeta[p.terroir]||{}).label,(p.flavors||[]).join(' '),p.note].join(' ')).includes(q)):feed;
+  if(!liste.length){
+    more.innerHTML='';
+    el.innerHTML=q
+      ? `<div class="rail-empty" style="padding:32px 0">Aucune dégustation ne correspond à « ${document.getElementById('feed-search').value.trim()} ».</div>`
+      : '<div class="rail-empty" style="padding:32px 0">Aucune dégustation publiée pour le moment.<br>Appuyez sur ✚ pour partager la première.</div>';
+    return;
+  }
+  const vus=liste.slice(0,feedShown);
+  const reste=liste.length-vus.length;
+  more.innerHTML = reste>0
+    ? `<button class="logout-btn" style="width:100%;margin:0" onclick="showMoreFeed()">Afficher ${Math.min(reste,FEED_PAGE)} dégustations de plus <span style="color:var(--ink-3);font-weight:400">— ${reste} restantes</span></button>`
+    : '';
+  el.innerHTML=vus.map((p,i)=>{
     const p2=palette[p.terroir]||palette.cuba;
     const c=avColors[p.av]||avColors[0];
     const oColors={cuba:['#FAC775','#633806'],nica:['#C0DD97','#27500A'],rep:['#F5C4B3','#712B13'],hon:['#CECBF6','#3C3489']}[p.terroir]||['#FAC775','#633806'];
@@ -2306,6 +2334,8 @@ async function saveFumee(){
   document.getElementById('f-spec').innerHTML='';selectedCigar=null;setTerroir(null);
   resetNewCigarFields();
   resetThirds();
+  // sans cela une recherche en cours masquerait la dégustation tout juste publiée
+  document.getElementById('feed-search').value=''; resetFeedPaging();
   await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();go('feed');
 }
 /* Rattrapage : crée les fiches manquantes des cigares déjà dégustés ou en cave.
