@@ -290,7 +290,10 @@ body{
 .search input{border:none;background:none;outline:none;font-family:inherit;font-size:14.5px;color:var(--ink);flex:1}
 .search input::placeholder{color:var(--ink-3)}
 .search i{font-size:19px}
-.filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:20px;scrollbar-width:none}
+/* Les filtres tiennent sur plusieurs lignes : en une seule rangée défilante,
+   la barre étant masquée, les derniers étaient hors d'atteinte à la souris.
+   Sur mobile on garde la rangée unique, où le défilement se fait au doigt. */
+.filters{display:flex;flex-wrap:wrap;gap:8px;padding-bottom:6px;margin-bottom:20px;scrollbar-width:none}
 .filters::-webkit-scrollbar{display:none}
 .chip{
   flex-shrink:0;font-size:12.5px;font-weight:500;padding:7px 14px;border-radius:22px;
@@ -557,6 +560,7 @@ body{
   .cave-stats{grid-template-columns:repeat(3,1fr)}
   .palais{grid-template-columns:1fr;justify-items:center}
   .screen-title{font-size:24px}
+  .filters{flex-wrap:nowrap;overflow-x:auto}
 }
 .radar-lbl{fill:var(--ink-2)}
 
