@@ -651,13 +651,14 @@ body{
 
     <div class="search">
       <i>🔍</i>
-      <input id="search-input" placeholder="Cigare, vitole, maison, terroir…" oninput="renderDiscover()">
+      <input id="search-input" placeholder="Cigare, vitole, maison, terroir…" oninput="resetDiscoverPaging();renderDiscover()">
     </div>
     <div class="filters" id="filters"></div>
     <div style="margin-bottom:14px">
       <span id="disc-count" style="font-size:12px;color:var(--ink-3)"></span>
     </div>
     <div class="grid" id="disc-grid"></div>
+    <div id="disc-more" style="margin:-12px 0 26px"></div>
   </section>
 
   <!-- ============ CAVE ============ -->
@@ -1129,36 +1130,57 @@ async function loadPosts(){
       count:countByUser[p.user_id]||0, time:timeAgo(p.created_at), name:p.cigar_name, origin:p.origin||'',
       terroir:p.terroir||'cuba', rating:p.rating||0, thirds:{t1:p.t1,t2:p.t2,t3:p.t3}, note:p.note||'',
       flavors:p.flavors||[], place:p.place||'', likes:likeCount[p.id]||0, liked:!!likedMine[p.id],
-      isClub:!!p.is_club});
+      isClub:!!p.is_club, catalogId:p.catalog_id||null});
   });
   syncCatalogScores();
   // "Par le club" présente la fiche du cigare, pas la dégustation qui l'a signalé
   clubLogs.length=0;
   const seenClub=new Set();
   feed.filter(p=>p.isClub).forEach(p=>{
-    const key=(p.name||'').trim().toLowerCase();
+    const c=ficheOf(p);
+    const key=c?c.id:normCigar(p.name);
     if(!key||seenClub.has(key))return;
     seenClub.add(key);
-    const c=catalog.find(x=>(x.name||'').trim().toLowerCase()===key);
     clubLogs.push({club:true, name:p.name, terroir:(c&&c.terroir)||p.terroir,
       rating:(c&&c.score)||p.rating, cid:c?c.id:null,
       sub:c?[c.brand,c.country].filter(x=>x&&x!=='—').join(' · '):(p.origin||'')});
   });
 }
 /* Note globale d'un cigare du catalogue = moyenne des notes individuelles postées par les membres pour ce cigare */
+/* Fiche catalogue d'une dégustation : par identifiant si elle en porte un,
+   sinon par nom — et seulement si ce nom ne désigne qu'une fiche, pour ne pas
+   afficher au hasard l'un des huit formats d'une même ligne. */
+function ficheByName(name){
+  const k=normCigar(name);
+  if(!k)return null;
+  const m=catalog.filter(c=>normCigar(c.name)===k);
+  return m.length===1?m[0]:null;
+}
+function ficheOf(p){
+  if(!p)return null;
+  if(p.catalogId){const c=catalog.find(x=>x.id===p.catalogId);if(c)return c;}
+  return ficheByName(p.name);
+}
 function syncCatalogScores(){
-  const stats={};
+  // Une dégustation est rattachée à sa fiche par identifiant. Les publications
+  // antérieures n'en ont pas : on retombe sur le nom, mais uniquement s'il
+  // désigne une seule fiche. Sinon la note serait recopiée sur tous les formats
+  // de la ligne, y compris ceux que personne n'a fumés.
+  const perName={};
+  catalog.forEach(c=>{const k=normCigar(c.name);perName[k]=(perName[k]||0)+1;});
+  const byId={}, byName={};
   feed.forEach(p=>{
-    const key=(p.name||'').trim().toLowerCase();
-    if(!key)return;
-    if(!stats[key])stats[key]={sum:0,count:0};
-    stats[key].sum+=p.rating||0;
-    stats[key].count++;
+    const r=p.rating||0;
+    if(p.catalogId){(byId[p.catalogId]=byId[p.catalogId]||[]).push(r);return;}
+    const k=normCigar(p.name);
+    if(!k||perName[k]!==1)return;
+    (byName[k]=byName[k]||[]).push(r);
   });
   catalog.forEach(c=>{
-    const s=stats[(c.name||'').trim().toLowerCase()];
-    c.score=s?Math.round((s.sum/s.count)*10)/10:0;
-    c.votes=s?s.count:0;
+    const k=normCigar(c.name);
+    const rs=(byId[c.id]||[]).concat(perName[k]===1?(byName[k]||[]):[]);
+    c.votes=rs.length;
+    c.score=rs.length?Math.round((rs.reduce((a,b)=>a+b,0)/rs.length)*10)/10:0;
   });
 }
 async function loadCave(){
@@ -1380,7 +1402,14 @@ function refreshDetailLike(p){
 function renderFilters(){
   document.getElementById('filters').innerHTML=filterList.map(f=>`<span class="chip ${f===activeFilter?'on':''}" onclick="setFilter('${f}')">${f}</span>`).join('');
 }
-function setFilter(f){activeFilter=f;renderFilters();renderDiscover();}
+/* Le catalogue s'affiche par tranches : sans cela il s'arrêtait à 60 fiches
+   sur 858, rendant le reste inatteignable. Toute nouvelle recherche repart
+   du début. */
+const DISC_PAGE=60;
+let discShown=DISC_PAGE;
+function resetDiscoverPaging(){discShown=DISC_PAGE;}
+function showMoreDiscover(){discShown+=DISC_PAGE;renderDiscover();}
+function setFilter(f){activeFilter=f;resetDiscoverPaging();renderFilters();renderDiscover();}
 /* Sous-titre Découvrir : total du catalogue arrondi à la cinquantaine inférieure */
 function renderDiscoverIntro(){
   const rounded=Math.floor(catalog.length/50)*50;
@@ -1390,9 +1419,10 @@ function renderDiscoverIntro(){
 }
 function renderDiscover(){
   renderDiscoverIntro();
-  const q=(document.getElementById('search-input').value||'').toLowerCase();
+  // recherche insensible aux accents : « padron » doit trouver « Padrón »
+  const q=normCigar(document.getElementById('search-input').value);
   let list=catalog.filter(c=>{
-    if(q && !((c.name+' '+(c.brand||'')+' '+(c.country||'')+' '+(c.module||'')+' '+(c.profile||'')+' '+(c.flavors||[]).join(' ')).toLowerCase().includes(q)))return false;
+    if(q && !normCigar([c.name,c.brand,c.country,c.module,c.profile,(c.flavors||[]).join(' ')].join(' ')).includes(q))return false;
     const tf=TERROIR_FILTERS[activeFilter];
     if(tf && c.terroir!==tf)return false;
     if(activeFilter==='Doux'&&c.force!=='Doux')return false;
@@ -1401,9 +1431,9 @@ function renderDiscover(){
     if(activeFilter==='Note 4,5+'&&!(c.score>=4.5))return false;
     return true;
   });
-  const LIMIT=60;
-  const shown=list.slice(0,LIMIT);
-  document.getElementById('disc-count').textContent=`${list.length} référence${list.length>1?'s':''} · ${catalog.length} au catalogue${list.length>LIMIT?' · affichage limité à '+LIMIT:''}`;
+  const shown=list.slice(0,discShown);
+  document.getElementById('disc-count').textContent=`${list.length} référence${list.length>1?'s':''} · ${catalog.length} au catalogue`
+    +(list.length>shown.length?` · ${shown.length} affichées`:'');
   document.getElementById('disc-grid').innerHTML = shown.length? shown.map(c=>{
     const p=palette[c.terroir]||palette.autre;
     const sub=`${c.country||'—'}${c.force?' · '+c.force:(c.module?' · '+c.module:'')}`;
@@ -1418,6 +1448,10 @@ function renderDiscover(){
       </div>
     </div>`;
   }).join('') : `<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:40px 0">Aucune référence ne correspond. Affinez votre recherche.</div>`;
+  const reste=list.length-shown.length;
+  document.getElementById('disc-more').innerHTML = reste>0
+    ? `<button class="logout-btn" style="width:100%;margin:0" onclick="showMoreDiscover()">Afficher ${Math.min(reste,DISC_PAGE)} références de plus <span style="color:var(--ink-3);font-weight:400">— ${reste} restantes</span></button>`
+    : '';
 
   const trend=[...catalog].filter(c=>c.score>0).sort((a,b)=>b.score-a.score).slice(0,3);
   document.getElementById('trending').innerHTML=trend.map((c,i)=>`
@@ -1548,9 +1582,9 @@ function specCardHtml(c,badge){
 
 function acSearch(q){
   const list=document.getElementById('ac-list');
-  q=(q||'').trim().toLowerCase();
+  q=normCigar(q);
   if(q.length<2){list.classList.remove('open');list.innerHTML='';return;}
-  const matches=catalog.filter(c=>((c.name||'')+' '+(c.brand||'')+' '+(c.country||'')).toLowerCase().includes(q)).slice(0,8);
+  const matches=catalog.filter(c=>normCigar([c.name,c.brand,c.country].join(' ')).includes(q)).slice(0,8);
   let h=matches.map(c=>{
     const p=palette[c.terroir]||palette.autre;
     const sub=[c.country,c.module||c.force].filter(Boolean).join(' · ');
@@ -1669,7 +1703,7 @@ function openPostDetail(id){
   const thirdsLine=(p.thirds&&(p.thirds.t1||p.thirds.t2||p.thirds.t3))
     ? `<div class="pd-thirds">${['Premier tiers','Deuxième tiers','Dernier tiers'].map((l,j)=>{const v=[p.thirds.t1,p.thirds.t2,p.thirds.t3][j];return `<div class="pd-third"><span>${l}</span><b>${v?v.toFixed(1):'—'}</b></div>`}).join('')}</div>` : '';
   const flav=(p.flavors||[]).map(f=>`<span class="flavor">${f}</span>`).join('');
-  const cInfo=catalog.find(x=>(x.name||'').trim().toLowerCase()===(p.name||'').trim().toLowerCase());
+  const cInfo=ficheOf(p);
   document.getElementById('post-detail-body').innerHTML=`
     <div class="pd-head" onclick="closeSheet('post-overlay');openMemberProfile('${p.user_id}')" style="cursor:pointer">
       <div class="av" style="background:${c[0]};color:${c[1]}">${p.init}</div>
@@ -1784,7 +1818,7 @@ function openFumeeSheetFromPost(id){
   const p=feed.find(x=>x.id===id);if(!p)return;
   closeSheet('post-overlay');
   openFumeeSheet();
-  const c=catalog.find(x=>(x.name||'').trim().toLowerCase()===(p.name||'').trim().toLowerCase());
+  const c=ficheOf(p);
   if(c){ acPick(c.id); }
   else{
     document.getElementById('f-name').value=p.name||'';
@@ -1811,7 +1845,7 @@ function openEditPostSheet(id){
   setTerroir(p.terroir||null);
   if(p.terroir==='autre')document.getElementById('f-terroir-autre').value=p.origin||'';
   setThirds(p.thirds&&p.thirds.t1, p.thirds&&p.thirds.t2, p.thirds&&p.thirds.t3);
-  const c=catalog.find(x=>(x.name||'').trim().toLowerCase()===(p.name||'').trim().toLowerCase());
+  const c=ficheOf(p);
   if(c){ selectedCigar=c; document.getElementById('f-spec').innerHTML=specCardHtml(c,'✓ Fiche catalogue'); }
 }
 let editingCaveId=null;
@@ -1828,7 +1862,7 @@ function clearCaveFields(){
   document.getElementById('c-added').value=todayISO();
   caveSelectedTerroir=null;
   closeCaveAc();
-  renderCaveSpec('');
+  renderCaveSpec(null);
 }
 /* Recherche catalogue depuis le formulaire de cave.
    Le terroir retenu vient de la fiche choisie : plus fiable que de le
@@ -1837,9 +1871,9 @@ let caveSelectedTerroir=null;
 function caveAcSearch(q){
   caveSelectedTerroir=null;
   const list=document.getElementById('cave-ac-list');
-  q=(q||'').trim().toLowerCase();
+  q=normCigar(q);
   if(q.length<2){list.classList.remove('open');list.innerHTML='';return;}
-  const matches=catalog.filter(c=>((c.name||'')+' '+(c.brand||'')+' '+(c.country||'')).toLowerCase().includes(q)).slice(0,8);
+  const matches=catalog.filter(c=>normCigar([c.name,c.brand,c.country].join(' ')).includes(q)).slice(0,8);
   if(!matches.length){list.classList.remove('open');list.innerHTML='';return;}
   list.innerHTML=matches.map(c=>{
     const p=palette[c.terroir]||palette.autre;
@@ -1858,7 +1892,7 @@ function caveAcPick(id){
   document.getElementById('c-country').value=(c.country&&c.country!=='—')?c.country:(countryMeta[c.terroir]||{}).label||'';
   const mod=(c.module&&c.module!=='—')?c.module:(c.vitola||'');
   if(mod)document.getElementById('c-detail').value=mod;
-  renderCaveSpec(c.name);
+  renderCaveSpec(c);
   document.getElementById('cave-ac-list').classList.remove('open');
 }
 function caveTerroirFromText(s){
@@ -1877,9 +1911,8 @@ function closeCaveAc(){
   l.classList.remove('open'); l.innerHTML='';
 }
 /* Fiche catalogue du cigare, affichée en tête du formulaire de cave */
-function renderCaveSpec(name){
+function renderCaveSpec(c){
   const box=document.getElementById('cave-spec');
-  const c=name?catalog.find(x=>(x.name||'').trim().toLowerCase()===(name||'').trim().toLowerCase()):null;
   box.innerHTML=c?specCardHtml(c,'Fiche catalogue')+'<div style="height:16px"></div>':'';
 }
 function openCaveSheet(){
@@ -1890,8 +1923,8 @@ function openCaveSheetFromPost(id){
   const p=feed.find(x=>x.id===id);if(!p)return;
   closeSheet('post-overlay');
   caveAddMode();
-  const c=catalog.find(x=>(x.name||'').trim().toLowerCase()===(p.name||'').trim().toLowerCase());
-  renderCaveSpec(p.name);
+  const c=ficheOf(p);
+  renderCaveSpec(c);
   document.getElementById('c-name').value=p.name||'';
   document.getElementById('c-country').value=(countryMeta[(c&&c.terroir)||p.terroir]||{}).label||'';
   document.getElementById('c-detail').value=(c&&c.module)||'';
@@ -1913,7 +1946,7 @@ function openEditCaveSheet(id){
   closeCaveAc();
   document.getElementById('cave-title').textContent='Modifier la référence';
   document.getElementById('cave-submit-btn').textContent='Enregistrer';
-  renderCaveSpec(it.name);
+  renderCaveSpec(ficheByName(it.name));
   document.getElementById('c-name').value=it.name||'';
   document.getElementById('c-country').value=(countryMeta[it.terroir]||{}).label||'';
   document.getElementById('c-detail').value=it.detail==='—'?'':(it.detail||'');
@@ -1999,10 +2032,14 @@ async function saveFumee(){
   const row={user_id:currentUser.id,cigar_name:name||'Cigare sans nom',origin,terroir,rating:Math.round(rating*10)/10,
     t1:thirds.t1,t2:thirds.t2,t3:thirds.t3,note,flavors:flavors.length?flavors:['à découvrir'],place:'',is_club:isClub};
   const btn=document.querySelector('#fumee-overlay .btn-primary'); if(btn)btn.disabled=true;
+  // La fiche est résolue AVANT la publication, pour rattacher la dégustation à
+  // un format précis plutôt qu'à un nom : une même ligne en compte jusqu'à huit.
+  // La fiche choisie ne vaut que si le nom saisi correspond toujours.
+  const picked=(selectedCigar&&normCigar(selectedCigar.name)===normCigar(row.cigar_name))?selectedCigar:null;
   try{
+    row.catalog_id=picked?picked.id:await ensureCigarCard(row.cigar_name,terroir,origin);
     if(editingPostId){ await sb.from('posts').update(row).eq('id',editingPostId); }
     else{ await sb.from('posts').insert(row); }
-    await saveNewCigarCard(row.cigar_name,terroir,origin);
   }catch(e){ alert("Échec de l'enregistrement. Réessayez."); if(btn)btn.disabled=false; return; }
   if(btn)btn.disabled=false;
   editingPostId=null;
@@ -2107,18 +2144,28 @@ async function backfillCatalog(){
   alert(`${created.length} fiche${created.length>1?'s':''} ajoutée${created.length>1?'s':''} au catalogue.`);
 }
 /* Enregistre la fiche catalogue saisie manuellement, si le cigare n'existe pas déjà */
-async function saveNewCigarCard(name,terroir,country){
-  if(!name)return;
-  if(catalog.some(c=>(c.name||'').trim().toLowerCase()===name.trim().toLowerCase()))return;
+async function ensureCigarCard(name,terroir,country){
+  if(!name)return null;
+  const k=normCigar(name);
+  const matches=catalog.filter(c=>normCigar(c.name)===k);
+  // nom déjà au catalogue : on s'y rattache, sauf s'il couvre plusieurs formats,
+  // auquel cas rien ne permet de trancher sans choix explicite du membre
+  if(matches.length)return matches.length===1?matches[0].id:null;
   // Tout cigare dégusté entre au catalogue, même sans détail : sinon il resterait
   // introuvable à la recherche. Le panneau de fiche ne fait qu'enrichir la saisie.
   const open=document.getElementById('f-newcigar-fields').style.display!=='none';
   const val=id=>open?document.getElementById(id).value.trim():'';
   const strength=+val('nc-strength')||null;
-  await sb.from('catalog_items').insert({user_id:currentUser.id,name,brand:val('nc-brand'),vitola:val('nc-vitola'),
-    module:val('nc-module'),country,terroir,length:+val('nc-length')||null,ring:+val('nc-ring')||null,
-    wrapper:val('nc-wrapper'),binder:val('nc-binder'),filler:val('nc-filler'),strength});
+  let created=null;
+  try{
+    const {data,error}=await sb.from('catalog_items').insert({user_id:currentUser.id,name,brand:val('nc-brand'),vitola:val('nc-vitola'),
+      module:val('nc-module'),country,terroir,length:+val('nc-length')||null,ring:+val('nc-ring')||null,
+      wrapper:val('nc-wrapper'),binder:val('nc-binder'),filler:val('nc-filler'),strength}).select();
+    if(error)throw error;
+    created=(data||[])[0]||null;
+  }catch(e){ return null; }
   await loadMemberCatalog();
+  return created?'m-'+created.id:null;
 }
 async function saveCave(){
   if(!currentUser||!sb)return closeSheet('cave-overlay');

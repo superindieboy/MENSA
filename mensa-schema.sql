@@ -30,6 +30,7 @@ create table if not exists public.posts (
   flavors    text[] default '{}',
   place      text default '',
   is_club    boolean not null default false,  -- affiché aussi dans "Par le club" (réservé au compte admin)
+  catalog_id text,                            -- fiche notée : « mensa-0041 » (embarquée) ou « m-<uuid> » (membre)
   created_at timestamptz default now()
 );
 
