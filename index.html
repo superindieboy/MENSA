@@ -1126,7 +1126,7 @@ async function loadPosts(){
     feed.push({id:p.id, user_id:p.user_id, user:uname, init:initialsOf(uname), av:avIndex(p.user_id),
       count:countByUser[p.user_id]||0, time:timeAgo(p.created_at), name:p.cigar_name, origin:p.origin||'',
       terroir:p.terroir||'cuba', rating:p.rating||0, thirds:{t1:p.t1,t2:p.t2,t3:p.t3}, note:p.note||'',
-      flavors:p.flavors||[], place:p.place||'', likes:likeCount[p.id]||0, liked:!!likedMine[p.id], comments:0,
+      flavors:p.flavors||[], place:p.place||'', likes:likeCount[p.id]||0, liked:!!likedMine[p.id],
       isClub:!!p.is_club});
   });
   syncCatalogScores();
@@ -1198,7 +1198,11 @@ const clubLogs=[];
 
 // Membres du club
 const members=[];
-const filterList=['Tous','Cuba','Nicaragua','Rép. Dom.','Honduras','Doux','Médium','Corsé','Note 4,5+'];
+/* Libellé du filtre → code terroir. Couvre les huit terroirs du catalogue :
+   s'en tenir aux quatre historiques rendait invisibles au filtre les cigares
+   du Costa Rica, du Mexique et du Brésil. */
+const TERROIR_FILTERS={'Cuba':'cuba','Nicaragua':'nica','Rép. Dom.':'rep','Honduras':'hon','Costa Rica':'cr','Mexique':'mex','Brésil':'bre','Autre':'autre'};
+const filterList=['Tous',...Object.keys(TERROIR_FILTERS),'Doux','Médium','Corsé','Note 4,5+'];
 let activeFilter='Tous';
 
 /* ================= NAV ================= */
@@ -1331,12 +1335,27 @@ function renderFeed(){
       </div>
       <div class="post-actions">
         <button class="act ${p.liked?'on':''}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes}</button>
-        <button class="act">💬 ${p.comments}</button>
-        <button class="act">🔖 Carnet</button>
-        <button class="act" style="margin-left:auto">↗</button>
+        <button class="act" onclick="openCaveSheetFromPost('${p.id}')">🗄️ Ma cave</button>
+        <button class="act" style="margin-left:auto" onclick="sharePost('${p.id}')" aria-label="Partager cette dégustation">↗</button>
       </div>
     </article>`;
   }).join('');
+}
+/* Partage natif sur mobile, presse-papier ailleurs. L'app n'ayant pas d'URL
+   par dégustation, on partage le cigare, sa note et le lien du cercle. */
+async function sharePost(id){
+  const p=feed.find(x=>x.id===id);if(!p)return;
+  const text=`${p.name} — ${(p.rating||0).toFixed(1)}/5, noté par ${p.user} sur MENSA`;
+  const url=location.href.split('#')[0];
+  if(navigator.share){
+    try{ await navigator.share({title:'MENSA',text,url}); }
+    catch(e){ /* partage annulé par le membre */ }
+    return;
+  }
+  try{
+    await navigator.clipboard.writeText(`${text}\n${url}`);
+    alert('Dégustation copiée dans le presse-papier.');
+  }catch(e){ alert(`${text}\n${url}`); }
 }
 async function toggleLike(id){
   const p=feed.find(x=>x.id===id); if(!p||!currentUser||!sb)return;
@@ -1372,10 +1391,8 @@ function renderDiscover(){
   const q=(document.getElementById('search-input').value||'').toLowerCase();
   let list=catalog.filter(c=>{
     if(q && !((c.name+' '+(c.brand||'')+' '+(c.country||'')+' '+(c.module||'')+' '+(c.profile||'')+' '+(c.flavors||[]).join(' ')).toLowerCase().includes(q)))return false;
-    if(activeFilter==='Cuba'&&c.terroir!=='cuba')return false;
-    if(activeFilter==='Nicaragua'&&c.terroir!=='nica')return false;
-    if(activeFilter==='Rép. Dom.'&&c.terroir!=='rep')return false;
-    if(activeFilter==='Honduras'&&c.terroir!=='hon')return false;
+    const tf=TERROIR_FILTERS[activeFilter];
+    if(tf && c.terroir!==tf)return false;
     if(activeFilter==='Doux'&&c.force!=='Doux')return false;
     if(activeFilter==='Médium'&&c.force!=='Médium')return false;
     if(activeFilter==='Corsé'&&c.force!=='Corsé')return false;
