@@ -699,8 +699,6 @@ body{
         <div class="prof-club" id="prof-club">🏛️ Membre fondateur</div>
         <div class="prof-stats">
           <div class="pstat"><div class="pstat-n serif" id="ps-fumees">—</div><div class="pstat-l">cigares</div></div>
-          <div class="pstat"><div class="pstat-n serif" id="ps-followers">0</div><div class="pstat-l">abonnés</div></div>
-          <div class="pstat"><div class="pstat-n serif" id="ps-following">0</div><div class="pstat-l">abonnements</div></div>
         </div>
       </div>
     </div>
@@ -1891,6 +1889,7 @@ function caveAddMode(){
   editingCaveId=null;
   document.getElementById('cave-title').textContent='Ajouter à la cave';
   document.getElementById('cave-submit-btn').textContent='Ajouter';
+  document.getElementById('cave-submit-btn').disabled=false;
   const del=document.getElementById('cave-delete-btn'); if(del)del.remove();
 }
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
@@ -1984,6 +1983,7 @@ function openEditCaveSheet(id){
   closeCaveAc();
   document.getElementById('cave-title').textContent='Modifier la référence';
   document.getElementById('cave-submit-btn').textContent='Enregistrer';
+  document.getElementById('cave-submit-btn').disabled=false;
   renderCaveSpec(ficheByName(it.name));
   document.getElementById('c-name').value=it.name||'';
   document.getElementById('c-country').value=(countryMeta[it.terroir]||{}).label||'';
@@ -2216,10 +2216,15 @@ async function saveCave(){
   // Terroir de la fiche choisie si la recherche a servi, sinon lecture du texte saisi
   let k=caveSelectedTerroir&&cave[caveSelectedTerroir]?caveSelectedTerroir:caveTerroirFromText(country);
   const added=document.getElementById('c-added').value||todayISO();
+  // un double appui, courant sur mobile, insérerait deux fois la même référence
+  const btn=document.getElementById('cave-submit-btn');
+  if(btn.disabled)return;
+  btn.disabled=true;
   try{
     if(editingCaveId){ await sb.from('cave_items').update({name,detail,terroir:k,qty,added}).eq('id',editingCaveId); }
     else{ await sb.from('cave_items').insert({user_id:currentUser.id,name,detail,terroir:k,qty,added}); }
-  }catch(e){ alert("Échec de l'enregistrement. Réessayez."); return; }
+  }catch(e){ alert("Échec de l'enregistrement. Réessayez."); btn.disabled=false; return; }
+  btn.disabled=false;
   closeSheet('cave-overlay');
   caveAddMode(); clearCaveFields();
   // sans cela une recherche en cours masquerait la référence qu'on vient d'ajouter
