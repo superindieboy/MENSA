@@ -727,6 +727,9 @@ body{
       <button class="bio-edit" id="prof-bio-edit" onclick="openBioSheet()">✎ Modifier</button>
     </div>
 
+    <div class="sec-label" id="palais-label" style="display:none">Le palais</div>
+    <div class="palais" id="palais" style="display:none"></div>
+
     <div class="sec-label" id="prof-posts-label">Dégustations</div>
     <div id="prof-posts"></div>
 
@@ -1616,6 +1619,77 @@ function profPostCard(p){
     </div>
   </div>`;
 }
+/* Le palais : profil de goût d'un membre, déduit de ses dégustations.
+   Le radar porte les terroirs qu'il a notés, chaque branche valant sa note
+   moyenne sur ce terroir. */
+function radarSvg(axes){
+  // le cadre laisse de la place aux libellés latéraux, sinon ils sont rognés
+  const cx=130, cy=94, R=62, n=axes.length;
+  const pt=(i,r)=>{
+    const a=(-90+i*360/n)*Math.PI/180;
+    return [cx+r*Math.cos(a), cy+r*Math.sin(a)];
+  };
+  const poly=(r,f)=>axes.map((_,i)=>pt(i,typeof r==='function'?r(i):r).map(v=>v.toFixed(1)).join(',')).join(' ');
+  const guides=[0.34,0.67,1].map(f=>
+    `<polygon points="${poly(R*f)}" fill="none" stroke="var(--line-2)" stroke-width="1" opacity="${f===1?.9:.45}"/>`).join('');
+  const rayons=axes.map((_,i)=>{
+    const [x,y]=pt(i,R);
+    return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line-2)" stroke-width="1" opacity=".45"/>`;
+  }).join('');
+  const forme=`<polygon points="${poly(i=>R*Math.max(axes[i].moy,0.15)/5)}" fill="var(--cognac)" fill-opacity=".28" stroke="var(--cognac)" stroke-width="2" stroke-linejoin="round"/>`;
+  const points=axes.map((a,i)=>{
+    const [x,y]=pt(i,R*Math.max(a.moy,0.15)/5);
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="var(--gold)"/>`;
+  }).join('');
+  const libelles=axes.map((a,i)=>{
+    const [x,y]=pt(i,R+17);
+    const ancre=Math.abs(x-cx)<6?'middle':(x>cx?'start':'end');
+    return `<text class="radar-lbl" x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" text-anchor="${ancre}" font-size="10">${a.court}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 260 190" width="260" height="190" style="max-width:100%;height:auto" role="img" aria-label="Profil de goût par terroir">
+    ${guides}${rayons}${forme}${points}${libelles}</svg>`;
+}
+function renderPalais(posts){
+  const box=document.getElementById('palais');
+  if(!posts.length){ show('palais-label','none'); show('palais','none'); return; }
+  show('palais-label','block'); show('palais','grid');
+
+  const parTerroir={};
+  posts.forEach(p=>{ const k=p.terroir||'autre'; (parTerroir[k]=parTerroir[k]||[]).push(p.rating||0); });
+  const abrege={cuba:'Cuba',nica:'Nicaragua',rep:'Rép. dom.',hon:'Honduras',
+                cr:'Costa Rica',mex:'Mexique',bre:'Brésil',autre:'Autre'};
+  const axes=Object.keys(parTerroir).map(k=>{
+    const rs=parTerroir[k], nom=(countryMeta[k]||{}).label||'Autre';
+    return {k, nom, court:abrege[k]||nom, n:rs.length,
+            moy:rs.reduce((a,b)=>a+b,0)/rs.length};
+  }).sort((a,b)=>b.n-a.n);
+
+  const prefere=[...axes].sort((a,b)=>b.moy-a.moy||b.n-a.n)[0];
+  const moyenne=posts.reduce((s,p)=>s+(p.rating||0),0)/posts.length;
+  const compteAromes={};
+  posts.forEach(p=>(p.flavors||[]).forEach(f=>{
+    const c=(f||'').trim(); if(!c||c==='à découvrir')return;
+    compteAromes[c]=(compteAromes[c]||0)+1;
+  }));
+  const aromes=Object.keys(compteAromes).sort((a,b)=>compteAromes[b]-compteAromes[a]).slice(0,5);
+  const compteForce={};
+  posts.forEach(p=>{const c=ficheOf(p); if(c&&c.force)compteForce[c.force]=(compteForce[c.force]||0)+1;});
+  const force=Object.keys(compteForce).sort((a,b)=>compteForce[b]-compteForce[a])[0];
+
+  const ligne=(k,v)=>`<div class="spec-row"><span class="spec-k">${k}</span><span class="spec-v">${v}</span></div>`;
+  const resume=`<div class="spec-grid" style="grid-template-columns:1fr">
+      ${ligne('Note moyenne',moyenne.toFixed(1)+' / 5')}
+      ${ligne('Terroir de prédilection',`${prefere.nom} · ${prefere.moy.toFixed(1)}`)}
+      ${ligne('Terroirs explorés',axes.length)}
+      ${force?ligne('Force la plus fumée',force):''}
+    </div>
+    ${aromes.length?`<div class="spec-flavors" style="margin-top:10px">${aromes.map(f=>`<span class="flavor">${f}</span>`).join('')}</div>`:''}`;
+
+  box.innerHTML = axes.length>=3
+    ? radarSvg(axes)+`<div>${resume}</div>`
+    : `<div style="grid-column:1/-1">${resume}
+        <p style="font-size:12px;color:var(--ink-3);margin-top:12px;line-height:1.5">Notez des cigares de trois terroirs différents pour voir votre palais se dessiner.</p></div>`;
+}
 function renderProfileFor(id){
   if(!id){return;}
   const isSelf = currentUser && id===currentUser.id;
@@ -1634,6 +1708,8 @@ function renderProfileFor(id){
   show('prof-admin', (isSelf&&isAdmin())?'block':'none');
   show('prof-back', isSelf?'none':'block');
   document.getElementById('prof-posts-label').textContent = isSelf?'Mes dégustations':'Ses dégustations';
+  document.getElementById('palais-label').textContent = isSelf?'Mon palais':'Son palais';
+  renderPalais(posts);
 
   // liste des dégustations
   document.getElementById('prof-posts').innerHTML = posts.length
