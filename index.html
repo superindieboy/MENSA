@@ -1694,9 +1694,9 @@ function openCigarDetail(id){
   const c=catalog.find(x=>x.id===id);if(!c)return;
   const degs=tastingsOfFiche(c);
   const bloc=degs.length
-    ? `<div class="sec-label" style="margin:22px 0 12px">Les dégustations du club · ${degs.length}</div>`
+    ? `<div class="sec-label" style="margin:22px 0 12px">Les dégustations des membres · ${degs.length}</div>`
       +degs.map(ficheTastingCard).join('')
-    : `<div class="sec-label" style="margin:22px 0 12px">Les dégustations du club</div>`
+    : `<div class="sec-label" style="margin:22px 0 12px">Les dégustations des membres</div>`
       +`<div class="rail-empty">Personne ne l'a encore noté. Soyez le premier.</div>`;
   document.getElementById('detail-body').innerHTML=
     `<h3 class="serif" style="margin-bottom:14px">Fiche cigare</h3>`+
