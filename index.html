@@ -815,7 +815,10 @@ body{
       <input id="f-terroir-autre" style="display:none;margin-top:9px" placeholder="Précisez le pays / la région">
     </div>
     <div class="field">
-      <label>Votre note par tiers <span style="color:var(--ink-3);font-weight:400">— sur 5, demi-points possibles</span></label>
+      <label>
+        Votre note par tiers <span style="color:var(--ink-3);font-weight:400">— facultatif, demi-points possibles</span>
+        <span id="f-thirds-reset" style="display:none;float:right;color:var(--cognac);font-weight:500;cursor:pointer" onclick="resetThirds();updateGlobal()">Effacer</span>
+      </label>
       <div class="thirds">
         <div class="third">
           <span class="third-lbl">Premier tiers</span>
@@ -834,8 +837,11 @@ body{
         </div>
       </div>
       <div class="global-note">
-        <span class="gl">Note globale<small>moyenne des trois tiers</small></span>
-        <span class="global-val" id="f-global">—</span>
+        <span class="gl">Note globale<small id="f-global-hint">notez directement, ou détaillez par tiers</small></span>
+        <span style="display:flex;align-items:center;gap:12px">
+          <span class="stars-track" id="f-global-track" data-key="g"><span class="stars-base">●●●●●</span><span class="stars-fill">●●●●●</span></span>
+          <span class="global-val" id="f-global">—</span>
+        </span>
       </div>
     </div>
     <div class="field">
@@ -1936,9 +1942,11 @@ function openFumeeSheetFromPost(id){
     setTerroir(p.terroir||null);
   }
 }
-function setThirds(t1,t2,t3){
+function setThirds(t1,t2,t3,noteGlobale){
   thirds.t1=t1||0; thirds.t2=t2||0; thirds.t3=t3||0;
-  document.querySelectorAll('#fumee-overlay .stars-track').forEach(tr=>paint(tr,thirds[tr.dataset.key]));
+  // dégustation notée globalement, sans détail par tiers : on restitue la note
+  thirds.g=(!thirds.t1&&!thirds.t2&&!thirds.t3)?(noteGlobale||0):0;
+  document.querySelectorAll('#fumee-overlay .stars-track').forEach(tr=>paint(tr,thirds[tr.dataset.key]||0));
   updateGlobal();
 }
 function openEditPostSheet(id){
@@ -1955,7 +1963,7 @@ function openEditPostSheet(id){
   document.getElementById('f-club').checked=!!p.isClub;
   setTerroir(p.terroir||null);
   if(p.terroir==='autre')document.getElementById('f-terroir-autre').value=p.origin||'';
-  setThirds(p.thirds&&p.thirds.t1, p.thirds&&p.thirds.t2, p.thirds&&p.thirds.t3);
+  setThirds(p.thirds&&p.thirds.t1, p.thirds&&p.thirds.t2, p.thirds&&p.thirds.t3, p.rating);
   const c=ficheOf(p);
   if(c){ selectedCigar=c; document.getElementById('f-spec').innerHTML=specCardHtml(c,'✓ Fiche catalogue'); }
 }
@@ -2138,26 +2146,39 @@ async function saveBio(){
   document.getElementById('prof-bio').textContent=v||BIO_PLACEHOLDER;
   closeSheet('bio-overlay');
 }
-const thirds={t1:0,t2:0,t3:0};
+const thirds={t1:0,t2:0,t3:0,g:0};   // g : note globale saisie directement
 function valFromX(track,clientX){
   const rect=track.getBoundingClientRect();
   let frac=(clientX-rect.left)/rect.width;frac=Math.max(0,Math.min(1,frac));
   let v=Math.round(frac*5*2)/2;if(v<0.5)v=0.5;return v;
 }
 function paint(track,v){
-  track.querySelector('.stars-fill').style.width=(v/5*100)+'%';
-  track.parentElement.querySelector('.third-val').textContent=v?v.toFixed(1):'—';
+  track.querySelector('.stars-fill').style.width=((v||0)/5*100)+'%';
+  const val=track.parentElement.querySelector('.third-val');
+  if(val)val.textContent=v?v.toFixed(1):'—';
 }
+/* La note globale se saisit directement : les tiers ne sont qu'un détail
+   facultatif. Dès qu'un tiers est noté, la globale en devient la moyenne et
+   n'est plus modifiable à la main — « Effacer » rend la saisie directe. */
 function updateGlobal(){
   const vals=[thirds.t1,thirds.t2,thirds.t3].filter(v=>v>0);
-  const g=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
+  const auto=vals.length>0;
+  const g=auto?vals.reduce((a,b)=>a+b,0)/vals.length:(thirds.g||0);
   fRating=g;
   document.getElementById('f-global').innerHTML=g?`${g.toFixed(1)}<span> / 5</span>`:'—';
+  const track=document.getElementById('f-global-track');
+  track.style.pointerEvents=auto?'none':'auto';
+  track.style.opacity=auto?'.5':'1';
+  paint(track,g);
+  document.getElementById('f-global-hint').textContent=auto
+    ? (vals.length>1?`moyenne des ${vals.length} tiers notés`:'reprise du tiers noté')
+    : 'notez directement, ou détaillez par tiers';
+  show('f-thirds-reset',auto?'inline':'none');
 }
 function resetThirds(){
-  thirds.t1=thirds.t2=thirds.t3=0;fRating=0;
+  thirds.t1=thirds.t2=thirds.t3=thirds.g=0;fRating=0;
   document.querySelectorAll('#fumee-overlay .stars-track').forEach(tr=>paint(tr,0));
-  document.getElementById('f-global').textContent='—';
+  updateGlobal();
 }
 document.querySelectorAll('#fumee-overlay .stars-track').forEach(tr=>{
   const key=tr.dataset.key;
@@ -2170,7 +2191,8 @@ async function saveFumee(){
   if(!currentUser||!sb)return closeSheet('fumee-overlay');
   const err=document.getElementById('f-err'); err.textContent='';
   const name=document.getElementById('f-name').value.trim();
-  if(!(thirds.t1>0 && thirds.t2>0 && thirds.t3>0)){err.textContent='Notez les trois tiers avant de publier.';return;}
+  // seule la note globale est requise : les tiers restent un détail facultatif
+  if(!(fRating>0)){err.textContent='Donnez une note avant de publier.';return;}
   if(!selectedTerroir){err.textContent='Choisissez un terroir avant de publier.';return;}
   const terroirLabels={cuba:'Cuba',nica:'Nicaragua',rep:'Rép. dominicaine',hon:'Honduras',cr:'Costa Rica',mex:'Mexique',bre:'Brésil',autre:'Autre'};
   const autreText=document.getElementById('f-terroir-autre').value.trim();
@@ -2178,10 +2200,10 @@ async function saveFumee(){
   const note=document.getElementById('f-note').value.trim();
   const flavors=document.getElementById('f-flavors').value.split(',').map(x=>x.trim()).filter(Boolean);
   const terroir=selectedTerroir;
-  const rating=(thirds.t1+thirds.t2+thirds.t3)/3;
   const isClub=isAdmin()&&document.getElementById('f-club').checked;
-  const row={user_id:currentUser.id,cigar_name:name||'Cigare sans nom',origin,terroir,rating:Math.round(rating*10)/10,
-    t1:thirds.t1,t2:thirds.t2,t3:thirds.t3,note,flavors:flavors.length?flavors:['à découvrir'],place:'',is_club:isClub};
+  const row={user_id:currentUser.id,cigar_name:name||'Cigare sans nom',origin,terroir,rating:Math.round(fRating*10)/10,
+    t1:thirds.t1||null,t2:thirds.t2||null,t3:thirds.t3||null,
+    note,flavors:flavors.length?flavors:['à découvrir'],place:'',is_club:isClub};
   const btn=document.querySelector('#fumee-overlay .btn-primary'); if(btn)btn.disabled=true;
   // La fiche est résolue AVANT la publication, pour rattacher la dégustation à
   // un format précis plutôt qu'à un nom : une même ligne en compte jusqu'à huit.
