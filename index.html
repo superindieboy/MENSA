@@ -1674,12 +1674,35 @@ function acCreate(){
   if(box.style.display==='none')toggleNewCigarFields();
 }
 
+/* Dégustation vue depuis la fiche d'un cigare : c'est le membre qu'on met en
+   avant, le cigare étant déjà connu. */
+function ficheTastingCard(p){
+  const av=avColors[p.av]||avColors[0];
+  return `<div class="pp-card" onclick="closeSheet('detail-overlay');openPostDetail('${p.id}')" style="cursor:pointer">
+    <div class="pp-thumb" style="background:${av[0]};color:${av[1]};font-family:var(--serif);font-size:22px;font-weight:600">${p.init}</div>
+    <div class="pp-body">
+      <div class="pp-top"><span class="pp-name">${p.user}</span><span class="pp-rate"><span style="color:var(--gold)">●</span> ${(p.rating||0).toFixed(1)}</span></div>
+      <div class="pp-origin">${p.time}</div>
+      ${p.note?`<p class="pp-note">${p.note}</p>`:''}
+    </div>
+  </div>`;
+}
+function tastingsOfFiche(c){
+  return feed.filter(p=>{const f=ficheOf(p);return f&&f.id===c.id;});
+}
 function openCigarDetail(id){
   const c=catalog.find(x=>x.id===id);if(!c)return;
+  const degs=tastingsOfFiche(c);
+  const bloc=degs.length
+    ? `<div class="sec-label" style="margin:22px 0 12px">Les dégustations du club · ${degs.length}</div>`
+      +degs.map(ficheTastingCard).join('')
+    : `<div class="sec-label" style="margin:22px 0 12px">Les dégustations du club</div>`
+      +`<div class="rail-empty">Personne ne l'a encore noté. Soyez le premier.</div>`;
   document.getElementById('detail-body').innerHTML=
     `<h3 class="serif" style="margin-bottom:14px">Fiche cigare</h3>`+
     specCardHtml(c,'Fiche catalogue')+
-    (c.profile?`<p style="font-size:13px;color:var(--ink-2);margin:-4px 2px 4px;line-height:1.55">${c.profile}</p>`:'');
+    (c.profile?`<p style="font-size:13px;color:var(--ink-2);margin:-4px 2px 4px;line-height:1.55">${c.profile}</p>`:'')+
+    bloc;
   document.getElementById('detail-log').onclick=()=>{closeSheet('detail-overlay');openFumeeSheet();acPick(c.id);};
   const oldEdit=document.getElementById('detail-edit-btn'); if(oldEdit)oldEdit.remove();
   if(isAdmin()){
