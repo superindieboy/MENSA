@@ -219,6 +219,16 @@ body{
 .act i{font-size:17px}
 .act:hover{color:var(--ink)}
 .act.on{color:var(--ember)}
+/* Qui a aimé : pastilles d'initiales légèrement chevauchées, les noms
+   apparaissant au survol. */
+.likers{display:flex;align-items:center;margin-left:-8px;cursor:default}
+.likers .lk{
+  width:19px;height:19px;border-radius:50%;margin-left:-6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;border:1.5px solid var(--card);flex-shrink:0;
+}
+.likers .lk-plus{background:var(--line-2);color:var(--ink-2);font-size:8.5px}
+.likers:hover .lk{border-color:var(--line-2)}
 
 /* ===== COMPOSE FAB ===== */
 .fab{
@@ -1213,8 +1223,13 @@ async function loadPosts(){
   if(error)console.error('loadPosts',error);
   const nameById={}; members.forEach(m=>nameById[m.id]=m.name);
   let likes=[]; try{const r=await sb.from('post_likes').select('post_id,user_id'); likes=r.data||[];}catch(e){}
-  const likeCount={}, likedMine={};
-  likes.forEach(l=>{likeCount[l.post_id]=(likeCount[l.post_id]||0)+1; if(currentUser&&l.user_id===currentUser.id)likedMine[l.post_id]=true;});
+  // on garde aussi QUI a aimé, pour l'indicateur du fil
+  const likeCount={}, likedMine={}, likedBy={};
+  likes.forEach(l=>{
+    likeCount[l.post_id]=(likeCount[l.post_id]||0)+1;
+    (likedBy[l.post_id]=likedBy[l.post_id]||[]).push(l.user_id);
+    if(currentUser&&l.user_id===currentUser.id)likedMine[l.post_id]=true;
+  });
   const countByUser={};
   (data||[]).forEach(p=>countByUser[p.user_id]=(countByUser[p.user_id]||0)+1);
   members.forEach(m=>m.count=countByUser[m.id]||0);
@@ -1225,6 +1240,7 @@ async function loadPosts(){
       count:countByUser[p.user_id]||0, time:timeAgo(p.created_at), createdAt:p.created_at, name:p.cigar_name, origin:p.origin||'',
       terroir:p.terroir||'cuba', rating:p.rating||0, thirds:{t1:p.t1,t2:p.t2,t3:p.t3}, note:p.note||'',
       flavors:p.flavors||[], place:p.place||'', likes:likeCount[p.id]||0, liked:!!likedMine[p.id],
+      likers:(likedBy[p.id]||[]).slice(),
       isClub:!!p.is_club, catalogId:p.catalog_id||null, photoUrl:p.photo_url||null});
   });
   syncCatalogScores();
@@ -1480,6 +1496,7 @@ function renderFeed(){
       </div>
       <div class="post-actions">
         <button class="act ${p.liked?'on':''}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes}</button>
+        ${likersHtml(p)}
         <button class="act" onclick="openCaveSheetFromPost('${p.id}')">🗄️ Ma cave</button>
         <button class="act" style="margin-left:auto" onclick="sharePost('${p.id}')" aria-label="Partager cette dégustation">↗</button>
       </div>
@@ -1502,20 +1519,46 @@ async function sharePost(id){
     toast("Dégustation copiée dans le presse-papier.");
   }catch(e){ toast(`${text}\n${url}`); }
 }
+/* Qui a aimé : trois pastilles au plus, le reste compté. Les noms complets
+   sont portés par l'attribut title, donc lisibles au survol. */
+function nomDuMembre(uid){
+  if(currentUser&&uid===currentUser.id)return currentUser.name;
+  const m=members.find(x=>x.id===uid);
+  return m?m.name:'Membre';
+}
+function likersHtml(p){
+  const ids=p.likers||[];
+  if(!ids.length)return '';
+  const noms=ids.map(nomDuMembre);
+  const vus=ids.slice(0,3), reste=ids.length-vus.length;
+  const pastilles=vus.map(uid=>{
+    const c=avColors[avIndex(uid)]||avColors[0];
+    return `<span class="lk" style="background:${c[0]};color:${c[1]}">${initialsOf(nomDuMembre(uid))}</span>`;
+  }).join('')+(reste>0?`<span class="lk lk-plus">+${reste}</span>`:'');
+  const libelle=noms.length>1
+    ? noms.slice(0,-1).join(', ')+' et '+noms[noms.length-1]+' ont aimé'
+    : noms[0]+' a aimé';
+  return `<span class="likers" title="${libelle.replace(/"/g,'&quot;')}" aria-label="${libelle.replace(/"/g,'&quot;')}">${pastilles}</span>`;
+}
 async function toggleLike(id){
   const p=feed.find(x=>x.id===id); if(!p||!currentUser||!sb)return;
   const liked=!p.liked;
-  p.liked=liked; p.likes+=liked?1:-1; renderFeed(); refreshDetailLike(p);
+  const majListe=v=>{
+    p.likers=(p.likers||[]).filter(u=>u!==currentUser.id);
+    if(v)p.likers.push(currentUser.id);
+  };
+  p.liked=liked; p.likes+=liked?1:-1; majListe(liked); renderFeed(); refreshDetailLike(p);
   try{
     if(liked){await sb.from('post_likes').insert({post_id:id,user_id:currentUser.id});}
     else{await sb.from('post_likes').delete().eq('post_id',id).eq('user_id',currentUser.id);}
-  }catch(e){p.liked=!liked;p.likes+=liked?-1:1;renderFeed();refreshDetailLike(p);}
+  }catch(e){p.liked=!liked;p.likes+=liked?-1:1;majListe(!liked);renderFeed();refreshDetailLike(p);}
 }
 function refreshDetailLike(p){
   const btn=document.getElementById('pd-like-btn');
   if(btn && btn.dataset.pid===p.id){
     btn.classList.toggle('on',p.liked);
     btn.innerHTML=`<span>${p.liked?'❤️':'🤍'}</span> ${p.likes} j'aime`;
+    const l=document.getElementById('pd-likers'); if(l)l.innerHTML=likersHtml(p);
   }
 }
 
@@ -1968,7 +2011,10 @@ function openPostDetail(id){
     ${thirdsLine}
     ${p.note?`<p class="pd-note">${p.note}</p>`:''}
     ${flav?`<div class="flavors" style="margin-top:6px">${flav}</div>`:''}
-    <button class="pd-like ${p.liked?'on':''}" id="pd-like-btn" data-pid="${p.id}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes} j'aime</button>
+    <span style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <button class="pd-like ${p.liked?'on':''}" id="pd-like-btn" data-pid="${p.id}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes} j'aime</button>
+      <span id="pd-likers">${likersHtml(p)}</span>
+    </span>
     ${cInfo?`<div class="sec-label" style="margin:18px 0 10px">Fiche catalogue</div>${specCardHtml(cInfo,'Fiche catalogue')}`:''}`;
   // bouton supprimer : auteur ou modérateur (admin)
   const actions=document.getElementById('post-detail-actions');
