@@ -219,9 +219,13 @@ body{
 .act i{font-size:17px}
 .act:hover{color:var(--ink)}
 .act.on{color:var(--ember)}
-/* Qui a aimé : pastilles d'initiales légèrement chevauchées, les noms
-   apparaissant au survol. */
-.likers{display:flex;align-items:center;margin-left:-8px;cursor:default}
+/* Qui a aimé : pastilles d'initiales légèrement chevauchées. Les noms
+   apparaissent au survol, et à la tape sur mobile, où le survol n'existe pas. */
+.likers{display:flex;align-items:center;margin-left:-8px;cursor:pointer}
+.likers:active{opacity:.7}
+/* Dans une carte du fil, l'indicateur est légèrement décalé vers le bas
+   et la droite, pour se détacher du compteur de « j'aime ». */
+.post-actions .likers{transform:translate(7px,3px)}
 .likers .lk{
   width:19px;height:19px;border-radius:50%;margin-left:-6px;
   display:flex;align-items:center;justify-content:center;
@@ -1526,19 +1530,30 @@ function nomDuMembre(uid){
   const m=members.find(x=>x.id===uid);
   return m?m.name:'Membre';
 }
+function libelleLikers(p){
+  const noms=(p.likers||[]).map(nomDuMembre);
+  if(!noms.length)return '';
+  return noms.length>1
+    ? noms.slice(0,-1).join(', ')+' et '+noms[noms.length-1]+' ont aimé'
+    : noms[0]+' a aimé';
+}
 function likersHtml(p){
   const ids=p.likers||[];
   if(!ids.length)return '';
-  const noms=ids.map(nomDuMembre);
   const vus=ids.slice(0,3), reste=ids.length-vus.length;
   const pastilles=vus.map(uid=>{
     const c=avColors[avIndex(uid)]||avColors[0];
     return `<span class="lk" style="background:${c[0]};color:${c[1]}">${initialsOf(nomDuMembre(uid))}</span>`;
   }).join('')+(reste>0?`<span class="lk lk-plus">+${reste}</span>`:'');
-  const libelle=noms.length>1
-    ? noms.slice(0,-1).join(', ')+' et '+noms[noms.length-1]+' ont aimé'
-    : noms[0]+' a aimé';
-  return `<span class="likers" title="${libelle.replace(/"/g,'&quot;')}" aria-label="${libelle.replace(/"/g,'&quot;')}">${pastilles}</span>`;
+  const libelle=libelleLikers(p).replace(/"/g,'&quot;');
+  return `<span class="likers" role="button" tabindex="0" title="${libelle}" aria-label="${libelle}"
+    onclick="montrerLikers('${p.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();montrerLikers('${p.id}')}">${pastilles}</span>`;
+}
+/* Le survol n'existe pas au doigt : une tape affiche les noms dans le bandeau. */
+function montrerLikers(id){
+  const p=feed.find(x=>x.id===id);
+  const libelle=p?libelleLikers(p):'';
+  if(libelle)toast(libelle);
 }
 async function toggleLike(id){
   const p=feed.find(x=>x.id===id); if(!p||!currentUser||!sb)return;
