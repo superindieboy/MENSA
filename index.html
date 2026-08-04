@@ -747,6 +747,7 @@ body{
   <div class="sheet">
     <div class="sheet-grip"></div>
     <h3 class="serif" id="fumee-title">Noter un cigare</h3>
+    <div id="f-cave-note" style="display:none;font-size:12.5px;color:var(--cognac);background:rgba(176,109,58,0.10);border:1px solid var(--line-2);border-radius:10px;padding:10px 12px;margin:-8px 0 16px;line-height:1.45"></div>
 
     <div class="field">
       <label>Rechercher dans le catalogue</label>
@@ -1819,9 +1820,26 @@ async function deletePost(id){
 /* ================= SHEETS ================= */
 let fRating=0;
 let editingPostId=null;
+let smokingFromCaveId=null;   // référence de cave à décrémenter après publication
+/* Supabase ne lève pas d'exception : il renvoie { error }. Sans le lire, une
+   publication refusée passait pour un succès et la dégustation disparaissait.
+   Si la colonne catalog_id n'existe pas encore en base, on republie sans elle
+   plutôt que de perdre la dégustation. */
+async function writePost(row,postId){
+  const envoi=r=>postId ? sb.from('posts').update(r).eq('id',postId) : sb.from('posts').insert(r);
+  let {error}=await envoi(row);
+  if(error && /catalog_id/i.test(error.message||'')){
+    const sansLien=Object.assign({},row); delete sansLien.catalog_id;
+    ({error}=await envoi(sansLien));
+    if(!error)console.warn("Colonne catalog_id absente : exécutez ajout-lien-fiche.sql dans Supabase.");
+  }
+  if(error)throw error;
+}
 function openFumeeSheet(){
   selectedCigar=null;
   editingPostId=null;
+  smokingFromCaveId=null;
+  document.getElementById('f-cave-note').style.display='none';
   document.getElementById('fumee-title').textContent='Noter un cigare';
   document.getElementById('fumee-submit-btn').textContent='Publier le cigare';
   document.getElementById('f-spec').innerHTML='';
@@ -1991,10 +2009,44 @@ function openEditCaveSheet(id){
   document.getElementById('c-qty').value=it.qty||1;
   document.getElementById('c-added').value=(it.addedRaw||'').slice(0,10)||todayISO();
   const actions=document.getElementById('cave-actions');
+  if(!document.getElementById('cave-smoke-btn')){
+    actions.insertAdjacentHTML('afterbegin',`<button class="btn-primary" id="cave-smoke-btn" style="flex-basis:100%" onclick="smokeFromCave()">Fumer un cigare</button>`);
+  }
   if(!document.getElementById('cave-delete-btn')){
     actions.insertAdjacentHTML('beforeend',`<button class="btn-danger" id="cave-delete-btn" onclick="deleteCaveItem()">Supprimer</button>`);
   }
   document.getElementById('cave-overlay').classList.add('open');
+}
+/* Fumer un cigare de sa cave : ouvre la notation prérempli et retire
+   l'exemplaire du stock une fois la dégustation publiée. */
+function smokeFromCave(){
+  const it=findCaveItem(editingCaveId);
+  if(!it||!currentUser||it.user_id!==currentUser.id)return;
+  const source=it.id, nom=it.name, terroir=it.terroir;
+  closeSheet('cave-overlay');
+  caveAddMode(); clearCaveFields();
+  openFumeeSheet();
+  smokingFromCaveId=source;
+  const c=ficheByName(nom);
+  if(c){ acPick(c.id); }
+  else{
+    document.getElementById('f-name').value=nom||'';
+    setTerroir(terroir||null);
+  }
+  const note=document.getElementById('f-cave-note');
+  note.textContent=`Un exemplaire de « ${nom} » sera retiré de votre cave.`;
+  note.style.display='block';
+}
+async function decrementCaveItem(id){
+  const it=findCaveItem(id);
+  if(!it||!sb)return;
+  const reste=(it.qty||1)-1;
+  // la dégustation est déjà publiée : un échec ici ne doit pas la remettre en cause
+  try{
+    if(reste>0){ await sb.from('cave_items').update({qty:reste}).eq('id',id); }
+    else{ await sb.from('cave_items').delete().eq('id',id); }
+  }catch(e){ return; }
+  await loadCave(); renderCave();
 }
 async function deleteCaveItem(){
   if(!editingCaveId||!currentUser||!sb)return;
@@ -2078,10 +2130,16 @@ async function saveFumee(){
   const picked=(selectedCigar&&normCigar(selectedCigar.name)===normCigar(row.cigar_name))?selectedCigar:null;
   try{
     row.catalog_id=picked?picked.id:await ensureCigarCard(row.cigar_name,terroir,origin);
-    if(editingPostId){ await sb.from('posts').update(row).eq('id',editingPostId); }
-    else{ await sb.from('posts').insert(row); }
-  }catch(e){ alert("Échec de l'enregistrement. Réessayez."); if(btn)btn.disabled=false; return; }
+    await writePost(row,editingPostId);
+  }catch(e){
+    alert("Échec de l'enregistrement de la dégustation.\n\n"+(e&&e.message?e.message:'Réessayez.'));
+    if(btn)btn.disabled=false; return;
+  }
   if(btn)btn.disabled=false;
+  // le stock ne baisse que pour une nouvelle dégustation, pas pour une correction
+  if(smokingFromCaveId && !editingPostId){ await decrementCaveItem(smokingFromCaveId); }
+  smokingFromCaveId=null;
+  document.getElementById('f-cave-note').style.display='none';
   editingPostId=null;
   closeSheet('fumee-overlay');
   ['f-name','f-note','f-flavors'].forEach(id=>document.getElementById(id).value='');
@@ -2232,6 +2290,15 @@ async function saveCave(){
   await loadCave(); renderCave();
 }
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
+/* Échap ferme d'abord une liste de suggestions ouverte, puis la fenêtre du
+   dessus : les panneaux se fermaient au clic extérieur mais pas au clavier. */
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  const ac=[...document.querySelectorAll('.ac-list.open')].pop();
+  if(ac){ac.classList.remove('open');return;}
+  const sheet=[...document.querySelectorAll('.overlay.open')].pop();
+  if(sheet)sheet.classList.remove('open');
+});
 
 /* ================= INIT ================= */
 /* Header : masqué au défilement vers le bas, révélé vers le haut */
