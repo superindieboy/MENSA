@@ -123,6 +123,15 @@ body{
 .rail-all{font-size:12px;font-weight:500;color:var(--cognac);cursor:pointer;white-space:nowrap}
 .rail-scroll{display:flex;gap:14px;overflow-x:auto;padding:6px 0;margin-top:-6px;scrollbar-width:none;scroll-snap-type:x proximity}
 .rail-scroll::-webkit-scrollbar{display:none}
+/* À la souris, une barre masquée rend inatteignable tout ce qui dépasse :
+   on la montre sur les appareils à pointeur fin, le tactile gardant le geste. */
+@media (hover:hover) and (pointer:fine){
+  .rail-scroll{scrollbar-width:thin;scrollbar-color:var(--line-2) transparent;padding-bottom:2px}
+  .rail-scroll::-webkit-scrollbar{display:block;height:7px}
+  .rail-scroll::-webkit-scrollbar-track{background:transparent}
+  .rail-scroll::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:4px}
+  .rail-scroll:hover::-webkit-scrollbar-thumb{background:var(--cognac)}
+}
 .poster{flex-shrink:0;width:138px;cursor:pointer;scroll-snap-align:start;transition:.15s}
 .poster:hover{transform:translateY(-3px)}
 .poster-art{
@@ -650,7 +659,7 @@ body{
     <h1 class="screen-title serif">Découvrir</h1>
     <p class="screen-sub" id="disc-intro"></p>
 
-    <div class="sec-label">🔥 Tendance cette semaine</div>
+    <div class="sec-label" id="trending-label">🔥 Tendance cette semaine</div>
     <div class="rank" id="trending" style="margin-bottom:26px"></div>
 
     <div class="search">
@@ -1131,7 +1140,7 @@ async function loadPosts(){
   (data||[]).forEach(p=>{
     const uname=nameById[p.user_id]||(currentUser&&p.user_id===currentUser.id?currentUser.name:'Membre');
     feed.push({id:p.id, user_id:p.user_id, user:uname, init:initialsOf(uname), av:avIndex(p.user_id),
-      count:countByUser[p.user_id]||0, time:timeAgo(p.created_at), name:p.cigar_name, origin:p.origin||'',
+      count:countByUser[p.user_id]||0, time:timeAgo(p.created_at), createdAt:p.created_at, name:p.cigar_name, origin:p.origin||'',
       terroir:p.terroir||'cuba', rating:p.rating||0, thirds:{t1:p.t1,t2:p.t2,t3:p.t3}, note:p.note||'',
       flavors:p.flavors||[], place:p.place||'', likes:likeCount[p.id]||0, liked:!!likedMine[p.id],
       isClub:!!p.is_club, catalogId:p.catalog_id||null});
@@ -1457,13 +1466,38 @@ function renderDiscover(){
     ? `<button class="logout-btn" style="width:100%;margin:0" onclick="showMoreDiscover()">Afficher ${Math.min(reste,DISC_PAGE)} références de plus <span style="color:var(--ink-3);font-weight:400">— ${reste} restantes</span></button>`
     : '';
 
-  const trend=[...catalog].filter(c=>c.score>0).sort((a,b)=>b.score-a.score).slice(0,3);
-  document.getElementById('trending').innerHTML=trend.map((c,i)=>`
-    <div class="rank-row" onclick="openCigarDetail('${c.id}')" style="cursor:pointer">
+  renderTrending();
+}
+/* Palmarès de la semaine, établi sur les dégustations des sept derniers jours.
+   Le classement portait jusqu'ici sur tout le catalogue, sans filtre de date :
+   il annonçait « cette semaine » un palmarès de tous les temps. Faute
+   d'activité récente, on bascule explicitement sur les mieux notés. */
+function renderTrending(){
+  const depuis=Date.now()-7*24*60*60*1000;
+  const parFiche={};
+  feed.forEach(p=>{
+    const t=p.createdAt?new Date(p.createdAt).getTime():NaN;
+    if(!(t>=depuis))return;
+    const c=ficheOf(p); if(!c)return;
+    (parFiche[c.id]=parFiche[c.id]||[]).push(p.rating||0);
+  });
+  let trend=Object.keys(parFiche).map(id=>{
+    const rs=parFiche[id];
+    return {c:catalog.find(x=>x.id===id), n:rs.length, note:rs.reduce((a,b)=>a+b,0)/rs.length};
+  }).filter(x=>x.c).sort((a,b)=>b.note-a.note||b.n-a.n).slice(0,3);
+  const hebdo=trend.length>0;
+  if(!hebdo){
+    trend=[...catalog].filter(c=>c.score>0).sort((a,b)=>b.score-a.score).slice(0,3)
+      .map(c=>({c,n:c.votes,note:c.score}));
+  }
+  document.getElementById('trending-label').textContent=hebdo?'🔥 Tendance cette semaine':'⭐ Les mieux notés';
+  document.getElementById('trending').innerHTML=trend.length?trend.map((x,i)=>`
+    <div class="rank-row" onclick="openCigarDetail('${x.c.id}')" style="cursor:pointer">
       <div class="rank-n">#${i+1}</div>
-      <div class="rank-info"><div class="rank-name">${c.name}</div><div class="rank-sub">${c.country||''}${c.profile?' · '+c.profile:''}</div></div>
-      <div class="rank-score">⭐ ${c.score.toFixed(1)}</div>
-    </div>`).join('');
+      <div class="rank-info"><div class="rank-name">${x.c.name}</div><div class="rank-sub">${x.c.country||''}${hebdo?` · ${x.n} dégustation${x.n>1?'s':''}`:(x.c.profile?' · '+x.c.profile:'')}</div></div>
+      <div class="rank-score">⭐ ${x.note.toFixed(1)}</div>
+    </div>`).join('')
+    :'<div class="rail-empty">Aucun cigare noté pour le moment.</div>';
 }
 
 /* ================= CAVE ================= */
@@ -1749,39 +1783,6 @@ async function deletePost(id){
   if(!deleted.length){ alert("Suppression refusée : vous n'avez pas les droits sur cette dégustation."); return; }
   closeSheet('post-overlay');
   await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();
-}
-
-/* --- Scan de bague via Claude (vision) --- */
-/* --- Import du catalogue depuis Cigar API (RapidAPI) ---
-   Renseignez la clé puis passez enabled à true. En PRODUCTION, exécutez cet
-   appel côté serveur : ne jamais exposer une clé API dans un fichier livré au navigateur. */
-const CIGAR_API={enabled:false,host:'cigars.p.rapidapi.com',key:'VOTRE_CLÉ_RAPIDAPI',maxPages:5};
-function strengthToNum(s){s=(s||'').toLowerCase();if(s.includes('mild')||s.includes('mellow'))return 1;if(s.includes('medium-full')||s.includes('bold'))return 4;if(s.includes('full'))return 5;if(s.includes('medium'))return 3;return 2;}
-async function syncCatalog(){
-  if(!CIGAR_API.enabled){
-    alert("Import Cigar API\n\n1. Créez une clé sur RapidAPI (api « Cigars »).\n2. Renseignez-la dans l'objet CIGAR_API en haut du script, puis passez enabled à true.\n\n⚠️ En production, faites cet appel côté serveur : une clé API ne doit jamais être exposée dans un fichier livré au navigateur (et CORS bloquera souvent l'appel direct).");
-    return;
-  }
-  try{
-    let added=0;
-    for(let page=1;page<=CIGAR_API.maxPages;page++){
-      const res=await fetch(`https://${CIGAR_API.host}/cigars?page=${page}`,{headers:{'X-RapidAPI-Key':CIGAR_API.key,'X-RapidAPI-Host':CIGAR_API.host}});
-      const data=await res.json();
-      const rows=data.cigars||data.data||[];
-      if(!rows.length)break;
-      rows.forEach(row=>{
-        const id='api-'+(row.cigarId||row.id);
-        if(catalog.some(c=>c.id===id))return;
-        const strength=strengthToNum(row.strength);
-        catalog.push({id,name:row.name,brand:row.brand||row.brandName||'—',country:row.country||'—',terroir:terroirOf(row.country),vitola:row.vitola||'',length:row.length||null,ring:row.ringGauge||row.ring_gauge||null,wrapper:row.wrapper||'',binder:row.binder||'',filler:row.filler||'',strength,force:forceLabel(strength),score:0,votes:0,flavors:[],profile:'Importé de Cigar API'});
-        added++;
-      });
-    }
-    renderDiscover();
-    alert(`Catalogue synchronisé : ${added} référence(s) ajoutée(s). Total : ${catalog.length}.`);
-  }catch(e){
-    alert("Échec de l'import. Vérifiez la clé, le quota RapidAPI et les restrictions CORS (préférez un appel côté serveur).");
-  }
 }
 
 /* ================= SHEETS ================= */
