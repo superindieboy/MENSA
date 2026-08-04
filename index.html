@@ -701,6 +701,8 @@ body{
       <div class="sec-label">Administration</div>
       <button class="logout-btn" style="width:100%;margin:0" onclick="backfillCatalog()">Compléter le catalogue</button>
       <p style="font-size:11.5px;color:var(--ink-3);margin-top:8px;line-height:1.5">Crée une fiche pour les cigares déjà dégustés ou en cave qui n'en ont pas encore.</p>
+      <button class="logout-btn" style="width:100%;margin:14px 0 0" onclick="mergeDuplicateFiches()">Fusionner les fiches en double</button>
+      <p style="font-size:11.5px;color:var(--ink-3);margin-top:8px;line-height:1.5">Réunit sur une seule fiche celles qui décrivent le même cigare — même nom <b>et</b> même format. Deux formats distincts d'une même ligne ne sont jamais fusionnés.</p>
     </div>
 
     <div class="prof-actions" id="prof-actions">
@@ -2015,6 +2017,70 @@ async function saveFumee(){
    Se fait ici et non en SQL, car le catalogue embarqué n'existe pas en base :
    une comparaison côté serveur créerait des doublons qui écraseraient les
    fiches d'origine au chargement. */
+/* ---- Fusion des fiches en double ----
+   Deux fiches ne sont un doublon que si elles décrivent le même cigare :
+   même nom ET même format. Le nom seul ne suffit pas — une ligne comme
+   « Flor de Selva Clásica » couvre huit vitoles distinctes, que fusionner
+   reviendrait à supprimer des références réelles. */
+function normCigar(s){
+  return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9]+/g,' ').trim();
+}
+function cigarSignature(c){
+  return [normCigar(c.name),normCigar(c.module),c.length||'',c.ring||''].join('|');
+}
+function findDuplicateFiches(){
+  const groups={};
+  catalog.forEach(c=>{const k=cigarSignature(c);(groups[k]=groups[k]||[]).push(c);});
+  return Object.values(groups).filter(g=>g.length>1);
+}
+/* Noms partagés par plusieurs formats : à signaler, jamais à fusionner. */
+function countAmbiguousNames(){
+  const byName={};
+  catalog.forEach(c=>{const k=normCigar(c.name);(byName[k]=byName[k]||new Set()).add(cigarSignature(c));});
+  return Object.values(byName).filter(s=>s.size>1).length;
+}
+/* Fiche conservée : la fiche embarquée si le groupe en contient une
+   (catalogue d'origine, mieux renseigné), sinon la plus complète. */
+function pickCanonicalFiche(group){
+  const embedded=group.find(c=>!c.id.startsWith('m-'));
+  if(embedded)return embedded;
+  const filled=c=>['brand','vitola','module','country','wrapper','binder','filler']
+    .reduce((n,k)=>n+((c[k]&&c[k]!=='—')?1:0),0)+(c.length?1:0)+(c.ring?1:0)+(c.strength?1:0);
+  return group.slice().sort((a,b)=>filled(b)-filled(a))[0];
+}
+async function mergeDuplicateFiches(){
+  if(!isAdmin()||!sb)return;
+  const groups=findDuplicateFiches();
+  const ambigus=countAmbiguousNames();
+  const noteAmbigus=ambigus?`\n\n${ambigus} nom${ambigus>1?'s':''} désigne${ambigus>1?'nt':''} plusieurs formats distincts : ce ne sont pas des doublons, ils sont conservés.`:'';
+  if(!groups.length){ alert('Aucune fiche en double dans le catalogue.'+noteAmbigus); return; }
+  const apercu=groups.slice(0,8).map(g=>`• ${pickCanonicalFiche(g).name} — ${g.length} fiches`).join('\n');
+  const reste=groups.length>8?`\n… et ${groups.length-8} autre${groups.length-8>1?'s':''}`:'';
+  if(!confirm(`${groups.length} groupe${groups.length>1?'s':''} de fiches identiques :\n\n${apercu}${reste}\n\nRéunir chaque groupe sur une seule fiche ? Les dégustations concernées sont rattachées à la fiche conservée.`))return;
+  let fusionnees=0, ignorees=0;
+  try{
+    for(const g of groups){
+      const keep=pickCanonicalFiche(g);
+      for(const dup of g){
+        if(dup.id===keep.id)continue;
+        // une fiche embarquée ne peut pas être supprimée : elle vit dans le fichier
+        if(!dup.id.startsWith('m-')){ ignorees++; continue; }
+        if(dup.name!==keep.name){
+          await sb.from('posts').update({cigar_name:keep.name}).eq('cigar_name',dup.name);
+          await sb.from('cave_items').update({name:keep.name}).eq('name',dup.name);
+        }
+        await sb.from('catalog_items').delete().eq('id',dup.id.slice(2));
+        fusionnees++;
+      }
+    }
+  }catch(e){ alert("Échec de la fusion. Réessayez."); return; }
+  await loadMemberCatalog();
+  await Promise.all([loadPosts(), loadCave()]);
+  renderDiscover(); renderRails(); renderFeed(); renderCave(); renderProfile();
+  alert(`${fusionnees} fiche${fusionnees>1?'s':''} fusionnée${fusionnees>1?'s':''}.`
+    +(ignorees?`\n${ignorees} fiche${ignorees>1?'s':''} du catalogue d'origine conservée${ignorees>1?'s':''} : elles ne peuvent pas être supprimées.`:''));
+}
 async function backfillCatalog(){
   if(!isAdmin()||!sb)return;
   const seen=new Set(catalog.map(c=>(c.name||'').trim().toLowerCase()));
