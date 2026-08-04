@@ -681,6 +681,10 @@ body{
     <p class="screen-sub">Suivez votre stock et la date d'ajout de chaque référence.</p>
 
     <div class="cave-stats" id="cave-stats"></div>
+    <div class="search" id="cave-search-wrap" style="display:none">
+      <i>🔍</i>
+      <input id="cave-search" placeholder="Chercher dans ma cave…" autocomplete="off" oninput="renderCave()">
+    </div>
     <div id="cave-shelves"></div>
   </section>
 
@@ -1509,16 +1513,20 @@ function renderCave(){
     <div class="cstat"><div class="cstat-n">${refs}</div><div class="cstat-l">références</div></div>
     <div class="cstat"><div class="cstat-n">${countries}</div><div class="cstat-l">terroirs</div></div>`;
 
-  const barColors={cuba:'#0A4DA8',nica:'#137A3C',rep:'#B81428',hon:'#5E3A7A'};
-  let h='';
+  // recherche insensible aux accents dans le nom et le module
+  const q=normCigar(document.getElementById('cave-search').value);
+  document.getElementById('cave-search-wrap').style.display=refs?'flex':'none';
+  let h='', trouves=0;
   Object.keys(cave).forEach(k=>{
-    if(!cave[k].length)return;
+    const items=q?cave[k].filter(c=>normCigar([c.name,c.detail].join(' ')).includes(q)):cave[k];
+    if(!items.length)return;
+    trouves+=items.length;
     const m=countryMeta[k];
-    h+=`<div class="shelf"><div class="shelf-head"><div class="shelf-title">${flagHtml(m.flag)} ${m.label}</div><span class="shelf-count">${cave[k].length} réf.</span></div>`;
-    cave[k].forEach(c=>{
+    h+=`<div class="shelf"><div class="shelf-head"><div class="shelf-title">${flagHtml(m.flag)} ${m.label}</div><span class="shelf-count">${items.length} réf.</span></div>`;
+    items.forEach(c=>{
       const mine=!!currentUser;
       h+=`<div class="cave-item"${mine?` onclick="openEditCaveSheet('${c.id}')"`:''}>
-        <div class="cave-bar" style="background:${barColors[k]}"></div>
+        <div class="cave-bar" style="background:${(palette[k]||palette.autre).band}"></div>
         <div class="cave-info"><div class="cave-name">${c.name}</div><div class="cave-detail">${c.detail}</div>
         ${c.added?`<span class="cave-date">🗓️ Ajouté le ${c.added}</span>`:''}</div>
         <span class="cave-qty">×${c.qty}</span>
@@ -1527,7 +1535,9 @@ function renderCave(){
     });
     h+='</div>';
   });
-  document.getElementById('cave-shelves').innerHTML=h||'<div class="rail-empty" style="padding:32px 0">Votre cave est vide.<br>Appuyez sur ✚ pour ajouter une référence.</div>';
+  document.getElementById('cave-shelves').innerHTML = h ? h
+    : (q ? `<div class="rail-empty" style="padding:32px 0">Aucune référence ne correspond à « ${document.getElementById('cave-search').value.trim()} ».</div>`
+         : '<div class="rail-empty" style="padding:32px 0">Votre cave est vide.<br>Appuyez sur ✚ pour ajouter une référence.</div>');
 }
 
 /* ================= PROFILE ================= */
@@ -1977,6 +1987,8 @@ async function deleteCaveItem(){
   if(!deleted.length){ alert("Suppression refusée : vous n'avez pas les droits sur cette référence."); return; }
   closeSheet('cave-overlay');
   caveAddMode(); clearCaveFields();
+  // sans cela une recherche en cours masquerait la référence qu'on vient d'ajouter
+  document.getElementById('cave-search').value='';
   await loadCave(); renderCave();
 }
 function closeSheet(id){document.getElementById(id).classList.remove('open')}
@@ -2187,6 +2199,8 @@ async function saveCave(){
   }catch(e){ alert("Échec de l'enregistrement. Réessayez."); return; }
   closeSheet('cave-overlay');
   caveAddMode(); clearCaveFields();
+  // sans cela une recherche en cours masquerait la référence qu'on vient d'ajouter
+  document.getElementById('cave-search').value='';
   await loadCave(); renderCave();
 }
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
