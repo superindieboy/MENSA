@@ -561,6 +561,26 @@ body{
 .rate-pick{display:flex;gap:6px}
 .rate-pick .b{font-size:28px;color:var(--line-2);cursor:pointer;transition:.1s}
 .rate-pick .b.on{color:var(--gold)}
+/* Bandeau de retour : remplace les boîtes système, qui bloquaient l'écran et
+   affichaient l'origine du site. Au-dessus de la barre d'onglets. */
+.toast{
+  position:fixed;left:50%;bottom:84px;z-index:400;
+  transform:translateX(-50%) translateY(14px);
+  max-width:min(88vw,420px);padding:12px 18px;border-radius:12px;
+  background:var(--ink);color:var(--paper);font-size:13.5px;line-height:1.4;text-align:center;
+  box-shadow:0 10px 30px rgba(0,0,0,.45);
+  opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;white-space:pre-line;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:#6E2318;color:#fff}
+/* Tirer pour rafraîchir */
+.ptr{
+  position:fixed;left:50%;top:62px;z-index:150;transform:translateX(-50%) scale(.9);
+  background:var(--card);border:1px solid var(--line-2);border-radius:20px;
+  padding:7px 15px;font-size:12px;color:var(--ink-2);
+  opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;
+}
+.ptr.show{opacity:1;transform:translateX(-50%) scale(1)}
 .sheet-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
 .btn-ghost{flex:1;min-width:100px;padding:13px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:none;color:var(--ink-2);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer}
 .btn-primary{flex:2;min-width:140px;padding:13px;border-radius:var(--r-sm);border:none;background:var(--cognac);color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
@@ -741,6 +761,10 @@ body{
     </div>
   </nav>
 </div>
+
+<!-- ===== BANDEAU DE RETOUR ===== -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="ptr" class="ptr">Tirez pour rafraîchir</div>
 
 <!-- ===== FUMÉE SHEET ===== -->
 <div class="overlay" id="fumee-overlay">
@@ -1004,6 +1028,17 @@ const ADMIN_EMAILS=['hippolyte.sable@gmail.com'];
 function isAdmin(){ return !!(currentUser && ADMIN_EMAILS.includes((currentUser.email||'').toLowerCase())); }
 
 function show(id,disp){const e=document.getElementById(id);if(e)e.style.display=disp;}
+/* Bandeau de retour. Une action réussie ne disait rien jusqu'ici : impossible
+   de distinguer un succès d'un échec silencieux. */
+let toastTimer=null;
+function toast(msg,type){
+  const t=document.getElementById('toast');
+  if(!t)return;
+  t.textContent=msg;
+  t.className='toast show'+(type==='err'?' err':'');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'), type==='err'?5200:2800);
+}
 function toggleAuthMode(){
   authMode = authMode==='login' ? 'signup' : 'login';
   const signup = authMode==='signup';
@@ -1060,7 +1095,7 @@ async function confirmDeleteAccount(){
     await sb.from('cave_items').delete().eq('user_id',uid);
     await sb.from('profiles').delete().eq('id',uid);
   }catch(e){
-    alert("Échec de la suppression. Réessayez.");
+    toast("Échec de la suppression. Réessayez.","err");
     if(btn){btn.disabled=false;btn.textContent='Supprimer définitivement';}
     return;
   }
@@ -1101,6 +1136,25 @@ async function loadAll(){
   await loadMemberCatalog();
   await Promise.all([loadPosts(), loadCave()]);
   renderRails();renderMembers();renderFeed();renderCave();renderProfile();renderDiscover();
+  lastLoad=Date.now();
+}
+/* Les données n'étaient chargées qu'à la connexion : un membre laissant l'app
+   ouverte ne voyait jamais les publications des autres. On recharge au retour
+   sur le Fil, et à la demande par un tirer-pour-rafraîchir. */
+let lastLoad=0, refreshing=false;
+const REFRESH_APRES=45000;
+async function refreshFeed(force){
+  if(refreshing||!currentUser||!sb)return false;
+  if(!force && Date.now()-lastLoad<REFRESH_APRES)return false;
+  refreshing=true;
+  try{
+    await loadProfiles();
+    await loadPosts();
+    renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();
+    lastLoad=Date.now();
+    return true;
+  }catch(e){ return false; }
+  finally{ refreshing=false; }
 }
 /* Fiches cigare ajoutées par les membres, fusionnées avec le catalogue embarqué */
 async function loadMemberCatalog(){
@@ -1255,6 +1309,7 @@ function go(s){
   document.getElementById('fab').style.display = s==='feed' ? 'flex':'none';
   document.getElementById('fab-cave').style.display = s==='cave' ? 'flex':'none';
   window.scrollTo({top:0,behavior:'smooth'});
+  if(s==='feed')refreshFeed(false);
 }
 
 /* ================= CIGAR SVG ================= */
@@ -1394,8 +1449,8 @@ async function sharePost(id){
   }
   try{
     await navigator.clipboard.writeText(`${text}\n${url}`);
-    alert('Dégustation copiée dans le presse-papier.');
-  }catch(e){ alert(`${text}\n${url}`); }
+    toast("Dégustation copiée dans le presse-papier.");
+  }catch(e){ toast(`${text}\n${url}`); }
 }
 async function toggleLike(id){
   const p=feed.find(x=>x.id===id); if(!p||!currentUser||!sb)return;
@@ -1757,13 +1812,14 @@ async function saveCigarCard(){
       // Les caves sont privées : ce renommage ne porte que sur la sienne.
       await sb.from('cave_items').update({name}).eq('name',oldName);
     }
-  }catch(e){ alert("Échec de l'enregistrement de la fiche. Réessayez."); btn.disabled=false; return; }
+  }catch(e){ toast("Échec de l'enregistrement de la fiche.","err"); btn.disabled=false; return; }
   btn.disabled=false;
   editingCigarId=null;
   closeSheet('cigar-edit-overlay');
   await loadMemberCatalog();
   await Promise.all([loadPosts(), loadCave()]);
   renderDiscover(); renderRails(); renderFeed(); renderCave(); renderProfile();
+  toast('Fiche enregistrée.');
 }
 
 function openPostDetail(id){
@@ -1811,10 +1867,11 @@ async function deletePost(id){
     const {data,error}=await sb.from('posts').delete().eq('id',id).select();
     if(error)throw error;
     deleted=data||[];
-  }catch(e){ alert("Échec de la suppression. Réessayez."); return; }
-  if(!deleted.length){ alert("Suppression refusée : vous n'avez pas les droits sur cette dégustation."); return; }
+  }catch(e){ toast("Échec de la suppression. Réessayez.","err"); return; }
+  if(!deleted.length){ toast("Suppression refusée : droits insuffisants sur cette dégustation.","err"); return; }
   closeSheet('post-overlay');
   await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();
+  toast('Dégustation supprimée.');
 }
 
 /* ================= SHEETS ================= */
@@ -2039,14 +2096,15 @@ function smokeFromCave(){
 }
 async function decrementCaveItem(id){
   const it=findCaveItem(id);
-  if(!it||!sb)return;
+  if(!it||!sb)return false;
   const reste=(it.qty||1)-1;
   // la dégustation est déjà publiée : un échec ici ne doit pas la remettre en cause
   try{
     if(reste>0){ await sb.from('cave_items').update({qty:reste}).eq('id',id); }
     else{ await sb.from('cave_items').delete().eq('id',id); }
-  }catch(e){ return; }
+  }catch(e){ return false; }
   await loadCave(); renderCave();
+  return true;
 }
 async function deleteCaveItem(){
   if(!editingCaveId||!currentUser||!sb)return;
@@ -2058,13 +2116,14 @@ async function deleteCaveItem(){
     const {data,error}=await sb.from('cave_items').delete().eq('id',editingCaveId).select();
     if(error)throw error;
     deleted=data||[];
-  }catch(e){ alert("Échec de la suppression. Réessayez."); return; }
-  if(!deleted.length){ alert("Suppression refusée : vous n'avez pas les droits sur cette référence."); return; }
+  }catch(e){ toast("Échec de la suppression. Réessayez.","err"); return; }
+  if(!deleted.length){ toast("Suppression refusée : droits insuffisants sur cette référence.","err"); return; }
   closeSheet('cave-overlay');
   caveAddMode(); clearCaveFields();
   // sans cela une recherche en cours masquerait la référence qu'on vient d'ajouter
   document.getElementById('cave-search').value='';
   await loadCave(); renderCave();
+  toast('Référence retirée de votre cave.');
 }
 function closeSheet(id){document.getElementById(id).classList.remove('open')}
 const BIO_PLACEHOLDER='Aucune bio pour le moment.';
@@ -2132,13 +2191,16 @@ async function saveFumee(){
     row.catalog_id=picked?picked.id:await ensureCigarCard(row.cigar_name,terroir,origin);
     await writePost(row,editingPostId);
   }catch(e){
-    alert("Échec de l'enregistrement de la dégustation.\n\n"+(e&&e.message?e.message:'Réessayez.'));
+    toast("Échec de l'enregistrement.\n"+(e&&e.message?e.message:'Réessayez.'),'err');
     if(btn)btn.disabled=false; return;
   }
   if(btn)btn.disabled=false;
+  const corrige=!!editingPostId;
   // le stock ne baisse que pour une nouvelle dégustation, pas pour une correction
-  if(smokingFromCaveId && !editingPostId){ await decrementCaveItem(smokingFromCaveId); }
+  let retire=false;
+  if(smokingFromCaveId && !editingPostId){ retire=await decrementCaveItem(smokingFromCaveId); }
   smokingFromCaveId=null;
+  toast(corrige?'Dégustation modifiée.':(retire?'Dégustation publiée — un exemplaire retiré de votre cave.':'Dégustation publiée.'));
   document.getElementById('f-cave-note').style.display='none';
   editingPostId=null;
   closeSheet('fumee-overlay');
@@ -2188,8 +2250,8 @@ async function mergeDuplicateFiches(){
   if(!isAdmin()||!sb)return;
   const groups=findDuplicateFiches();
   const ambigus=countAmbiguousNames();
-  const noteAmbigus=ambigus?`\n\n${ambigus} nom${ambigus>1?'s':''} désigne${ambigus>1?'nt':''} plusieurs formats distincts : ce ne sont pas des doublons, ils sont conservés.`:'';
-  if(!groups.length){ alert('Aucune fiche en double dans le catalogue.'+noteAmbigus); return; }
+  const noteAmbigus=ambigus?`\n${ambigus} nom${ambigus>1?'s':''} couvre${ambigus>1?'nt':''} plusieurs formats : conservés.`:'';
+  if(!groups.length){ toast('Aucune fiche en double.'+noteAmbigus); return; }
   const apercu=groups.slice(0,8).map(g=>`• ${pickCanonicalFiche(g).name} — ${g.length} fiches`).join('\n');
   const reste=groups.length>8?`\n… et ${groups.length-8} autre${groups.length-8>1?'s':''}`:'';
   if(!confirm(`${groups.length} groupe${groups.length>1?'s':''} de fiches identiques :\n\n${apercu}${reste}\n\nRéunir chaque groupe sur une seule fiche ? Les dégustations concernées sont rattachées à la fiche conservée.`))return;
@@ -2209,12 +2271,12 @@ async function mergeDuplicateFiches(){
         fusionnees++;
       }
     }
-  }catch(e){ alert("Échec de la fusion. Réessayez."); return; }
+  }catch(e){ toast("Échec de la fusion. Réessayez.","err"); return; }
   await loadMemberCatalog();
   await Promise.all([loadPosts(), loadCave()]);
   renderDiscover(); renderRails(); renderFeed(); renderCave(); renderProfile();
-  alert(`${fusionnees} fiche${fusionnees>1?'s':''} fusionnée${fusionnees>1?'s':''}.`
-    +(ignorees?`\n${ignorees} fiche${ignorees>1?'s':''} du catalogue d'origine conservée${ignorees>1?'s':''} : elles ne peuvent pas être supprimées.`:''));
+  toast(`${fusionnees} fiche${fusionnees>1?'s':''} fusionnée${fusionnees>1?'s':''}.`
+    +(ignorees?`\n${ignorees} du catalogue d'origine conservée${ignorees>1?'s':''} : non supprimables.`:''));
 }
 async function backfillCatalog(){
   if(!isAdmin()||!sb)return;
@@ -2229,17 +2291,17 @@ async function backfillCatalog(){
   };
   feed.forEach(p=>add(p.name,p.terroir,p.origin));
   Object.values(cave).forEach(arr=>arr.forEach(it=>add(it.name,it.terroir,'')));
-  if(!rows.length){ alert('Catalogue déjà complet : aucun cigare dégusté ou en cave ne manque.'); return; }
+  if(!rows.length){ toast('Catalogue déjà complet.'); return; }
   if(!confirm(`${rows.length} cigare${rows.length>1?'s':''} sans fiche (dégustations et cave).\n\nCréer leur fiche maintenant ?`))return;
   let created=[];
   try{
     const {data,error}=await sb.from('catalog_items').insert(rows).select();
     if(error)throw error;
     created=data||[];
-  }catch(e){ alert("Échec de la création des fiches. Réessayez."); return; }
-  if(!created.length){ alert("Création refusée : vérifiez les droits sur le catalogue."); return; }
+  }catch(e){ toast("Échec de la création des fiches.","err"); return; }
+  if(!created.length){ toast("Création refusée : vérifiez les droits sur le catalogue.","err"); return; }
   await loadMemberCatalog(); renderDiscover();
-  alert(`${created.length} fiche${created.length>1?'s':''} ajoutée${created.length>1?'s':''} au catalogue.`);
+  toast(`${created.length} fiche${created.length>1?'s':''} ajoutée${created.length>1?'s':''} au catalogue.`);
 }
 /* Enregistre la fiche catalogue saisie manuellement, si le cigare n'existe pas déjà */
 async function ensureCigarCard(name,terroir,country){
@@ -2281,13 +2343,15 @@ async function saveCave(){
   try{
     if(editingCaveId){ await sb.from('cave_items').update({name,detail,terroir:k,qty,added}).eq('id',editingCaveId); }
     else{ await sb.from('cave_items').insert({user_id:currentUser.id,name,detail,terroir:k,qty,added}); }
-  }catch(e){ alert("Échec de l'enregistrement. Réessayez."); btn.disabled=false; return; }
+  }catch(e){ toast("Échec de l'enregistrement. Réessayez.","err"); btn.disabled=false; return; }
   btn.disabled=false;
+  const modif=!!editingCaveId;
   closeSheet('cave-overlay');
   caveAddMode(); clearCaveFields();
   // sans cela une recherche en cours masquerait la référence qu'on vient d'ajouter
   document.getElementById('cave-search').value='';
   await loadCave(); renderCave();
+  toast(modif?'Référence modifiée.':'Ajouté à votre cave.');
 }
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
 /* Échap ferme d'abord une liste de suggestions ouverte, puis la fenêtre du
@@ -2299,6 +2363,36 @@ document.addEventListener('keydown',e=>{
   const sheet=[...document.querySelectorAll('.overlay.open')].pop();
   if(sheet)sheet.classList.remove('open');
 });
+/* Tirer pour rafraîchir, sur le Fil et uniquement en haut de page, pour ne pas
+   entrer en conflit avec le défilement ni avec les panneaux ouverts. */
+(function(){
+  const SEUIL=70;
+  const ind=document.getElementById('ptr');
+  let debutY=null, actif=false;
+  const enHautDuFil=()=>document.getElementById('feed').classList.contains('active')
+    && (window.scrollY||document.documentElement.scrollTop||0)<=0
+    && !document.querySelector('.overlay.open');
+  document.addEventListener('touchstart',e=>{
+    if(!enHautDuFil()){debutY=null;return;}
+    debutY=e.touches[0].clientY; actif=false;
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(debutY===null)return;
+    const delta=e.touches[0].clientY-debutY;
+    if(delta>18 && !actif){actif=true; ind.textContent='Tirez pour rafraîchir'; ind.classList.add('show');}
+    if(actif)ind.textContent = delta>SEUIL ? 'Relâchez pour rafraîchir' : 'Tirez pour rafraîchir';
+  },{passive:true});
+  document.addEventListener('touchend',async e=>{
+    if(debutY===null||!actif){debutY=null;ind.classList.remove('show');return;}
+    const delta=(e.changedTouches[0].clientY)-debutY;
+    debutY=null; actif=false;
+    if(delta<=SEUIL){ind.classList.remove('show');return;}
+    ind.textContent='Actualisation…';
+    const ok=await refreshFeed(true);
+    ind.classList.remove('show');
+    toast(ok?'Fil à jour.':'Actualisation impossible.', ok?undefined:'err');
+  });
+})();
 
 /* ================= INIT ================= */
 /* Header : masqué au défilement vers le bas, révélé vers le haut */
