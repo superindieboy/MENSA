@@ -986,7 +986,10 @@ body{
     </div>
     <div class="field"><label>Terroir</label><input id="c-country" placeholder="Ex : Cuba, Nicaragua, Honduras…"></div>
     <div class="field"><label>Module</label><input id="c-detail" placeholder="Ex : Robusto"></div>
-    <div class="field"><label>Quantité</label><input id="c-qty" type="number" value="5" min="1"></div>
+    <div class="field" style="display:flex;gap:10px">
+      <div style="flex:1"><label>Quantité</label><input id="c-qty" type="number" value="5" min="1"></div>
+      <div style="flex:1"><label>Prix payé <span style="color:var(--ink-3);font-weight:400">— € l'unité</span></label><input id="c-price" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex : 24,50"></div>
+    </div>
     <div class="field"><label>Date d'ajout <span style="color:var(--ink-3);font-weight:400">— aujourd'hui par défaut</span></label><input id="c-added" type="date"></div>
     <div class="sheet-actions" id="cave-actions">
       <button class="btn-ghost" onclick="closeSheet('cave-overlay')">Annuler</button>
@@ -1303,7 +1306,7 @@ async function loadCave(){
   if(!currentUser){Object.keys(cave).forEach(k=>cave[k].length=0);return;}
   const {data}=await sb.from('cave_items').select('*').eq('user_id',currentUser.id).order('created_at');
   Object.keys(cave).forEach(k=>cave[k].length=0);
-  (data||[]).forEach(it=>{const k=cave[it.terroir]?it.terroir:'cuba';cave[k].push({id:it.id,user_id:it.user_id,name:it.name,detail:it.detail||'—',terroir:k,qty:it.qty||1,added:it.added?fmtDate(it.added):'',addedRaw:it.added||''});});
+  (data||[]).forEach(it=>{const k=cave[it.terroir]?it.terroir:'cuba';cave[k].push({id:it.id,user_id:it.user_id,name:it.name,detail:it.detail||'—',terroir:k,qty:it.qty||1,added:it.added?fmtDate(it.added):'',addedRaw:it.added||'',price:(it.price===null||it.price===undefined)?null:Number(it.price)});});
 }
 
 /* ================= STATE ================= */
@@ -1690,7 +1693,8 @@ function renderCave(){
       h+=`<div class="cave-item"${mine?` onclick="openEditCaveSheet('${c.id}')"`:''}>
         <div class="cave-bar" style="background:${(palette[k]||palette.autre).band}"></div>
         <div class="cave-info"><div class="cave-name">${c.name}</div><div class="cave-detail">${c.detail}</div>
-        ${c.added?`<span class="cave-date">🗓️ Ajouté le ${c.added}</span>`:''}</div>
+        ${c.added?`<span class="cave-date">🗓️ Ajouté le ${c.added}</span>`:''}
+        ${(c.price!==null&&c.price!==undefined)?`<span class="cave-date">💶 ${fmtPrix(c.price)} l'unité${c.qty>1?` · ${fmtPrix(c.price*c.qty)} au total`:''}</span>`:''}</div>
         <span class="cave-qty">×${c.qty}</span>
         ${mine?'<span class="cave-edit">✎</span>':''}
       </div>`;
@@ -2215,8 +2219,9 @@ function caveAddMode(){
   const del=document.getElementById('cave-delete-btn'); if(del)del.remove();
 }
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function fmtPrix(v){return Number(v).toLocaleString('fr-FR',{style:'currency',currency:'EUR'});}
 function clearCaveFields(){
-  ['c-name','c-country','c-detail'].forEach(id=>document.getElementById(id).value='');
+  ['c-name','c-country','c-detail','c-price'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('c-qty').value=5;
   document.getElementById('c-added').value=todayISO();
   caveSelectedTerroir=null;
@@ -2311,6 +2316,7 @@ function openEditCaveSheet(id){
   document.getElementById('c-country').value=(countryMeta[it.terroir]||{}).label||'';
   document.getElementById('c-detail').value=it.detail==='—'?'':(it.detail||'');
   document.getElementById('c-qty').value=it.qty||1;
+  document.getElementById('c-price').value=(it.price===null||it.price===undefined)?'':it.price;
   document.getElementById('c-added').value=(it.addedRaw||'').slice(0,10)||todayISO();
   const actions=document.getElementById('cave-actions');
   if(!document.getElementById('cave-smoke-btn')){
@@ -2592,6 +2598,21 @@ async function ensureCigarCard(name,terroir,country){
   await loadMemberCatalog();
   return created?'m-'+created.id:null;
 }
+/* Même précaution que pour les dégustations : Supabase renvoie { error } sans
+   lever d'exception, et la colonne price peut ne pas encore exister en base. */
+async function writeCaveItem(champs,itemId){
+  const envoi=r=>itemId
+    ? sb.from('cave_items').update(r).eq('id',itemId)
+    : sb.from('cave_items').insert(Object.assign({user_id:currentUser.id},r));
+  let corps=Object.assign({},champs);
+  let {error}=await envoi(corps);
+  if(error && /price/i.test(error.message||'')){
+    delete corps.price;
+    ({error}=await envoi(corps));
+    if(!error)console.warn('Colonne price absente : exécutez ajout-prix-cave.sql dans Supabase.');
+  }
+  if(error)throw error;
+}
 async function saveCave(){
   if(!currentUser||!sb)return closeSheet('cave-overlay');
   const name=document.getElementById('c-name').value.trim();if(!name)return closeSheet('cave-overlay');
@@ -2601,14 +2622,18 @@ async function saveCave(){
   // Terroir de la fiche choisie si la recherche a servi, sinon lecture du texte saisi
   let k=caveSelectedTerroir&&cave[caveSelectedTerroir]?caveSelectedTerroir:caveTerroirFromText(country);
   const added=document.getElementById('c-added').value||todayISO();
+  const saisiPrix=document.getElementById('c-price').value.trim();
+  const price=saisiPrix===''?null:Math.round(parseFloat(saisiPrix.replace(',','.'))*100)/100;
   // un double appui, courant sur mobile, insérerait deux fois la même référence
   const btn=document.getElementById('cave-submit-btn');
   if(btn.disabled)return;
   btn.disabled=true;
   try{
-    if(editingCaveId){ await sb.from('cave_items').update({name,detail,terroir:k,qty,added}).eq('id',editingCaveId); }
-    else{ await sb.from('cave_items').insert({user_id:currentUser.id,name,detail,terroir:k,qty,added}); }
-  }catch(e){ toast("Échec de l'enregistrement. Réessayez.","err"); btn.disabled=false; return; }
+    await writeCaveItem({name,detail,terroir:k,qty,added,price:(price!==null&&!isNaN(price))?price:null},editingCaveId);
+  }catch(e){
+    toast("Échec de l'enregistrement.\n"+(e&&e.message?e.message:'Réessayez.'),'err');
+    btn.disabled=false; return;
+  }
   btn.disabled=false;
   const modif=!!editingCaveId;
   closeSheet('cave-overlay');

@@ -43,6 +43,7 @@ create table if not exists public.cave_items (
   detail     text,
   terroir    text,                  -- cuba | nica | rep | hon
   qty        int default 1,
+  price      numeric(10,2),          -- prix payé, à l'unité et en euros
   added      date default current_date,
   created_at timestamptz default now()
 );
