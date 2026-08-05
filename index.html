@@ -1215,15 +1215,33 @@ async function loadAll(){
   renderRails();renderMembers();renderFeed();renderCave();renderProfile();renderDiscover();
   lastLoad=Date.now();
 }
-/* Prix d'achat partagés par le cercle, sans les caves qui les portent :
-   la vue cave_prices n'expose ni propriétaire ni identifiant de lot. */
+/* Prix partagés par le cercle. Les caves restent privées : c'est une table
+   à part, price_reports, dont les privilèges par colonne rendent le prix
+   lisible sans jamais révéler son auteur. */
 let cavePrices=[];
 async function loadPrices(){
   cavePrices=[];
   if(!sb)return;
-  const {data,error}=await sb.from('cave_prices').select('name,price,bought_in,added');
-  if(error){console.warn('loadPrices',error.message);return;}   // vue absente : on s'en passe
+  const {data,error}=await sb.from('price_reports').select('name,price,bought_in,added');
+  if(error){console.warn('loadPrices',error.message);return;}   // table absente : on s'en passe
   cavePrices=(data||[]).map(r=>({name:r.name,price:Number(r.price),boughtIn:r.bought_in||'',added:r.added}));
+}
+/* Publie — ou retire — le prix d'un lot. Un échec ici ne doit pas empêcher
+   l'enregistrement du lot lui-même : le prix partagé est un complément. */
+async function publierPrix(caveItemId,champs){
+  if(!caveItemId||!currentUser||!sb)return;
+  try{
+    if(champs.price===null||champs.price===undefined){
+      await sb.from('price_reports').delete().eq('cave_item_id',caveItemId);
+      return;
+    }
+    const {error}=await sb.from('price_reports').upsert({
+      cave_item_id:caveItemId, user_id:currentUser.id,
+      name:champs.name, terroir:champs.terroir, price:champs.price,
+      bought_in:champs.bought_in||null, added:champs.added||null
+    },{onConflict:'cave_item_id'});
+    if(error)console.warn('publierPrix',error.message);
+  }catch(e){ console.warn('publierPrix',e&&e.message); }
 }
 /* Dernier prix payé en France pour ce cigare, s'il date de moins de six mois.
    Au-delà, un tarif n'est plus un repère fiable. */
@@ -2722,18 +2740,20 @@ async function ensureCigarCard(name,terroir,country){
 /* Même précaution que pour les dégustations : Supabase renvoie { error } sans
    lever d'exception, et la colonne price peut ne pas encore exister en base. */
 async function writeCaveItem(champs,itemId){
+  // .select() renvoie la ligne écrite : son identifiant sert à publier le prix
   const envoi=r=>itemId
-    ? sb.from('cave_items').update(r).eq('id',itemId)
-    : sb.from('cave_items').insert(Object.assign({user_id:currentUser.id},r));
+    ? sb.from('cave_items').update(r).eq('id',itemId).select()
+    : sb.from('cave_items').insert(Object.assign({user_id:currentUser.id},r)).select();
   let corps=Object.assign({},champs);
-  let {error}=await envoi(corps);
+  let {data,error}=await envoi(corps);
   for(const col of ['price','bought_in']){
     if(!error||!new RegExp(col,'i').test(error.message||''))continue;
     delete corps[col];
-    ({error}=await envoi(corps));
+    ({data,error}=await envoi(corps));
     if(!error)console.warn(`Colonne ${col} absente : exécutez ajout-lots-cave.sql dans Supabase.`);
   }
   if(error)throw error;
+  return itemId || ((data||[])[0]||{}).id || null;
 }
 async function saveCave(){
   if(!currentUser||!sb)return closeSheet('cave-overlay');
@@ -2751,20 +2771,23 @@ async function saveCave(){
   const btn=document.getElementById('cave-submit-btn');
   if(btn.disabled)return;
   btn.disabled=true;
+  const champs={name,detail,terroir:k,qty,added,
+    price:(price!==null&&!isNaN(price))?price:null, bought_in:boughtIn||null};
+  let lotId=null;
   try{
-    await writeCaveItem({name,detail,terroir:k,qty,added,
-      price:(price!==null&&!isNaN(price))?price:null, bought_in:boughtIn||null},editingCaveId);
+    lotId=await writeCaveItem(champs,editingCaveId);
   }catch(e){
     toast("Échec de l'enregistrement.\n"+(e&&e.message?e.message:'Réessayez.'),'err');
     btn.disabled=false; return;
   }
+  await publierPrix(lotId,champs);
   btn.disabled=false;
   const modif=!!editingCaveId;
   closeSheet('cave-overlay');
   caveAddMode(); clearCaveFields();
   // sans cela une recherche en cours masquerait la référence qu'on vient d'ajouter
   document.getElementById('cave-search').value='';
-  await loadCave(); renderCave();
+  await loadCave(); await loadPrices(); renderCave();
   toast(modif?'Référence modifiée.':'Ajouté à votre cave.');
 }
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));

@@ -1,33 +1,60 @@
 -- À exécuter dans Supabase → SQL Editor.
 -- Réexécutable sans risque.
 --
--- Partage des prix d'achat entre membres, sans partager les caves.
+-- Prix partagés entre membres, sans contournement de sécurité.
 --
--- Les caves sont privées : cave_read_own interdit de lire celle d'un autre.
--- Pour afficher « dernier prix payé » sur une dégustation, il faut donc une
--- vue qui expose le prix, le pays et la date SANS le propriétaire.
+-- Remplace la vue cave_prices, qui bypassait la RLS de cave_items et que
+-- Supabase signalait à juste titre (Security Definer View). Ici, les caves
+-- restent intégralement privées : enregistrer un lot avec un prix publie en
+-- parallèle une ligne anonyme dans price_reports, qui a ses propres règles.
 --
--- security_invoker = false est ici DÉLIBÉRÉ : la vue s'exécute avec les droits
--- de son propriétaire et contourne donc la RLS de cave_items. C'est ce qui
--- permet de lire les prix de tous sans ouvrir les caves elles-mêmes.
--- Aucune colonne ne permet de remonter à un membre : ni user_id, ni id.
+-- L'anonymat ne repose pas sur l'absence de la colonne user_id — elle est
+-- nécessaire pour restreindre l'écriture — mais sur des privilèges PAR COLONNE :
+-- les membres peuvent lire le prix, jamais son auteur.
 
-create or replace view public.cave_prices
-with (security_invoker = false) as
-  select
-    name,
-    terroir,
-    price,
-    bought_in,
-    added
-  from public.cave_items
-  where price is not null
-    and added is not null;
+create table if not exists public.price_reports (
+  cave_item_id uuid primary key references public.cave_items(id) on delete cascade,
+  user_id      uuid not null references auth.users on delete cascade,
+  name         text not null,
+  terroir      text,
+  price        numeric(10,2) not null,
+  bought_in    text,
+  added        date,
+  created_at   timestamptz default now()
+);
 
-alter view public.cave_prices owner to postgres;
+-- La clé étrangère en cascade supprime le prix publié quand le lot disparaît :
+-- aucune synchronisation à maintenir côté application pour la suppression.
 
-revoke all on public.cave_prices from anon;
-grant select on public.cave_prices to authenticated;
+alter table public.price_reports enable row level security;
 
--- Vérification : doit renvoyer des lignes sans aucune colonne identifiante.
-select * from public.cave_prices limit 5;
+drop policy if exists "prix_lecture"     on public.price_reports;
+drop policy if exists "prix_insert_own"  on public.price_reports;
+drop policy if exists "prix_update_own"  on public.price_reports;
+drop policy if exists "prix_delete_own"  on public.price_reports;
+
+create policy "prix_lecture"    on public.price_reports for select to authenticated using (true);
+create policy "prix_insert_own" on public.price_reports for insert to authenticated with check (auth.uid() = user_id);
+create policy "prix_update_own" on public.price_reports for update to authenticated using (auth.uid() = user_id);
+create policy "prix_delete_own" on public.price_reports for delete to authenticated using (auth.uid() = user_id);
+
+-- Privilèges par colonne : c'est ce qui rend le prix anonyme.
+-- user_id reste inaccessible en lecture, tout en servant aux règles ci-dessus.
+revoke all on public.price_reports from anon, authenticated;
+grant select (cave_item_id, name, terroir, price, bought_in, added) on public.price_reports to authenticated;
+grant insert (cave_item_id, user_id, name, terroir, price, bought_in, added) on public.price_reports to authenticated;
+grant update (name, terroir, price, bought_in, added)                on public.price_reports to authenticated;
+grant delete on public.price_reports to authenticated;
+
+-- Reprise des prix déjà saisis dans les caves.
+insert into public.price_reports (cave_item_id, user_id, name, terroir, price, bought_in, added)
+select id, user_id, name, terroir, price, bought_in, added
+from public.cave_items
+where price is not null
+on conflict (cave_item_id) do nothing;
+
+-- La vue n'a plus lieu d'être : c'est elle que Supabase signalait.
+drop view if exists public.cave_prices;
+
+-- Vérification : les prix repris, sans colonne identifiante lisible.
+select cave_item_id, name, price, bought_in, added from public.price_reports limit 5;
