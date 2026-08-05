@@ -2059,6 +2059,7 @@ function openCigarDetail(id){
     `<h3 class="serif" style="margin-bottom:14px">Fiche cigare</h3>`+
     specCardHtml(c,'Fiche catalogue')+
     (c.profile?`<p style="font-size:13px;color:var(--ink-2);margin:-4px 2px 4px;line-height:1.55">${c.profile}</p>`:'')+
+    prixFrancaisHtml(c.name)+
     bloc;
   document.getElementById('detail-log').onclick=()=>{closeSheet('detail-overlay');openFumeeSheet();acPick(c.id);};
   const oldEdit=document.getElementById('detail-edit-btn'); if(oldEdit)oldEdit.remove();
