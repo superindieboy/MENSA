@@ -35,7 +35,9 @@ create table if not exists public.posts (
   created_at timestamptz default now()
 );
 
--- Cave personnelle de chaque membre (privée : lui seul y accède)
+-- Cave personnelle de chaque membre (privée : lui seul y accède).
+-- Une ligne = un LOT d'achat : le même cigare racheté plus tard, ailleurs ou
+-- à un autre prix forme une seconde ligne. L'app les regroupe à l'affichage.
 create table if not exists public.cave_items (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid not null references auth.users on delete cascade,
@@ -44,6 +46,7 @@ create table if not exists public.cave_items (
   terroir    text,                  -- cuba | nica | rep | hon
   qty        int default 1,
   price      numeric(10,2),          -- prix payé, à l'unité et en euros
+  bought_in  text,                   -- pays d'achat, distinct du terroir du cigare
   added      date default current_date,
   created_at timestamptz default now()
 );

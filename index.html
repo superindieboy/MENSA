@@ -378,6 +378,17 @@ body{
 .cave-qty{font-family:var(--serif);font-size:17px;font-weight:600;color:var(--cognac)}
 .cave-edit{font-size:14px;color:var(--ink-3);flex-shrink:0}
 .cave-item:hover .cave-edit{color:var(--cognac)}
+/* Cigare acheté en plusieurs fois : un en-tête récapitulatif, puis ses lots
+   en retrait, rattachés par un filet. */
+.cave-groupe{margin-bottom:9px}
+.cave-tete{margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0;cursor:default}
+.cave-tete:hover{border-color:var(--line)}
+.cave-lot{
+  margin:0 0 0 22px;border-top:none;border-top-left-radius:0;border-top-right-radius:0;
+  background:var(--paper-2);padding-top:10px;padding-bottom:10px;
+}
+.cave-lot .cave-bar{height:26px;width:3px}
+.cave-groupe .cave-lot:last-child{margin-bottom:0}
 .add-line{
   width:100%;padding:14px;border-radius:var(--r-sm);border:1.5px dashed var(--line-2);
   background:none;color:var(--cognac);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;
@@ -990,7 +1001,11 @@ body{
       <div style="flex:1"><label>Quantité</label><input id="c-qty" type="number" value="5" min="1"></div>
       <div style="flex:1"><label>Prix payé <span style="color:var(--ink-3);font-weight:400">— € l'unité</span></label><input id="c-price" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex : 24,50"></div>
     </div>
-    <div class="field"><label>Date d'ajout <span style="color:var(--ink-3);font-weight:400">— aujourd'hui par défaut</span></label><input id="c-added" type="date"></div>
+    <div class="field" style="display:flex;gap:10px">
+      <div style="flex:1"><label>Date d'achat <span style="color:var(--ink-3);font-weight:400">— aujourd'hui</span></label><input id="c-added" type="date"></div>
+      <div style="flex:1"><label>Pays d'achat <span style="color:var(--ink-3);font-weight:400">— facultatif</span></label><input id="c-bought" type="text" autocomplete="off" placeholder="Ex : Cuba, France"></div>
+    </div>
+    <p style="font-size:11.5px;color:var(--ink-3);margin:-6px 0 16px;line-height:1.5">Chaque enregistrement est un lot d'achat. Rachetez le même cigare à un autre prix ou dans un autre pays, et les deux lots coexisteront.</p>
     <div class="sheet-actions" id="cave-actions">
       <button class="btn-ghost" onclick="closeSheet('cave-overlay')">Annuler</button>
       <button class="btn-primary" id="cave-submit-btn" onclick="saveCave()">Ajouter</button>
@@ -1306,7 +1321,7 @@ async function loadCave(){
   if(!currentUser){Object.keys(cave).forEach(k=>cave[k].length=0);return;}
   const {data}=await sb.from('cave_items').select('*').eq('user_id',currentUser.id).order('created_at');
   Object.keys(cave).forEach(k=>cave[k].length=0);
-  (data||[]).forEach(it=>{const k=cave[it.terroir]?it.terroir:'cuba';cave[k].push({id:it.id,user_id:it.user_id,name:it.name,detail:it.detail||'—',terroir:k,qty:it.qty||1,added:it.added?fmtDate(it.added):'',addedRaw:it.added||'',price:(it.price===null||it.price===undefined)?null:Number(it.price)});});
+  (data||[]).forEach(it=>{const k=cave[it.terroir]?it.terroir:'cuba';cave[k].push({id:it.id,user_id:it.user_id,name:it.name,detail:it.detail||'—',terroir:k,qty:it.qty||1,added:it.added?fmtDate(it.added):'',addedRaw:it.added||'',price:(it.price===null||it.price===undefined)?null:Number(it.price),boughtIn:it.bought_in||''});});
 }
 
 /* ================= STATE ================= */
@@ -1670,33 +1685,83 @@ function renderTrending(){
 }
 
 /* ================= CAVE ================= */
+/* Chaque ligne de cave est un lot d'achat. Un même cigare racheté plus tard,
+   ailleurs ou à un autre prix, forme un second lot : on les regroupe à
+   l'affichage sous un seul cigare, en détaillant les lots dessous. */
+function grouperLots(items){
+  const groupes=[];
+  const index={};
+  items.forEach(it=>{
+    const cle=normCigar(it.name);
+    if(index[cle]===undefined){ index[cle]=groupes.length; groupes.push({nom:it.name, detail:it.detail, lots:[]}); }
+    groupes[index[cle]].lots.push(it);
+  });
+  groupes.forEach(g=>{
+    g.qty=g.lots.reduce((s,l)=>s+(l.qty||0),0);
+    const avecPrix=g.lots.filter(l=>l.price!==null&&l.price!==undefined);
+    g.valeur=avecPrix.reduce((s,l)=>s+l.price*(l.qty||0),0);
+    g.prixMin=avecPrix.length?Math.min(...avecPrix.map(l=>l.price)):null;
+    g.prixMax=avecPrix.length?Math.max(...avecPrix.map(l=>l.price)):null;
+    g.tousChiffres=avecPrix.length===g.lots.length;
+  });
+  return groupes;
+}
+function ligneLot(l,k,seul){
+  const bouts=[];
+  if(l.added)bouts.push(`🗓️ ${l.added}`);
+  if(l.boughtIn)bouts.push(`📍 ${l.boughtIn}`);
+  if(l.price!==null&&l.price!==undefined)bouts.push(`💶 ${fmtPrix(l.price)} l'unité${l.qty>1?` · ${fmtPrix(l.price*l.qty)}`:''}`);
+  return `<div class="cave-item${seul?'':' cave-lot'}" onclick="openEditCaveSheet('${l.id}')">
+    <div class="cave-bar" style="background:${(palette[k]||palette.autre).band}"></div>
+    <div class="cave-info">
+      ${seul?`<div class="cave-name">${l.name}</div><div class="cave-detail">${l.detail}</div>`:''}
+      ${bouts.length?`<span class="cave-date">${bouts.join(' · ')}</span>`:`<span class="cave-date">Lot sans détail</span>`}
+    </div>
+    <span class="cave-qty">×${l.qty}</span>
+    <span class="cave-edit">✎</span>
+  </div>`;
+}
 function renderCave(){
-  let total=0,refs=0,countries=0;
-  Object.values(cave).forEach(arr=>{if(arr.length){countries++;refs+=arr.length;arr.forEach(c=>total+=c.qty)}});
+  let total=0,refs=0,countries=0,valeur=0,toutChiffre=true;
+  Object.values(cave).forEach(arr=>{
+    if(!arr.length)return;
+    countries++;
+    refs+=grouperLots(arr).length;          // un cigare compte pour une référence, quel que soit le nombre de lots
+    arr.forEach(c=>{
+      total+=c.qty;
+      if(c.price!==null&&c.price!==undefined)valeur+=c.price*c.qty; else toutChiffre=false;
+    });
+  });
   document.getElementById('cave-stats').innerHTML=`
     <div class="cstat"><div class="cstat-n">${total}</div><div class="cstat-l">cigares</div></div>
     <div class="cstat"><div class="cstat-n">${refs}</div><div class="cstat-l">références</div></div>
-    <div class="cstat"><div class="cstat-n">${countries}</div><div class="cstat-l">terroirs</div></div>`;
+    <div class="cstat"><div class="cstat-n">${valeur>0?fmtPrix(valeur):'—'}</div><div class="cstat-l">valeur${(valeur>0&&!toutChiffre)?' connue':''}</div></div>`;
 
   // recherche insensible aux accents dans le nom et le module
   const q=normCigar(document.getElementById('cave-search').value);
   document.getElementById('cave-search-wrap').style.display=refs?'flex':'none';
-  let h='', trouves=0;
+  let h='';
   Object.keys(cave).forEach(k=>{
-    const items=q?cave[k].filter(c=>normCigar([c.name,c.detail].join(' ')).includes(q)):cave[k];
+    const items=q?cave[k].filter(c=>normCigar([c.name,c.detail,c.boughtIn].join(' ')).includes(q)):cave[k];
     if(!items.length)return;
-    trouves+=items.length;
+    const groupes=grouperLots(items);
     const m=countryMeta[k];
-    h+=`<div class="shelf"><div class="shelf-head"><div class="shelf-title">${flagHtml(m.flag)} ${m.label}</div><span class="shelf-count">${items.length} réf.</span></div>`;
-    items.forEach(c=>{
-      const mine=!!currentUser;
-      h+=`<div class="cave-item"${mine?` onclick="openEditCaveSheet('${c.id}')"`:''}>
-        <div class="cave-bar" style="background:${(palette[k]||palette.autre).band}"></div>
-        <div class="cave-info"><div class="cave-name">${c.name}</div><div class="cave-detail">${c.detail}</div>
-        ${c.added?`<span class="cave-date">🗓️ Ajouté le ${c.added}</span>`:''}
-        ${(c.price!==null&&c.price!==undefined)?`<span class="cave-date">💶 ${fmtPrix(c.price)} l'unité${c.qty>1?` · ${fmtPrix(c.price*c.qty)} au total`:''}</span>`:''}</div>
-        <span class="cave-qty">×${c.qty}</span>
-        ${mine?'<span class="cave-edit">✎</span>':''}
+    h+=`<div class="shelf"><div class="shelf-head"><div class="shelf-title">${flagHtml(m.flag)} ${m.label}</div><span class="shelf-count">${groupes.length} réf.</span></div>`;
+    groupes.forEach(g=>{
+      if(g.lots.length===1){ h+=ligneLot(g.lots[0],k,true); return; }
+      // plusieurs achats du même cigare : en-tête récapitulatif, puis le détail
+      const prix=g.prixMin===null ? ''
+        : (g.prixMin===g.prixMax ? `💶 ${fmtPrix(g.prixMin)} l'unité`
+                                 : `💶 de ${fmtPrix(g.prixMin)} à ${fmtPrix(g.prixMax)} l'unité`);
+      h+=`<div class="cave-groupe">
+        <div class="cave-item cave-tete">
+          <div class="cave-bar" style="background:${(palette[k]||palette.autre).band}"></div>
+          <div class="cave-info"><div class="cave-name">${g.nom}</div><div class="cave-detail">${g.detail}</div>
+            <span class="cave-date">${g.lots.length} lots${prix?' · '+prix:''}${g.valeur>0?` · ${fmtPrix(g.valeur)} au total`:''}</span>
+          </div>
+          <span class="cave-qty">×${g.qty}</span>
+        </div>
+        ${g.lots.map(l=>ligneLot(l,k,false)).join('')}
       </div>`;
     });
     h+='</div>';
@@ -2221,7 +2286,7 @@ function caveAddMode(){
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function fmtPrix(v){return Number(v).toLocaleString('fr-FR',{style:'currency',currency:'EUR'});}
 function clearCaveFields(){
-  ['c-name','c-country','c-detail','c-price'].forEach(id=>document.getElementById(id).value='');
+  ['c-name','c-country','c-detail','c-price','c-bought'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('c-qty').value=5;
   document.getElementById('c-added').value=todayISO();
   caveSelectedTerroir=null;
@@ -2317,6 +2382,7 @@ function openEditCaveSheet(id){
   document.getElementById('c-detail').value=it.detail==='—'?'':(it.detail||'');
   document.getElementById('c-qty').value=it.qty||1;
   document.getElementById('c-price').value=(it.price===null||it.price===undefined)?'':it.price;
+  document.getElementById('c-bought').value=it.boughtIn||'';
   document.getElementById('c-added').value=(it.addedRaw||'').slice(0,10)||todayISO();
   const actions=document.getElementById('cave-actions');
   if(!document.getElementById('cave-smoke-btn')){
@@ -2606,10 +2672,11 @@ async function writeCaveItem(champs,itemId){
     : sb.from('cave_items').insert(Object.assign({user_id:currentUser.id},r));
   let corps=Object.assign({},champs);
   let {error}=await envoi(corps);
-  if(error && /price/i.test(error.message||'')){
-    delete corps.price;
+  for(const col of ['price','bought_in']){
+    if(!error||!new RegExp(col,'i').test(error.message||''))continue;
+    delete corps[col];
     ({error}=await envoi(corps));
-    if(!error)console.warn('Colonne price absente : exécutez ajout-prix-cave.sql dans Supabase.');
+    if(!error)console.warn(`Colonne ${col} absente : exécutez ajout-lots-cave.sql dans Supabase.`);
   }
   if(error)throw error;
 }
@@ -2624,12 +2691,14 @@ async function saveCave(){
   const added=document.getElementById('c-added').value||todayISO();
   const saisiPrix=document.getElementById('c-price').value.trim();
   const price=saisiPrix===''?null:Math.round(parseFloat(saisiPrix.replace(',','.'))*100)/100;
+  const boughtIn=document.getElementById('c-bought').value.trim();
   // un double appui, courant sur mobile, insérerait deux fois la même référence
   const btn=document.getElementById('cave-submit-btn');
   if(btn.disabled)return;
   btn.disabled=true;
   try{
-    await writeCaveItem({name,detail,terroir:k,qty,added,price:(price!==null&&!isNaN(price))?price:null},editingCaveId);
+    await writeCaveItem({name,detail,terroir:k,qty,added,
+      price:(price!==null&&!isNaN(price))?price:null, bought_in:boughtIn||null},editingCaveId);
   }catch(e){
     toast("Échec de l'enregistrement.\n"+(e&&e.message?e.message:'Réessayez.'),'err');
     btn.disabled=false; return;
