@@ -533,6 +533,14 @@ body{
   width:100%;border:1px solid var(--line-2);border-radius:var(--r-sm);padding:11px 13px;
   font-family:inherit;font-size:14px;color:var(--ink);background:var(--card);outline:none;
 }
+/* WebKit impose aux champs de date une largeur minimale intrinsèque qui
+   l'emporte sur width:100% : sur iOS le champ dépassait des autres. On la
+   neutralise, et on aligne le texte à gauche comme le reste du formulaire. */
+.field input[type=date]{
+  min-width:0;max-width:100%;
+  -webkit-appearance:none;appearance:none;
+  text-align:left;
+}
 .field input:focus,.field textarea:focus{border-color:var(--cognac)}
 
 /* ===== AUTOCOMPLETE + FICHE CIGARE + SCAN ===== */
