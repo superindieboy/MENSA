@@ -327,6 +327,15 @@ body{
 
 /* ===== DISCOVER GRID ===== */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:26px}
+/* Ligne au-dessus de la grille : décompte à gauche, tri à droite */
+.disc-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.disc-bar #disc-count{font-size:12px;color:var(--ink-3)}
+.disc-sort{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-3)}
+.disc-sort select{
+  background:var(--card);border:1px solid var(--line-2);border-radius:9px;
+  color:var(--ink);font-family:inherit;font-size:12.5px;padding:6px 9px;cursor:pointer;outline:none;
+}
+.disc-sort select:focus{border-color:var(--cognac)}
 .poster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:16px 14px;padding-top:6px}
 .people-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:20px 12px;padding-top:6px}
 .poster-grid .poster,.people-grid .member{width:auto}
@@ -745,8 +754,15 @@ body{
       <input id="search-input" placeholder="Cigare, vitole, maison, terroir…" oninput="resetDiscoverPaging();renderDiscover()">
     </div>
     <div class="filters" id="filters"></div>
-    <div style="margin-bottom:14px">
-      <span id="disc-count" style="font-size:12px;color:var(--ink-3)"></span>
+    <div class="disc-bar">
+      <span id="disc-count"></span>
+      <label class="disc-sort">Trier par
+        <select id="disc-sort" onchange="resetDiscoverPaging();renderDiscover()">
+          <option value="note">note</option>
+          <option value="nom">nom</option>
+          <option value="format">format</option>
+        </select>
+      </label>
     </div>
     <div class="grid" id="disc-grid"></div>
     <div id="disc-more" style="margin:-12px 0 26px"></div>
@@ -1736,6 +1752,26 @@ function renderDiscoverIntro(){
     ? `Explorez plus de ${rounded.toLocaleString('fr-FR')} références notées par la communauté.`
     : `Explorez ${catalog.length} référence${catalog.length>1?'s':''} notée${catalog.length>1?'s':''} par la communauté.`;
 }
+/* Trois tris. Les fiches non notées ou sans dimensions ne remontent jamais en
+   tête d'un classement qui les concerne : elles sont renvoyées à la fin. */
+function trierCatalogue(list){
+  const critere=(document.getElementById('disc-sort')||{}).value||'note';
+  const copie=list.slice();
+  if(critere==='nom')
+    return copie.sort((a,b)=>normCigar(a.name).localeCompare(normCigar(b.name),'fr'));
+  if(critere==='format'){
+    const taille=c=>(c.length&&c.ring)?(c.length*c.ring):-1;
+    return copie.sort((a,b)=>{
+      const ta=taille(a), tb=taille(b);
+      if(ta<0&&tb<0)return normCigar(a.name).localeCompare(normCigar(b.name),'fr');
+      if(ta<0)return 1;
+      if(tb<0)return -1;
+      return tb-ta;
+    });
+  }
+  return copie.sort((a,b)=>(b.score||0)-(a.score||0)||(b.votes||0)-(a.votes||0)
+    ||normCigar(a.name).localeCompare(normCigar(b.name),'fr'));
+}
 function renderDiscover(){
   renderDiscoverIntro();
   // recherche insensible aux accents : « padron » doit trouver « Padrón »
@@ -1750,6 +1786,7 @@ function renderDiscover(){
     if(activeFilter==='Note 4,5+'&&!(c.score>=4.5))return false;
     return true;
   });
+  list=trierCatalogue(list);
   const shown=list.slice(0,discShown);
   document.getElementById('disc-count').textContent=`${list.length} référence${list.length>1?'s':''} · ${catalog.length} au catalogue`
     +(list.length>shown.length?` · ${shown.length} affichées`:'');
@@ -1828,9 +1865,28 @@ function grouperLots(items){
   });
   return groupes;
 }
+/* Durée de cave. Le vieillissement se compte en mois, et au-delà d'un an on
+   parle en années : « depuis 3 ans » se lit mieux que « depuis 37 mois ». */
+function dureeEnCave(dateISO){
+  if(!dateISO)return null;
+  const d=new Date(dateISO);
+  if(isNaN(d))return null;
+  // écart calendaire, et non moyenne de 30,44 jours : celle-ci dérivait
+  // jusqu'à annoncer « 10 mois » pour onze mois révolus
+  const n=new Date();
+  let mois=(n.getFullYear()-d.getFullYear())*12+(n.getMonth()-d.getMonth());
+  if(n.getDate()<d.getDate())mois--;
+  if(mois<0)return null;
+  if(mois<1)return {texte:'ce mois-ci',mois};
+  if(mois<12)return {texte:`${mois} mois`,mois};
+  const ans=Math.floor(mois/12), reste=mois%12;
+  return {texte:reste?`${ans} an${ans>1?'s':''} et ${reste} mois`:`${ans} an${ans>1?'s':''}`,mois};
+}
 function ligneLot(l,k,seul){
   const bouts=[];
-  if(l.added)bouts.push(`🗓️ ${l.added}`);
+  const age=dureeEnCave(l.addedRaw);
+  if(age)bouts.push(`${age.mois>=12?'🥃':'⏳'} en cave depuis ${age.texte}`);
+  else if(l.added)bouts.push(`🗓️ ${l.added}`);
   if(l.boughtIn)bouts.push(`📍 ${l.boughtIn}`);
   if(l.price!==null&&l.price!==undefined)bouts.push(`💶 ${fmtPrix(l.price)} l'unité${l.qty>1?` · ${fmtPrix(l.price*l.qty)}`:''}`);
   return `<div class="cave-item${seul?'':' cave-lot'}" onclick="openEditCaveSheet('${l.id}')">
