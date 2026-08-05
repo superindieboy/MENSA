@@ -32,6 +32,22 @@ par tes deux valeurs de l'étape 1.4. Enregistre.
 
 **GitHub Pages** : pousse `index.html` dans un dépôt, puis **Settings → Pages → branche `main`**. URL : `https://tonpseudo.github.io/nom-du-repo/`.
 
+### Nom de domaine
+
+Le fichier `CNAME` à la racine fixe l'adresse publique du site : `mensa-club.fr`.
+Côté registrar, le domaine doit pointer vers GitHub Pages :
+
+| Type | Nom | Valeur |
+|------|-----|--------|
+| A    | @   | 185.199.108.153 |
+| A    | @   | 185.199.109.153 |
+| A    | @   | 185.199.110.153 |
+| A    | @   | 185.199.111.153 |
+| CNAME| www | superindieboy.github.io. |
+
+Puis dans **Settings → Pages**, renseigner le domaine et cocher **Enforce HTTPS**
+une fois le certificat émis (quelques minutes à quelques heures).
+
 Partage l'URL à tes ~10 membres. Ils créent leur compte (email + mot de passe) et partagent aussitôt **le fil, le catalogue, les membres et les notes**. Seule la cave reste privée : chacun la sienne.
 
 ## Ce qui fonctionne
