@@ -374,7 +374,9 @@ body{
 .cave-info{flex:1}
 .cave-name{font-weight:600;font-size:14px;margin-bottom:2px}
 .cave-detail{font-size:11.5px;color:var(--ink-3)}
-.cave-date{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-3);margin-top:5px}
+/* Le détail d'un lot — date, pays, prix — est trop long pour tenir d'un bloc
+   sur un téléphone : il doit pouvoir revenir à la ligne. */
+.cave-date{display:block;font-size:11px;line-height:1.5;color:var(--ink-3);margin-top:5px;overflow-wrap:anywhere}
 .cave-qty{font-family:var(--serif);font-size:17px;font-weight:600;color:var(--cognac)}
 .cave-edit{font-size:14px;color:var(--ink-3);flex-shrink:0}
 .cave-item:hover .cave-edit{color:var(--cognac)}
@@ -519,6 +521,12 @@ body{
 .sheet h3{font-family:var(--serif);font-size:22px;font-weight:600;margin-bottom:18px}
 .field{margin-bottom:16px}
 .field label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:7px}
+/* Deux champs côte à côte. Le min-width:0 est indispensable : sans lui un
+   enfant flex ne descend pas sous la largeur naturelle de son contenu, et un
+   champ date iOS débordait de sa colonne. */
+.field-pair{display:flex;gap:10px}
+.field-pair>div{flex:1;min-width:0}
+.field-pair input{width:100%;box-sizing:border-box}
 .field label.check-row{display:flex;align-items:center;gap:9px;margin-bottom:0}
 .field label.check-row input{width:17px;height:17px;flex:none}
 .field input,.field textarea{
@@ -615,6 +623,10 @@ body{
   .palais{grid-template-columns:1fr;justify-items:center}
   .screen-title{font-size:24px}
   .filters{flex-wrap:nowrap;overflow-x:auto}
+  /* Deux champs par ligne deviennent illisibles sur un écran de téléphone :
+     on les empile, et on allège les libellés secondaires. */
+  .field-pair{flex-direction:column;gap:0}
+  .field-pair>div+div{margin-top:14px}
 }
 .radar-lbl{fill:var(--ink-2)}
 
@@ -823,9 +835,9 @@ body{
       <div class="field"><label>Marque</label><input id="nc-brand" placeholder="Ex : Montecristo"></div>
       <div class="field"><label>Vitole</label><input id="nc-vitola" placeholder="Ex : Robusto"></div>
       <div class="field"><label>Module</label><input id="nc-module" placeholder="Ex : DE Gros robusto"></div>
-      <div class="field" style="display:flex;gap:10px">
-        <div style="flex:1"><label>Longueur (mm)</label><input id="nc-length" type="number" min="0"></div>
-        <div style="flex:1"><label>Diamètre (RG)</label><input id="nc-ring" type="number" min="0"></div>
+      <div class="field field-pair">
+        <div><label>Longueur (mm)</label><input id="nc-length" type="number" min="0"></div>
+        <div><label>Diamètre (RG)</label><input id="nc-ring" type="number" min="0"></div>
       </div>
       <div class="field"><label>Cape</label><input id="nc-wrapper" placeholder="Ex : Équateur"></div>
       <div class="field"><label>Sous-cape</label><input id="nc-binder" placeholder="Ex : Nicaragua"></div>
@@ -942,9 +954,9 @@ body{
         <span class="tchip" data-t="autre" onclick="pickEcTerroir(this)">Autre</span>
       </div>
     </div>
-    <div class="field" style="display:flex;gap:10px">
-      <div style="flex:1"><label>Longueur (mm)</label><input id="ec-length" type="number" min="0"></div>
-      <div style="flex:1"><label>Diamètre (RG)</label><input id="ec-ring" type="number" min="0"></div>
+    <div class="field field-pair">
+      <div><label>Longueur (mm)</label><input id="ec-length" type="number" min="0"></div>
+      <div><label>Diamètre (RG)</label><input id="ec-ring" type="number" min="0"></div>
     </div>
     <div class="field"><label>Cape</label><input id="ec-wrapper" placeholder="Ex : Équateur"></div>
     <div class="field"><label>Sous-cape</label><input id="ec-binder" placeholder="Ex : Nicaragua"></div>
@@ -997,13 +1009,13 @@ body{
     </div>
     <div class="field"><label>Terroir</label><input id="c-country" placeholder="Ex : Cuba, Nicaragua, Honduras…"></div>
     <div class="field"><label>Module</label><input id="c-detail" placeholder="Ex : Robusto"></div>
-    <div class="field" style="display:flex;gap:10px">
-      <div style="flex:1"><label>Quantité</label><input id="c-qty" type="number" value="5" min="1"></div>
-      <div style="flex:1"><label>Prix payé <span style="color:var(--ink-3);font-weight:400">— € l'unité</span></label><input id="c-price" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex : 24,50"></div>
+    <div class="field field-pair">
+      <div><label>Quantité</label><input id="c-qty" type="number" value="5" min="1"></div>
+      <div><label>Prix payé <span style="color:var(--ink-3);font-weight:400">— € l'unité</span></label><input id="c-price" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex : 24,50"></div>
     </div>
-    <div class="field" style="display:flex;gap:10px">
-      <div style="flex:1"><label>Date d'achat <span style="color:var(--ink-3);font-weight:400">— aujourd'hui</span></label><input id="c-added" type="date"></div>
-      <div style="flex:1"><label>Pays d'achat <span style="color:var(--ink-3);font-weight:400">— facultatif</span></label><input id="c-bought" type="text" autocomplete="off" placeholder="Ex : Cuba, France"></div>
+    <div class="field field-pair">
+      <div><label>Date d'achat <span style="color:var(--ink-3);font-weight:400">— aujourd'hui</span></label><input id="c-added" type="date"></div>
+      <div><label>Pays d'achat <span style="color:var(--ink-3);font-weight:400">— facultatif</span></label><input id="c-bought" type="text" autocomplete="off" placeholder="Ex : Cuba, France"></div>
     </div>
     <p style="font-size:11.5px;color:var(--ink-3);margin:-6px 0 16px;line-height:1.5">Chaque enregistrement est un lot d'achat. Rachetez le même cigare à un autre prix ou dans un autre pays, et les deux lots coexisteront.</p>
     <div class="sheet-actions" id="cave-actions">
