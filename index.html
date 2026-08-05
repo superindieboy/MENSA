@@ -590,6 +590,14 @@ body{
 .global-note .gl{font-size:13px;font-weight:500}
 .global-note .gl small{display:block;font-size:11px;color:var(--ink-3);font-weight:400}
 .global-val{font-family:var(--serif);font-size:22px;font-weight:600;color:var(--cognac);line-height:1}
+/* Dernier prix français relevé par le cercle, sur une dégustation */
+.prix-fr{
+  display:flex;align-items:center;gap:14px;margin-top:16px;
+  background:var(--paper-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 14px;
+}
+.prix-fr-val{font-family:var(--serif);font-size:21px;font-weight:600;color:var(--cognac);line-height:1;flex-shrink:0}
+.prix-fr-lbl{font-size:12.5px;color:var(--ink-2);line-height:1.35}
+.prix-fr-lbl small{display:block;font-size:11px;color:var(--ink-3);margin-top:2px;text-transform:capitalize}
 .global-val span{font-size:13px;color:var(--ink-3)}
 .rate-pick{display:flex;gap:6px}
 .rate-pick .b{font-size:28px;color:var(--line-2);cursor:pointer;transition:.1s}
@@ -1203,9 +1211,42 @@ async function checkAuth(){
 async function loadAll(){
   await loadProfiles();
   await loadMemberCatalog();
-  await Promise.all([loadPosts(), loadCave()]);
+  await Promise.all([loadPosts(), loadCave(), loadPrices()]);
   renderRails();renderMembers();renderFeed();renderCave();renderProfile();renderDiscover();
   lastLoad=Date.now();
+}
+/* Prix d'achat partagés par le cercle, sans les caves qui les portent :
+   la vue cave_prices n'expose ni propriétaire ni identifiant de lot. */
+let cavePrices=[];
+async function loadPrices(){
+  cavePrices=[];
+  if(!sb)return;
+  const {data,error}=await sb.from('cave_prices').select('name,price,bought_in,added');
+  if(error){console.warn('loadPrices',error.message);return;}   // vue absente : on s'en passe
+  cavePrices=(data||[]).map(r=>({name:r.name,price:Number(r.price),boughtIn:r.bought_in||'',added:r.added}));
+}
+/* Dernier prix payé en France pour ce cigare, s'il date de moins de six mois.
+   Au-delà, un tarif n'est plus un repère fiable. */
+function prixFrancaisHtml(nom){
+  const p=dernierPrixFrancais(nom);
+  if(!p)return '';
+  const d=new Date(p.added);
+  const mois=d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  return `<div class="prix-fr">
+    <span class="prix-fr-val">${fmtPrix(p.price)}</span>
+    <span class="prix-fr-lbl">dernier prix payé en France par un membre<small>${mois}</small></span>
+  </div>`;
+}
+function dernierPrixFrancais(nom){
+  const cle=normCigar(nom);
+  if(!cle)return null;
+  const limite=new Date(); limite.setMonth(limite.getMonth()-6);
+  return cavePrices
+    .filter(p=>normCigar(p.name)===cle
+            && /france/.test(normCigar(p.boughtIn))
+            && p.added && new Date(p.added)>=limite
+            && isFinite(p.price))
+    .sort((a,b)=>new Date(b.added)-new Date(a.added))[0]||null;
 }
 /* Les données n'étaient chargées qu'à la connexion : un membre laissant l'app
    ouverte ne voyait jamais les publications des autres. On recharge au retour
@@ -2111,6 +2152,7 @@ function openPostDetail(id){
       <button class="pd-like ${p.liked?'on':''}" id="pd-like-btn" data-pid="${p.id}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes} j'aime</button>
       <span id="pd-likers">${likersHtml(p)}</span>
     </span>
+    ${prixFrancaisHtml(p.name)}
     ${cInfo?`<div class="sec-label" style="margin:18px 0 10px">Fiche catalogue</div>${specCardHtml(cInfo,'Fiche catalogue')}`:''}`;
   // bouton supprimer : auteur ou modérateur (admin)
   const actions=document.getElementById('post-detail-actions');
