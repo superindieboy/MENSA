@@ -1204,6 +1204,7 @@ async function enterApp(user){
   await loadAll();
   document.getElementById('auth-screen').classList.remove('show');
   go('feed');
+  appliquerAncre();   // un lien partagé ouvre directement sa cible
 }
 async function checkAuth(){
   if(!sbReady){
@@ -1216,7 +1217,26 @@ async function checkAuth(){
 }
 
 /* ================= CHARGEMENT DES DONNÉES PARTAGÉES ================= */
+/* Un échec de chargement se lisait comme une app vide : « Aucune dégustation
+   publiée » alors que la requête avait échoué. On distingue les deux états. */
+let chargementEchoue=false;
+function signalerEchec(ou,error){
+  chargementEchoue=true;
+  console.warn('chargement',ou,error&&error.message);
+}
+function messageVide(texteVide){
+  return chargementEchoue
+    ? `<div class="rail-empty" style="padding:32px 0">Impossible de charger les données.<br>Vérifiez votre connexion.
+         <br><button class="logout-btn" style="width:auto;margin:14px auto 0;padding:9px 18px" onclick="reessayerChargement()">Réessayer</button></div>`
+    : `<div class="rail-empty" style="padding:32px 0">${texteVide}</div>`;
+}
+async function reessayerChargement(){
+  toast('Nouvelle tentative…');
+  await loadAll();
+  toast(chargementEchoue?'Chargement toujours impossible.':'Données à jour.', chargementEchoue?'err':undefined);
+}
 async function loadAll(){
+  chargementEchoue=false;
   await loadProfiles();
   await loadMemberCatalog();
   await Promise.all([loadPosts(), loadCave(), loadPrices()]);
@@ -1296,7 +1316,7 @@ async function refreshFeed(force){
 /* Fiches cigare ajoutées par les membres, fusionnées avec le catalogue embarqué */
 async function loadMemberCatalog(){
   const {data,error}=await sb.from('catalog_items').select('*').order('created_at');
-  if(error){console.error('loadMemberCatalog',error);return;}
+  if(error){signalerEchec('catalogue',error);return;}
   (data||[]).forEach(r=>{
     const key=(r.name||'').trim().toLowerCase();
     if(!key)return;
@@ -1316,13 +1336,13 @@ async function loadMemberCatalog(){
 }
 async function loadProfiles(){
   const {data,error}=await sb.from('profiles').select('id,name,bio').order('created_at');
-  if(error)console.error('loadProfiles',error);
+  if(error)signalerEchec('profils',error);
   members.length=0;
   (data||[]).forEach(p=>members.push({id:p.id,name:p.name,init:initialsOf(p.name),av:avIndex(p.id),count:0,bio:p.bio}));
 }
 async function loadPosts(){
   const {data,error}=await sb.from('posts').select('*').order('created_at',{ascending:false});
-  if(error)console.error('loadPosts',error);
+  if(error)signalerEchec('dégustations',error);
   const nameById={}; members.forEach(m=>nameById[m.id]=m.name);
   let likes=[]; try{const r=await sb.from('post_likes').select('post_id,user_id'); likes=r.data||[];}catch(e){}
   // on garde aussi QUI a aimé, pour l'indicateur du fil
@@ -1399,7 +1419,8 @@ function syncCatalogScores(){
 async function loadCave(){
   // Chaque membre a sa propre cave : on ne charge que ses références.
   if(!currentUser){Object.keys(cave).forEach(k=>cave[k].length=0);return;}
-  const {data}=await sb.from('cave_items').select('*').eq('user_id',currentUser.id).order('created_at');
+  const {data,error}=await sb.from('cave_items').select('*').eq('user_id',currentUser.id).order('created_at');
+  if(error)signalerEchec('cave',error);
   Object.keys(cave).forEach(k=>cave[k].length=0);
   (data||[]).forEach(it=>{const k=cave[it.terroir]?it.terroir:'cuba';cave[k].push({id:it.id,user_id:it.user_id,name:it.name,detail:it.detail||'—',terroir:k,qty:it.qty||1,added:it.added?fmtDate(it.added):'',addedRaw:it.added||'',price:(it.price===null||it.price===undefined)?null:Number(it.price),boughtIn:it.bought_in||''});});
 }
@@ -1564,7 +1585,7 @@ function renderFeed(){
     more.innerHTML='';
     el.innerHTML=q
       ? `<div class="rail-empty" style="padding:32px 0">Aucune dégustation ne correspond à « ${document.getElementById('feed-search').value.trim()} ».</div>`
-      : '<div class="rail-empty" style="padding:32px 0">Aucune dégustation publiée pour le moment.<br>Appuyez sur ✚ pour partager la première.</div>';
+      : messageVide('Aucune dégustation publiée pour le moment.<br>Appuyez sur ✚ pour partager la première.');
     return;
   }
   const vus=liste.slice(0,feedShown);
@@ -1607,10 +1628,31 @@ function renderFeed(){
 }
 /* Partage natif sur mobile, presse-papier ailleurs. L'app n'ayant pas d'URL
    par dégustation, on partage le cigare, sa note et le lien du cercle. */
+/* ---- Liens profonds ----
+   Ouvrir une dégustation ou une fiche inscrit une ancre dans l'adresse, ce qui
+   rend le lien partageable ; à l'arrivée, l'ancre rouvre le bon panneau. */
+function poserAncre(type,id){
+  const cible=`#/${type}/${id}`;
+  if(location.hash!==cible)history.replaceState(null,'',cible);
+}
+function retirerAncre(){
+  if(location.hash)history.replaceState(null,'',location.pathname+location.search);
+}
+function appliquerAncre(){
+  const m=/^#\/(degustation|cigare)\/(.+)$/.exec(location.hash||'');
+  if(!m)return false;
+  const [,type,id]=m;
+  if(type==='degustation'&&feed.some(p=>p.id===id)){ openPostDetail(id); return true; }
+  if(type==='cigare'&&catalog.some(c=>c.id===id)){ openCigarDetail(id); return true; }
+  // cible introuvable : on nettoie plutôt que de laisser une adresse trompeuse
+  retirerAncre();
+  toast("Ce lien ne correspond à rien d'existant.",'err');
+  return false;
+}
 async function sharePost(id){
   const p=feed.find(x=>x.id===id);if(!p)return;
   const text=`${p.name} — ${(p.rating||0).toFixed(1)}/5, noté par ${p.user} sur MENSA`;
-  const url=location.href.split('#')[0];
+  const url=location.origin+location.pathname+`#/degustation/${id}`;
   if(navigator.share){
     try{ await navigator.share({title:'MENSA',text,url}); }
     catch(e){ /* partage annulé par le membre */ }
@@ -1848,7 +1890,7 @@ function renderCave(){
   });
   document.getElementById('cave-shelves').innerHTML = h ? h
     : (q ? `<div class="rail-empty" style="padding:32px 0">Aucune référence ne correspond à « ${document.getElementById('cave-search').value.trim()} ».</div>`
-         : '<div class="rail-empty" style="padding:32px 0">Votre cave est vide.<br>Appuyez sur ✚ pour ajouter une référence.</div>');
+         : messageVide('Votre cave est vide.<br>Appuyez sur ✚ pour ajouter une référence.'));
 }
 
 /* ================= PROFILE ================= */
@@ -2095,6 +2137,7 @@ function openCigarDetail(id){
       `<button class="btn-ghost" id="detail-edit-btn" style="flex-basis:100%" onclick="openEditCigarSheet('${c.id}')">Modifier la fiche</button>`);
   }
   document.getElementById('detail-overlay').classList.add('open');
+  poserAncre('cigare',c.id);
 }
 /* Édition d'une fiche catalogue — réservée au compte admin.
    Une fiche embarquée (id « mensa-… ») n'existe pas en base : la première
@@ -2193,6 +2236,7 @@ function openPostDetail(id){
     + (canDelete?`<button class="btn-danger" onclick="deletePost('${p.id}')">${delLabel}</button>`:'')
     + '<button class="btn-ghost" onclick="closeSheet(\'post-overlay\')">Fermer</button>';
   document.getElementById('post-overlay').classList.add('open');
+  poserAncre('degustation',p.id);
 }
 async function deletePost(id){
   if(!currentUser||!sb)return;
@@ -2526,7 +2570,11 @@ async function deleteCaveItem(){
   await loadCave(); renderCave();
   toast('Référence retirée de votre cave.');
 }
-function closeSheet(id){document.getElementById(id).classList.remove('open')}
+function closeSheet(id){
+  document.getElementById(id).classList.remove('open');
+  // l'adresse ne doit plus désigner un panneau fermé
+  if(id==='post-overlay'||id==='detail-overlay')retirerAncre();
+}
 const BIO_PLACEHOLDER='Aucune bio pour le moment.';
 function openBioSheet(){
   document.getElementById('bio-input').value=(currentUser&&currentUser.bio)?currentUser.bio:'';
@@ -2800,6 +2848,12 @@ async function saveCave(){
   toast(modif?'Référence modifiée.':'Ajouté à votre cave.');
 }
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
+/* Navigation par ancre : coller un lien ou revenir en arrière rouvre la cible. */
+window.addEventListener('hashchange',()=>{
+  if(!currentUser)return;
+  if(location.hash)appliquerAncre();
+  else{ closeSheet('post-overlay'); closeSheet('detail-overlay'); }
+});
 /* Échap ferme d'abord une liste de suggestions ouverte, puis la fenêtre du
    dessus : les panneaux se fermaient au clic extérieur mais pas au clavier. */
 document.addEventListener('keydown',e=>{
