@@ -1285,7 +1285,8 @@ async function refreshFeed(force){
   refreshing=true;
   try{
     await loadProfiles();
-    await loadPosts();
+    // les prix publiés par les autres membres doivent suivre, eux aussi
+    await Promise.all([loadPosts(), loadPrices()]);
     renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();
     lastLoad=Date.now();
     return true;
