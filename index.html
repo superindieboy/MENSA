@@ -208,6 +208,8 @@ body{
 .thirds-line{display:flex;gap:8px;margin-bottom:11px}
 .thirds-line span{font-size:11px;color:var(--ink-2);background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:2px 9px}
 .thirds-line b{color:var(--cognac);font-weight:600}
+.thirds-line.mini{margin:6px 0 0;gap:6px;flex-wrap:wrap}
+.thirds-line.mini span{font-size:10.5px;padding:1px 7px}
 .flavors{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .flavor{
   font-size:11.5px;color:var(--ink-2);background:var(--paper);
@@ -1583,6 +1585,18 @@ function renderMembers(){
   if(!members.length){el.innerHTML='<div class="rail-empty">Aucun membre pour le moment.</div>';return;}
   el.innerHTML=members.map(memberCardHtml).join('');
 }
+/* Le détail des trois tiers est la seule trace de la façon dont le cigare a
+   évolué pendant qu'on le fumait. Il ne figurait que sur le fil : ailleurs, la
+   dégustation d'un autre membre se résumait à une note et à un commentaire. */
+function aTiers(p){return !!(p.thirds&&(p.thirds.t1||p.thirds.t2||p.thirds.t3));}
+function tiersHtml(p,mini){
+  if(!aTiers(p))return '';
+  const cases=['1ᵉʳ','2ᵉ','3ᵉ'].map((l,j)=>{
+    const v=[p.thirds.t1,p.thirds.t2,p.thirds.t3][j];
+    return `<span><b>${l}</b> ${v?v.toFixed(1):'—'}</span>`;
+  }).join('');
+  return `<div class="thirds-line${mini?' mini':''}">${cases}</div>`;
+}
 /* Le fil se cherche et s'affiche par tranches : il construisait une carte par
    dégustation, sans limite, et n'offrait aucun filtre alors que Découvrir et
    la cave en ont un. */
@@ -1628,7 +1642,7 @@ function renderFeed(){
       <div class="post-body" style="cursor:pointer" onclick="openPostDetail('${p.id}')">
         <div class="cig-name">${p.name}</div>
         <span class="origin" style="background:${oColors[0]};color:${oColors[1]}">📍 ${p.origin}</span>
-        ${(p.thirds&&(p.thirds.t1||p.thirds.t2||p.thirds.t3))?`<div class="thirds-line">${['1ᵉʳ','2ᵉ','3ᵉ'].map((l,j)=>{const v=[p.thirds.t1,p.thirds.t2,p.thirds.t3][j];return `<span><b>${l}</b> ${v?v.toFixed(1):'—'}</span>`}).join('')}</div>`:''}
+        ${tiersHtml(p)}
         ${p.note?`<p class="note">${p.note}</p>`:''}
         <div class="flavors">${p.flavors.map(f=>`<span class="flavor">${f}</span>`).join('')}</div>
         ${p.place?`<div class="post-place">📍 Fumé à ${p.place}</div>`:''}
@@ -1960,6 +1974,7 @@ function profPostCard(p){
     <div class="pp-body">
       <div class="pp-top"><span class="pp-name">${p.name}</span><span class="pp-rate"><span style="color:var(--gold)">●</span> ${(p.rating||0).toFixed(1)}</span></div>
       <div class="pp-origin">${p.origin||''} · ${p.time}</div>
+      ${tiersHtml(p,true)}
       ${p.note?`<p class="pp-note">${p.note}</p>`:''}
       ${flav?`<div class="pp-flavors">${flav}</div>`:''}
     </div>
@@ -2157,15 +2172,19 @@ function acCreate(){
 }
 
 /* Dégustation vue depuis la fiche d'un cigare : c'est le membre qu'on met en
-   avant, le cigare étant déjà connu. */
+   avant, le cigare étant déjà connu. Le reste de sa lecture — les trois tiers,
+   les arômes relevés — vaut d'autant plus ici qu'on vient comparer. */
 function ficheTastingCard(p){
   const av=avColors[p.av]||avColors[0];
+  const flav=(p.flavors||[]).slice(0,5).map(f=>`<span class="flavor">${f}</span>`).join('');
   return `<div class="pp-card" onclick="closeSheet('detail-overlay');openPostDetail('${p.id}')" style="cursor:pointer">
     <div class="pp-thumb" style="background:${av[0]};color:${av[1]};font-family:var(--serif);font-size:22px;font-weight:600">${p.init}</div>
     <div class="pp-body">
       <div class="pp-top"><span class="pp-name">${p.user}</span><span class="pp-rate"><span style="color:var(--gold)">●</span> ${(p.rating||0).toFixed(1)}</span></div>
       <div class="pp-origin">${p.time}</div>
+      ${tiersHtml(p,true)}
       ${p.note?`<p class="pp-note">${p.note}</p>`:''}
+      ${flav?`<div class="pp-flavors">${flav}</div>`:''}
     </div>
   </div>`;
 }
@@ -2256,7 +2275,7 @@ function openPostDetail(id){
   const p=feed.find(x=>x.id===id);if(!p)return;
   const pal=palette[p.terroir]||palette.cuba;
   const c=avColors[p.av]||avColors[0];
-  const thirdsLine=(p.thirds&&(p.thirds.t1||p.thirds.t2||p.thirds.t3))
+  const thirdsLine=aTiers(p)
     ? `<div class="pd-thirds">${['Premier tiers','Deuxième tiers','Dernier tiers'].map((l,j)=>{const v=[p.thirds.t1,p.thirds.t2,p.thirds.t3][j];return `<div class="pd-third"><span>${l}</span><b>${v?v.toFixed(1):'—'}</b></div>`}).join('')}</div>` : '';
   const flav=(p.flavors||[]).map(f=>`<span class="flavor">${f}</span>`).join('');
   const cInfo=ficheOf(p);
@@ -2275,6 +2294,7 @@ function openPostDetail(id){
     ${thirdsLine}
     ${p.note?`<p class="pd-note">${p.note}</p>`:''}
     ${flav?`<div class="flavors" style="margin-top:6px">${flav}</div>`:''}
+    ${p.place?`<div class="post-place" style="margin-top:10px">📍 Fumé à ${p.place}</div>`:''}
     <span style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
       <button class="pd-like ${p.liked?'on':''}" id="pd-like-btn" data-pid="${p.id}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes} j'aime</button>
       <span id="pd-likers">${likersHtml(p)}</span>
