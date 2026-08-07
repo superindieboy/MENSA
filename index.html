@@ -306,6 +306,28 @@ body{
 .btn-danger{flex:1;min-width:100px;background:transparent;border:1px solid #E08A7A;color:#E08A7A;border-radius:11px;padding:13px 18px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
 .btn-danger:hover{background:rgba(224,138,122,0.12)}
 
+/* ===== COMMENTAIRES ===== */
+.cm-list{display:flex;flex-direction:column;gap:10px}
+.cm{display:flex;align-items:flex-start;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 12px}
+.cm-av{flex:0 0 30px;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif);font-size:12px;font-weight:600;letter-spacing:.02em}
+.cm-body{flex:1;min-width:0}
+.cm-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.cm-head b{font-size:13px;color:var(--ink);font-weight:600}
+.cm-head span{font-size:11px;color:var(--ink-3)}
+.cm-text{font-size:13.5px;color:var(--ink-2);line-height:1.5;margin:4px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.cm-del{flex:0 0 auto;background:none;border:none;color:var(--ink-3);font-size:18px;line-height:1;padding:0 2px;cursor:pointer}
+.cm-del:hover{color:#E08A7A}
+.cm-vide{font-size:13px;color:var(--ink-3);margin:0;padding:2px 2px 6px}
+.cm-form{display:flex;gap:9px;align-items:flex-end;margin-top:12px}
+.cm-form textarea{flex:1;min-width:0;resize:none;background:var(--card);border:1px solid var(--line-2);border-radius:12px;
+  padding:11px 13px;color:var(--ink);font-family:inherit;font-size:14px;line-height:1.45}
+.cm-form textarea:focus{outline:none;border-color:var(--cognac)}
+/* .btn-primary est déclaré plus bas et l'emporterait à spécificité égale :
+   sans le sélecteur composé, le bouton s'étale sur deux tiers de la ligne. */
+.cm-form .cm-send{flex:0 0 auto;min-width:0;padding:12px 20px}
+.cm-form .cm-send:disabled{opacity:.55;cursor:default}
+
 /* ===== SEARCH + FILTERS ===== */
 .search{
   display:flex;align-items:center;gap:10px;background:var(--card);
@@ -370,6 +392,12 @@ body{
 .cstat{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 12px;text-align:center}
 .cstat-n{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--cognac);line-height:1}
 .cstat-l{font-size:11px;color:var(--ink-3);margin-top:5px}
+.vc{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:15px 16px;margin:-10px 0 24px}
+.vc-head{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin-bottom:11px}
+.vc-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:5px 0}
+.vc-row span{font-size:13px;color:var(--ink-2);min-width:0}
+.vc-row b{font-family:var(--serif);font-size:16px;font-weight:600;color:var(--cognac);white-space:nowrap}
+.vc-note{font-size:12px;color:var(--ink-3);line-height:1.5;margin:9px 0 0;padding-top:9px;border-top:1px solid var(--line)}
 .shelf{margin-bottom:22px}
 .shelf-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
 .shelf-title{display:flex;align-items:center;gap:9px;font-family:var(--serif);font-weight:600;font-size:17px}
@@ -596,6 +624,12 @@ body{
 .spec-pip.on{background:var(--cognac)}
 .spec-flavors{display:flex;flex-wrap:wrap;gap:6px}
 .spec-score-pill{position:absolute;bottom:11px;right:12px;background:rgba(20,12,6,0.7);color:#fff;border-radius:9px;padding:4px 10px;font-size:13px;font-weight:600}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}
+.cmp-cell{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:9px 6px;text-align:center}
+.cmp-cell span{display:block;font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
+.cmp-cell b{display:block;font-family:var(--serif);font-size:20px;font-weight:600;color:var(--cognac);line-height:1.25}
+.cmp-cell small{display:block;font-size:10.5px;color:var(--ink-3)}
+.cmp-note{font-size:12px;color:var(--ink-2);line-height:1.5;margin:9px 0 0;text-align:center}
 
 /* ===== NOTE PAR TIERS (demi-étoiles) ===== */
 .thirds{display:flex;flex-direction:column;gap:11px;margin-bottom:14px}
@@ -777,6 +811,7 @@ body{
     <p class="screen-sub">Suivez votre stock et la date d'ajout de chaque référence.</p>
 
     <div class="cave-stats" id="cave-stats"></div>
+    <div id="cave-valeur"></div>
     <div class="search" id="cave-search-wrap" style="display:none">
       <i>🔍</i>
       <input id="cave-search" placeholder="Chercher dans ma cave…" autocomplete="off" oninput="renderCave()">
@@ -1257,7 +1292,7 @@ async function loadAll(){
   chargementEchoue=false;
   await loadProfiles();
   await loadMemberCatalog();
-  await Promise.all([loadPosts(), loadCave(), loadPrices()]);
+  await Promise.all([loadPosts(), loadCave(), loadPrices(), loadComments()]);
   renderRails();renderMembers();renderFeed();renderCave();renderProfile();renderDiscover();
   lastLoad=Date.now();
 }
@@ -1271,6 +1306,98 @@ async function loadPrices(){
   const {data,error}=await sb.from('price_reports').select('name,price,bought_in,added');
   if(error){console.warn('loadPrices',error.message);return;}   // table absente : on s'en passe
   cavePrices=(data||[]).map(r=>({name:r.name,price:Number(r.price),boughtIn:r.bought_in||'',added:r.added}));
+}
+/* ---- Commentaires ----
+   Le cercle n'avait que le cœur pour tout échange, alors qu'une dégustation
+   appelle une réponse. La table étant récente, une base qui ne l'a pas encore
+   fait simplement disparaître la section, sans casser le panneau. */
+let commentaires={};          // post_id -> [{id,user_id,body,time}]
+let commentairesActifs=true;
+async function loadComments(){
+  commentaires={};
+  if(!sb)return;
+  const {data,error}=await sb.from('post_comments').select('*').order('created_at');
+  if(error){ commentairesActifs=false; console.warn('loadComments',error.message); return; }
+  commentairesActifs=true;
+  (data||[]).forEach(c=>{
+    (commentaires[c.post_id]=commentaires[c.post_id]||[]).push(
+      {id:c.id,user_id:c.user_id,body:c.body,time:timeAgo(c.created_at)});
+  });
+}
+function nbCommentaires(postId){ return (commentaires[postId]||[]).length; }
+/* Un commentaire est du texte libre écrit par un membre : il est inséré comme
+   texte, jamais comme balisage. */
+function echapper(s){
+  return String(s==null?'':s).replace(/[&<>"']/g,ch=>(
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function ligneCommentaire(c,postId,hote){
+  const col=avColors[avIndex(c.user_id)]||avColors[0];
+  const nom=nomDuMembre(c.user_id);
+  const sien = currentUser && c.user_id===currentUser.id;
+  const peutSupprimer = sien || hote || isAdmin();
+  return `<div class="cm">
+    <span class="cm-av" style="background:${col[0]};color:${col[1]}">${initialsOf(nom)}</span>
+    <div class="cm-body">
+      <div class="cm-head"><b>${echapper(nom)}</b><span>${c.time}</span></div>
+      <p class="cm-text">${echapper(c.body)}</p>
+    </div>
+    ${peutSupprimer?`<button class="cm-del" aria-label="Supprimer ce commentaire" onclick="supprimerCommentaire('${c.id}','${postId}')">×</button>`:''}
+  </div>`;
+}
+function commentairesHtml(postId){
+  if(!commentairesActifs)return '';
+  const p=feed.find(x=>x.id===postId);
+  const hote = !!(currentUser && p && p.user_id===currentUser.id);
+  const liste=commentaires[postId]||[];
+  const titre=liste.length
+    ? `Commentaires · ${liste.length}`
+    : 'Commentaires';
+  const corps=liste.length
+    ? liste.map(c=>ligneCommentaire(c,postId,hote)).join('')
+    : `<p class="cm-vide">Personne n'a encore réagi. Ouvrez la discussion.</p>`;
+  const saisie=currentUser?`
+    <div class="cm-form">
+      <textarea id="cm-input" rows="2" maxlength="2000" placeholder="Votre réaction…"
+        oninput="autoHauteurCommentaire(this)"></textarea>
+      <button class="btn-primary cm-send" id="cm-send" onclick="publierCommentaire('${postId}')">Publier</button>
+    </div>`:'';
+  return `<div class="sec-label" style="margin:20px 0 10px">${titre}</div>
+    <div class="cm-list">${corps}</div>${saisie}`;
+}
+function autoHauteurCommentaire(t){ t.style.height='auto'; t.style.height=Math.min(t.scrollHeight,160)+'px'; }
+function rafraichirCommentaires(postId){
+  const box=document.getElementById('pd-comments');
+  if(box)box.innerHTML=commentairesHtml(postId);
+}
+async function publierCommentaire(postId){
+  if(!currentUser||!sb)return;
+  const champ=document.getElementById('cm-input');
+  const texte=(champ?champ.value:'').trim();
+  if(!texte){ toast('Écrivez quelque chose avant de publier.','err'); return; }
+  const btn=document.getElementById('cm-send');
+  if(btn)btn.disabled=true;                       // le double envoi créerait deux fois le même commentaire
+  const {data,error}=await sb.from('post_comments')
+    .insert({post_id:postId,user_id:currentUser.id,body:texte}).select();
+  if(btn)btn.disabled=false;
+  if(error||!(data&&data.length)){ toast("Votre commentaire n'a pas pu être publié.",'err'); return; }
+  const c=data[0];
+  (commentaires[postId]=commentaires[postId]||[]).push(
+    {id:c.id,user_id:c.user_id,body:c.body,time:timeAgo(c.created_at)});
+  rafraichirCommentaires(postId);
+  renderFeed();
+  toast('Commentaire publié.');
+}
+async function supprimerCommentaire(id,postId){
+  if(!currentUser||!sb)return;
+  if(!confirm('Supprimer ce commentaire ?'))return;
+  // .select() révèle un refus de la RLS, qui ne lève aucune erreur
+  const {data,error}=await sb.from('post_comments').delete().eq('id',id).select();
+  if(error||!(data&&data.length)){ toast('Suppression refusée : droits insuffisants.','err'); return; }
+  commentaires[postId]=(commentaires[postId]||[]).filter(c=>c.id!==id);
+  rafraichirCommentaires(postId);
+  renderFeed();
+  toast('Commentaire supprimé.');
 }
 /* Publie — ou retire — le prix d'un lot. Un échec ici ne doit pas empêcher
    l'enregistrement du lot lui-même : le prix partagé est un complément. */
@@ -1323,8 +1450,8 @@ async function refreshFeed(force){
   refreshing=true;
   try{
     await loadProfiles();
-    // les prix publiés par les autres membres doivent suivre, eux aussi
-    await Promise.all([loadPosts(), loadPrices()]);
+    // les prix et les commentaires des autres membres doivent suivre, eux aussi
+    await Promise.all([loadPosts(), loadPrices(), loadComments()]);
     renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();
     lastLoad=Date.now();
     return true;
@@ -1650,6 +1777,7 @@ function renderFeed(){
       <div class="post-actions">
         <button class="act ${p.liked?'on':''}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes}</button>
         ${likersHtml(p)}
+        ${commentairesActifs?`<button class="act" onclick="openPostDetail('${p.id}')" aria-label="Commenter cette dégustation">💬 ${nbCommentaires(p.id)}</button>`:''}
         <button class="act" onclick="openCaveSheetFromPost('${p.id}')">🗄️ Ma cave</button>
         <button class="act" style="margin-left:auto" onclick="sharePost('${p.id}')" aria-label="Partager cette dégustation">↗</button>
       </div>
@@ -1913,6 +2041,50 @@ function ligneLot(l,k,seul){
     <span class="cave-edit">✎</span>
   </div>`;
 }
+/* Ce que vaut la cave. Les prix se saisissent lot par lot : on ne totalise que
+   les lots chiffrés, et on dit lesquels manquent plutôt que de laisser croire
+   à un inventaire complet. L'écart France / étranger est la question que se
+   pose tout acheteur au retour d'un voyage. */
+function bilanCave(){
+  const lots=[], sansPrix=[];
+  Object.values(cave).forEach(arr=>arr.forEach(l=>{
+    if(!l.qty||l.qty<=0)return;
+    if(l.price===null||l.price===undefined)sansPrix.push(l); else lots.push(l);
+  }));
+  if(!lots.length)return null;
+  const cigares=liste=>liste.reduce((s,l)=>s+l.qty,0);
+  const somme=liste=>liste.reduce((s,l)=>s+l.price*l.qty,0);
+  const moyenne=liste=>{const n=cigares(liste);return n?somme(liste)/n:null;};
+  const enFrance=l=>normCigar(l.boughtIn)==='france';
+  const fr=lots.filter(enFrance);
+  const ailleurs=lots.filter(l=>l.boughtIn&&!enFrance(l));
+  return {
+    total:somme(lots), nb:cigares(lots), moyenne:moyenne(lots),
+    nonChiffres:cigares(sansPrix),
+    moyFr:moyenne(fr), nbFr:cigares(fr),
+    moyAilleurs:moyenne(ailleurs), nbAilleurs:cigares(ailleurs)
+  };
+}
+function valeurCaveHtml(){
+  const b=bilanCave();
+  if(!b)return '';
+  let h=`<div class="vc">
+    <div class="vc-head">Le prix de votre cave</div>
+    <div class="vc-row"><span>Prix moyen au cigare</span><b>${fmtPrix(b.moyenne)}</b></div>`;
+  if(b.moyFr!==null&&b.moyAilleurs!==null){
+    const ecart=b.moyFr-b.moyAilleurs;
+    const pct=Math.round(Math.abs(ecart)/b.moyAilleurs*100);
+    // moyennes de deux paniers distincts, pas d'un même cigare : la formule
+    // le dit, sous peine d'attribuer au lieu d'achat un écart de gamme
+    h+=`<div class="vc-row"><span>Achetés en France · ${b.nbFr}</span><b>${fmtPrix(b.moyFr)}</b></div>
+        <div class="vc-row"><span>Achetés ailleurs · ${b.nbAilleurs}</span><b>${fmtPrix(b.moyAilleurs)}</b></div>
+        <p class="vc-note">${pct<3
+          ? 'Vos achats reviennent au même prix des deux côtés de la frontière.'
+          : `En moyenne, vos cigares achetés en France reviennent ${pct} % ${ecart>0?'plus':'moins'} cher que ceux achetés ailleurs.`}</p>`;
+  }
+  if(b.nonChiffres)h+=`<p class="vc-note">${b.nonChiffres} cigare${b.nonChiffres>1?'s sont':' est'} sans prix : ${b.nonChiffres>1?'ils ne comptent':'il ne compte'} pas dans ce total.</p>`;
+  return h+'</div>';
+}
 function renderCave(){
   let total=0,refs=0,countries=0,valeur=0,toutChiffre=true;
   Object.values(cave).forEach(arr=>{
@@ -1928,6 +2100,7 @@ function renderCave(){
     <div class="cstat"><div class="cstat-n">${total}</div><div class="cstat-l">cigares</div></div>
     <div class="cstat"><div class="cstat-n">${refs}</div><div class="cstat-l">références</div></div>
     <div class="cstat"><div class="cstat-n">${valeur>0?fmtPrix(valeur):'—'}</div><div class="cstat-l">valeur${(valeur>0&&!toutChiffre)?' connue':''}</div></div>`;
+  document.getElementById('cave-valeur').innerHTML=valeurCaveHtml();
 
   // recherche insensible aux accents dans le nom et le module
   const q=normCigar(document.getElementById('cave-search').value);
@@ -2096,6 +2269,30 @@ let selectedTerroir=null;
 function terroirOf(country){const s=(country||'').toLowerCase();if(s.includes('cuba'))return'cuba';if(s.includes('nicaragua'))return'nica';if(s.includes('dom'))return'rep';if(s.includes('honduras'))return'hon';return'cuba';}
 function forceLabel(n){return n>=4?'Corsé':n<=1?'Doux':'Médium';}
 
+/* Sa note face à celle du cercle. Les deux chiffres existaient déjà, mais
+   jamais côte à côte : c'est leur écart qui fait discuter. Rien à afficher
+   tant qu'un seul des deux camps s'est prononcé — se comparer à soi-même
+   n'apprend rien. */
+function un(n){return n.toFixed(1).replace('.',',');}
+function comparatifNotesHtml(c){
+  if(!currentUser||!feed.length)return '';
+  const notes=feed.filter(p=>p.rating>0&&(()=>{const f=ficheOf(p);return f&&f.id===c.id;})());
+  const miennes=notes.filter(p=>p.user_id===currentUser.id).map(p=>p.rating);
+  const autres =notes.filter(p=>p.user_id!==currentUser.id).map(p=>p.rating);
+  if(!miennes.length||!autres.length)return '';
+  const moy=a=>a.reduce((s,v)=>s+v,0)/a.length;
+  const mienne=moy(miennes), cercle=moy(notes.map(p=>p.rating));
+  const ecart=mienne-cercle;
+  const verdict=Math.abs(ecart)<0.15
+    ? 'Vous êtes en phase avec le cercle.'
+    : `Vous notez ce cigare ${un(Math.abs(ecart))} point${Math.abs(ecart)>=2?'s':''} ${ecart>0?'au-dessus':'en dessous'} du cercle.`;
+  const cell=(l,v,n)=>`<div class="cmp-cell"><span>${l}</span><b>${un(v)}</b><small>${n} note${n>1?'s':''}</small></div>`;
+  return `<div class="cmp">
+      ${cell('Vous',mienne,miennes.length)}
+      ${cell('Le cercle',cercle,notes.length)}
+    </div>
+    <p class="cmp-note">${verdict}</p>`;
+}
 function specCardHtml(c,badge){
   const p=palette[c.terroir]||palette.autre;
   const flavors=(c.flavors||[]).map(f=>`<span class="flavor">${f}</span>`).join('');
@@ -2121,6 +2318,7 @@ function specCardHtml(c,badge){
         ${c.votes?`<div class="spec-row"><span class="spec-k">Avis</span><span class="spec-v">${c.votes.toLocaleString('fr-FR')}</span></div>`:''}
       </div>
       ${flavors?`<div class="spec-flavors">${flavors}</div>`:''}
+      ${comparatifNotesHtml(c)}
     </div>
   </div>`;
 }
@@ -2300,6 +2498,7 @@ function openPostDetail(id){
       <span id="pd-likers">${likersHtml(p)}</span>
     </span>
     ${prixFrancaisHtml(p.name)}
+    <div id="pd-comments">${commentairesHtml(p.id)}</div>
     ${cInfo?`<div class="sec-label" style="margin:18px 0 10px">Fiche catalogue</div>${specCardHtml(cInfo,'Fiche catalogue')}`:''}`;
   // bouton supprimer : auteur ou modérateur (admin)
   const actions=document.getElementById('post-detail-actions');

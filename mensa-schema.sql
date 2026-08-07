@@ -79,6 +79,17 @@ create table if not exists public.post_likes (
   primary key (post_id, user_id)
 );
 
+-- Commentaires sous une dégustation : ce qui distingue le club du carnet
+create table if not exists public.post_comments (
+  id         uuid primary key default gen_random_uuid(),
+  post_id    uuid not null references public.posts on delete cascade,
+  user_id    uuid not null references auth.users on delete cascade,
+  body       text not null check (length(trim(body)) between 1 and 2000),
+  created_at timestamptz default now()
+);
+create index if not exists post_comments_post_idx
+  on public.post_comments (post_id, created_at);
+
 -- ---------- CRÉATION AUTO DU PROFIL À L'INSCRIPTION ----------
 
 create or replace function public.handle_new_user()
@@ -111,6 +122,7 @@ alter table public.posts         enable row level security;
 alter table public.cave_items    enable row level security;
 alter table public.catalog_items enable row level security;
 alter table public.post_likes    enable row level security;
+alter table public.post_comments enable row level security;
 
 -- PROFILES
 create policy "profiles_read"        on public.profiles   for select using (auth.uid() is not null);
@@ -141,6 +153,17 @@ create policy "likes_read"        on public.post_likes for select using (auth.ui
 create policy "likes_insert_own"  on public.post_likes for insert with check (auth.uid() = user_id);
 create policy "likes_delete_own"  on public.post_likes for delete using (auth.uid() = user_id);
 
+-- COMMENTAIRES
+-- L'auteur maîtrise son commentaire ; l'auteur de la dégustation maîtrise ce
+-- qui s'écrit sous elle. D'où deux règles de suppression au lieu d'une.
+create policy "commentaires_lecture"    on public.post_comments for select to authenticated using (true);
+create policy "commentaires_insert_own" on public.post_comments for insert to authenticated with check (auth.uid() = user_id);
+create policy "commentaires_update_own" on public.post_comments for update to authenticated using (auth.uid() = user_id);
+create policy "commentaires_delete_own" on public.post_comments for delete to authenticated using (auth.uid() = user_id);
+create policy "commentaires_delete_hote" on public.post_comments for delete to authenticated using (
+  exists (select 1 from public.posts p where p.id = post_comments.post_id and p.user_id = auth.uid())
+);
+
 -- ---------- ADMINISTRATEUR ----------
 -- Modération des publications, et correction de n'importe quelle fiche du
 -- catalogue. Le renommage d'une fiche se répercute sur les dégustations de
@@ -151,6 +174,7 @@ create policy "posts_delete_admin"    on public.posts         for delete using (
 create policy "posts_update_admin"    on public.posts         for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "catalog_update_admin"  on public.catalog_items for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "catalog_delete_admin"  on public.catalog_items for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+create policy "commentaires_delete_admin" on public.post_comments for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 
 -- =====================================================================
 --  Terminé. Pensez ensuite à désactiver la confirmation par email
