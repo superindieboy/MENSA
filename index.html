@@ -316,8 +316,21 @@ body{
 .cm-head b{font-size:13px;color:var(--ink);font-weight:600}
 .cm-head span{font-size:11px;color:var(--ink-3)}
 .cm-text{font-size:13.5px;color:var(--ink-2);line-height:1.5;margin:4px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
-.cm-del{flex:0 0 auto;background:none;border:none;color:var(--ink-3);font-size:18px;line-height:1;padding:0 2px;cursor:pointer}
-.cm-del:hover{color:#E08A7A}
+.cm-acts{flex:0 0 auto;display:flex;align-items:center;gap:2px}
+.cm-act{background:none;border:none;color:var(--ink-3);font-size:15px;line-height:1;padding:3px 5px;border-radius:6px;cursor:pointer}
+.cm-act:hover{color:var(--cognac);background:var(--paper)}
+.cm-del{font-size:18px}
+.cm-del:hover{color:#E08A7A;background:var(--paper)}
+.cm-edit-input{width:100%;box-sizing:border-box;resize:none;margin-top:6px;background:var(--paper);
+  border:1px solid var(--cognac);border-radius:10px;padding:9px 11px;color:var(--ink);
+  font-family:inherit;font-size:13.5px;line-height:1.5}
+.cm-edit-input:focus{outline:none}
+.cm-edit-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.cm-btn{background:none;border:1px solid var(--line-2);color:var(--ink-2);border-radius:9px;
+  padding:7px 14px;font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer}
+.cm-btn:hover{border-color:var(--cognac)}
+.cm-btn-on{background:var(--cognac);border-color:var(--cognac);color:#fff;font-weight:600}
+.cm-btn-on:disabled{opacity:.55;cursor:default}
 .cm-vide{font-size:13px;color:var(--ink-3);margin:0;padding:2px 2px 6px}
 .cm-form{display:flex;gap:9px;align-items:flex-end;margin-top:12px}
 .cm-form textarea{flex:1;min-width:0;resize:none;background:var(--card);border:1px solid var(--line-2);border-radius:12px;
@@ -1331,19 +1344,75 @@ function echapper(s){
   return String(s==null?'':s).replace(/[&<>"']/g,ch=>(
     {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
+/* Modifier son commentaire, mais jamais celui d'un autre : l'auteur d'une
+   dégustation peut faire disparaître ce qui s'écrit sous elle, pas en changer
+   les mots. Un seul commentaire s'ouvre à la fois. */
+let commentaireEnEdition=null;
 function ligneCommentaire(c,postId,hote){
   const col=avColors[avIndex(c.user_id)]||avColors[0];
   const nom=nomDuMembre(c.user_id);
   const sien = currentUser && c.user_id===currentUser.id;
   const peutSupprimer = sien || hote || isAdmin();
+  const entete=`<span class="cm-av" style="background:${col[0]};color:${col[1]}">${initialsOf(nom)}</span>`;
+  const titre=`<div class="cm-head"><b>${echapper(nom)}</b><span>${c.time}</span></div>`;
+  if(sien && commentaireEnEdition===c.id){
+    // le contenu d'un textarea décode les entités : l'échappement reste correct
+    return `<div class="cm">
+      ${entete}
+      <div class="cm-body">
+        ${titre}
+        <textarea id="cm-edit-input" class="cm-edit-input" rows="2" maxlength="2000"
+          oninput="autoHauteurCommentaire(this)">${echapper(c.body)}</textarea>
+        <div class="cm-edit-actions">
+          <button class="cm-btn" onclick="annulerEditionCommentaire('${postId}')">Annuler</button>
+          <button class="cm-btn cm-btn-on" id="cm-edit-save" onclick="enregistrerCommentaire('${c.id}','${postId}')">Enregistrer</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  const actions=(sien?`<button class="cm-act" aria-label="Modifier ce commentaire" onclick="ouvrirEditionCommentaire('${c.id}','${postId}')">✎</button>`:'')
+    + (peutSupprimer?`<button class="cm-act cm-del" aria-label="Supprimer ce commentaire" onclick="supprimerCommentaire('${c.id}','${postId}')">×</button>`:'');
   return `<div class="cm">
-    <span class="cm-av" style="background:${col[0]};color:${col[1]}">${initialsOf(nom)}</span>
+    ${entete}
     <div class="cm-body">
-      <div class="cm-head"><b>${echapper(nom)}</b><span>${c.time}</span></div>
+      ${titre}
       <p class="cm-text">${echapper(c.body)}</p>
     </div>
-    ${peutSupprimer?`<button class="cm-del" aria-label="Supprimer ce commentaire" onclick="supprimerCommentaire('${c.id}','${postId}')">×</button>`:''}
+    ${actions?`<div class="cm-acts">${actions}</div>`:''}
   </div>`;
+}
+function ouvrirEditionCommentaire(id,postId){
+  commentaireEnEdition=id;
+  rafraichirCommentaires(postId);
+  const t=document.getElementById('cm-edit-input');
+  if(!t)return;
+  t.focus();
+  t.setSelectionRange(t.value.length,t.value.length);   // le curseur en fin de texte, pas au début
+  // mesurer avant que le panneau ne soit mis en page donnerait une largeur
+  // fausse, donc un texte replié sur dix lignes et un champ inutilement haut
+  requestAnimationFrame(()=>autoHauteurCommentaire(t));
+}
+function annulerEditionCommentaire(postId){
+  commentaireEnEdition=null;
+  rafraichirCommentaires(postId);
+}
+async function enregistrerCommentaire(id,postId){
+  if(!currentUser||!sb)return;
+  const champ=document.getElementById('cm-edit-input');
+  const texte=(champ?champ.value:'').trim();
+  if(!texte){ toast('Un commentaire vide ne peut pas être enregistré.','err'); return; }
+  const c=(commentaires[postId]||[]).find(x=>x.id===id);
+  if(c && c.body===texte){ annulerEditionCommentaire(postId); return; }   // rien à écrire
+  const btn=document.getElementById('cm-edit-save');
+  if(btn)btn.disabled=true;
+  // .select() révèle un refus de la RLS, qui ne lève aucune erreur
+  const {data,error}=await sb.from('post_comments').update({body:texte}).eq('id',id).select();
+  if(btn)btn.disabled=false;
+  if(error||!(data&&data.length)){ toast('Modification refusée : droits insuffisants.','err'); return; }
+  if(c)c.body=data[0].body;
+  commentaireEnEdition=null;
+  rafraichirCommentaires(postId);
+  toast('Commentaire modifié.');
 }
 function commentairesHtml(postId){
   if(!commentairesActifs)return '';
@@ -1395,6 +1464,7 @@ async function supprimerCommentaire(id,postId){
   const {data,error}=await sb.from('post_comments').delete().eq('id',id).select();
   if(error||!(data&&data.length)){ toast('Suppression refusée : droits insuffisants.','err'); return; }
   commentaires[postId]=(commentaires[postId]||[]).filter(c=>c.id!==id);
+  if(commentaireEnEdition===id)commentaireEnEdition=null;
   rafraichirCommentaires(postId);
   renderFeed();
   toast('Commentaire supprimé.');
@@ -2471,6 +2541,7 @@ async function saveCigarCard(){
 
 function openPostDetail(id){
   const p=feed.find(x=>x.id===id);if(!p)return;
+  commentaireEnEdition=null;   // une édition abandonnée ne doit pas rouvrir sur une autre dégustation
   const pal=palette[p.terroir]||palette.cuba;
   const c=avColors[p.av]||avColors[0];
   const thirdsLine=aTiers(p)
