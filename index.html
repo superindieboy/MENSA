@@ -643,6 +643,10 @@ body{
 .cmp-cell b{display:block;font-family:var(--serif);font-size:20px;font-weight:600;color:var(--cognac);line-height:1.25}
 .cmp-cell small{display:block;font-size:10.5px;color:var(--ink-3)}
 .cmp-note{font-size:12px;color:var(--ink-2);line-height:1.5;margin:9px 0 0;text-align:center}
+.spec-edit{display:block;width:100%;margin-top:13px;padding:9px;border-radius:9px;
+  border:1px dashed var(--line-2);background:none;color:var(--ink-3);
+  font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer}
+.spec-edit:hover{border-color:var(--cognac);border-style:solid;color:var(--cognac)}
 
 /* ===== NOTE PAR TIERS (demi-étoiles) ===== */
 .thirds{display:flex;flex-direction:column;gap:11px;margin-bottom:14px}
@@ -2363,7 +2367,7 @@ function comparatifNotesHtml(c){
     </div>
     <p class="cmp-note">${verdict}</p>`;
 }
-function specCardHtml(c,badge){
+function specCardHtml(c,badge,modifiable){
   const p=palette[c.terroir]||palette.autre;
   const flavors=(c.flavors||[]).map(f=>`<span class="flavor">${f}</span>`).join('');
   let strengthRow='';
@@ -2389,6 +2393,7 @@ function specCardHtml(c,badge){
       </div>
       ${flavors?`<div class="spec-flavors">${flavors}</div>`:''}
       ${comparatifNotesHtml(c)}
+      ${(modifiable&&isAdmin())?`<button class="spec-edit" onclick="event.stopPropagation();openEditCigarSheet('${c.id}')">✎ Corriger cette fiche</button>`:''}
     </div>
   </div>`;
 }
@@ -2497,7 +2502,8 @@ function openEditCigarSheet(id){
   if(!isAdmin())return;
   const c=catalog.find(x=>x.id===id);if(!c)return;
   editingCigarId=id;
-  closeSheet('detail-overlay');
+  // la fiche s'ouvre depuis trois panneaux : on referme celui d'où l'on vient
+  ['detail-overlay','post-overlay','cave-overlay'].forEach(closeSheet);
   document.getElementById('ec-err').textContent='';
   const dash=v=>(v==='—'?'':(v==null?'':v));
   Object.entries(EC_FIELDS).forEach(([k,elId])=>{document.getElementById(elId).value=dash(c[k]);});
@@ -2518,18 +2524,26 @@ async function saveCigarCard(){
   const previous=catalog.find(x=>x.id===editingCigarId);
   const oldName=previous?previous.name:'';
   const btn=document.getElementById('ec-submit-btn'); btn.disabled=true;
-  try{
-    if(editingCigarId.startsWith('m-')){
-      await sb.from('catalog_items').update(row).eq('id',editingCigarId.slice(2));
-    }else{
-      await sb.from('catalog_items').insert({user_id:currentUser.id,replaces:editingCigarId,...row});
-    }
-    if(oldName && oldName!==name){
-      await sb.from('posts').update({cigar_name:name}).eq('cigar_name',oldName);
-      // Les caves sont privées : ce renommage ne porte que sur la sienne.
-      await sb.from('cave_items').update({name}).eq('name',oldName);
-    }
-  }catch(e){ toast("Échec de l'enregistrement de la fiche.","err"); btn.disabled=false; return; }
+  const echec=m=>{ err.textContent=m; toast(m,'err'); btn.disabled=false; };
+  /* Supabase ne lève pas d'exception : il renvoie { error }. Pire, un refus de
+     la RLS n'est même pas une erreur — il n'écrit simplement aucune ligne.
+     Sans .select() pour compter ce qui a été écrit, une modification rejetée
+     faute de policy administrateur s'annonçait « Fiche enregistrée ». */
+  const ecrire = editingCigarId.startsWith('m-')
+    ? sb.from('catalog_items').update(row).eq('id',editingCigarId.slice(2)).select()
+    : sb.from('catalog_items').insert({user_id:currentUser.id,replaces:editingCigarId,...row}).select();
+  const {data,error}=await ecrire;
+  if(error)return echec("Échec de l'enregistrement : "+(error.message||'erreur inconnue'));
+  if(!(data&&data.length))
+    return echec("Modification refusée : exécutez ajout-admin-catalogue.sql dans Supabase.");
+  if(oldName && oldName!==name){
+    // Le nom relie la fiche aux dégustations : sans report, l'historique
+    // des membres devient orphelin. Un échec ici ne perd pas la fiche.
+    const {error:ep}=await sb.from('posts').update({cigar_name:name}).eq('cigar_name',oldName);
+    // Les caves sont privées : ce renommage ne porte que sur la sienne.
+    const {error:ecv}=await sb.from('cave_items').update({name}).eq('name',oldName);
+    if(ep||ecv)toast("Fiche enregistrée, mais l'ancien nom subsiste sur certaines dégustations.",'err');
+  }
   btn.disabled=false;
   editingCigarId=null;
   closeSheet('cigar-edit-overlay');
@@ -2570,7 +2584,7 @@ function openPostDetail(id){
     </span>
     ${prixFrancaisHtml(p.name)}
     <div id="pd-comments">${commentairesHtml(p.id)}</div>
-    ${cInfo?`<div class="sec-label" style="margin:18px 0 10px">Fiche catalogue</div>${specCardHtml(cInfo,'Fiche catalogue')}`:''}`;
+    ${cInfo?`<div class="sec-label" style="margin:18px 0 10px">Fiche catalogue</div>${specCardHtml(cInfo,'Fiche catalogue',true)}`:''}`;
   // bouton supprimer : auteur ou modérateur (admin)
   const actions=document.getElementById('post-detail-actions');
   const mine = currentUser && p.user_id===currentUser.id;
@@ -2814,7 +2828,7 @@ function closeCaveAc(){
 /* Fiche catalogue du cigare, affichée en tête du formulaire de cave */
 function renderCaveSpec(c){
   const box=document.getElementById('cave-spec');
-  box.innerHTML=c?specCardHtml(c,'Fiche catalogue')+'<div style="height:16px"></div>':'';
+  box.innerHTML=c?specCardHtml(c,'Fiche catalogue',true)+'<div style="height:16px"></div>':'';
 }
 function openCaveSheet(){
   caveAddMode(); clearCaveFields();

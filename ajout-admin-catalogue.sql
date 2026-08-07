@@ -23,10 +23,10 @@ create policy "catalog_delete_admin"
   for delete
   using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 
--- Renommer une fiche doit rester rétroactif : les dégustations et les
--- références de cave sont reliées au catalogue par le nom du cigare.
--- Sans ces deux policies, un renommage laisserait l'historique des autres
--- membres orphelin (fiche, note moyenne et rubrique « Par le club » perdues).
+-- Renommer une fiche doit rester rétroactif : les dégustations sont reliées
+-- au catalogue par le nom du cigare. Sans cette policy, un renommage laisserait
+-- l'historique des autres membres orphelin (fiche, note moyenne et rubrique
+-- « Par le club » perdues).
 
 drop policy if exists "posts_update_admin" on public.posts;
 create policy "posts_update_admin"
@@ -34,11 +34,14 @@ create policy "posts_update_admin"
   for update
   using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 
+-- Rien pour cave_items, en revanche : chaque cave est privée, personne d'autre
+-- que son propriétaire n'y écrit — pas même le modérateur. Un renommage de
+-- fiche ne se répercute donc que sur la cave de celui qui le fait.
+-- (Une version antérieure de ce script créait ici cave_update_admin ; la
+--  réexécuter aurait rendu à l'administrateur un droit d'écriture sur le
+--  stock de tous les membres.)
 drop policy if exists "cave_update_admin" on public.cave_items;
-create policy "cave_update_admin"
-  on public.cave_items
-  for update
-  using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+drop policy if exists "cave_delete_admin" on public.cave_items;
 
 -- Vérification : liste les policies administrateur réellement actives.
 select tablename, policyname, cmd
