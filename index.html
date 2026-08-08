@@ -121,6 +121,8 @@ body{
 .rail-title{display:flex;align-items:center;gap:8px;font-family:var(--serif);font-weight:600;font-size:18px;letter-spacing:-0.01em}
 .rail-title .ico{font-size:15px}
 .rail-all{font-size:12px;font-weight:500;color:var(--cognac);cursor:pointer;white-space:nowrap}
+.rail-more{display:inline-block;margin-top:10px;font-size:12px;font-weight:500;color:var(--cognac);cursor:pointer}
+.rail-more:hover{text-decoration:underline}
 .rail-scroll{display:flex;gap:14px;overflow-x:auto;padding:6px 0;margin-top:-6px;scrollbar-width:none;scroll-snap-type:x proximity}
 .rail-scroll::-webkit-scrollbar{display:none}
 /* À la souris, une barre masquée rend inatteignable tout ce qui dépasse :
@@ -437,7 +439,7 @@ body{
 .disc-sort select:focus{border-color:var(--cognac)}
 .poster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:16px 14px;padding-top:6px}
 .people-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:20px 12px;padding-top:6px}
-.poster-grid .poster,.people-grid .member{width:auto}
+.poster-grid .poster,.people-grid .member,.poster-grid .seance-card{width:auto;flex:none}
 .disc-card{
   background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
   cursor:pointer;transition:.18s;box-shadow:var(--shadow);
@@ -822,17 +824,10 @@ body{
     <div class="rail">
       <div class="rail-head">
         <div class="rail-title"><span class="ico">🏛️</span> Par le club</div>
-        <span class="rail-all" onclick="openListing('club')">Tout voir ↗</span>
-      </div>
-      <div class="rail-scroll" id="rail-club"></div>
-    </div>
-
-    <div class="rail" id="rail-seances-wrap">
-      <div class="rail-head">
-        <div class="rail-title"><span class="ico">🕯️</span> Les séances</div>
         <span class="rail-all" onclick="openSessionSheet()">Organiser ↗</span>
       </div>
       <div class="rail-scroll" id="rail-seances"></div>
+      <span class="rail-more" id="rail-more-seances" style="display:none" onclick="openListing('club')">Toutes les séances ↗</span>
     </div>
 
     <div class="rail">
@@ -1080,9 +1075,6 @@ body{
     <div class="field">
       <label>Arômes (séparés par des virgules)</label>
       <input id="f-flavors" placeholder="café, cuir, cèdre, poivre">
-    </div>
-    <div class="field" id="f-club-field" style="display:none">
-      <label class="check-row"><input type="checkbox" id="f-club"> Publier aussi dans « Par le club »</label>
     </div>
     <div class="f-err" id="f-err"></div>
     <div class="sheet-actions">
@@ -1923,22 +1915,10 @@ async function loadPosts(){
       terroir:p.terroir||'cuba', rating:p.rating||0, thirds:{t1:p.t1,t2:p.t2,t3:p.t3}, note:p.note||'',
       flavors:p.flavors||[], place:p.place||'', likes:likeCount[p.id]||0, liked:!!likedMine[p.id],
       likers:(likedBy[p.id]||[]).slice(),
-      isClub:!!p.is_club, catalogId:p.catalog_id||null, photoUrl:p.photo_url||null,
+      catalogId:p.catalog_id||null, photoUrl:p.photo_url||null,
       sessionId:p.session_id||null});
   });
   syncCatalogScores();
-  // "Par le club" présente la fiche du cigare, pas la dégustation qui l'a signalé
-  clubLogs.length=0;
-  const seenClub=new Set();
-  feed.filter(p=>p.isClub).forEach(p=>{
-    const c=ficheOf(p);
-    const key=c?c.id:normCigar(p.name);
-    if(!key||seenClub.has(key))return;
-    seenClub.add(key);
-    clubLogs.push({club:true, name:p.name, terroir:(c&&c.terroir)||p.terroir,
-      rating:(c&&c.score)||p.rating, cid:c?c.id:null,
-      sub:c?[c.brand,c.country].filter(x=>x&&x!=='—').join(' · '):(p.origin||'')});
-  });
 }
 /* Note globale d'un cigare du catalogue = moyenne des notes individuelles postées par les membres pour ce cigare */
 /* Fiche catalogue d'une dégustation : par identifiant si elle en porte un,
@@ -2011,10 +1991,6 @@ const countryMeta={cuba:{label:'Cuba',flag:['#0A4DA8','#fff','#CE1126']},nica:{l
 // Rail 1 — cigares fumés par les membres
 const memberLogs=[];
 
-// Rail 2 — cigares fumés au sein du club MENSA
-// Alimenté par les dégustations cochées "Publier dans Par le club" (voir loadPosts)
-const clubLogs=[];
-
 // Membres du club
 const members=[];
 /* Libellé du filtre → code terroir. Couvre les huit terroirs du catalogue :
@@ -2082,7 +2058,6 @@ function renderRails(){
   const emptyRail='<div class="rail-empty">Aucune publication pour le moment.</div>';
   const memberItems=feed.slice(0,12).map(p=>({terroir:p.terroir,av:p.av,who:p.init,by:p.user,rating:p.rating,name:p.name,pid:p.id}));
   document.getElementById('rail-members').innerHTML=memberItems.length?memberItems.map(posterCard).join(''):emptyRail;
-  document.getElementById('rail-club').innerHTML=clubLogs.length?clubLogs.map(posterCard).join(''):emptyRail;
 }
 /* Page complète d'une rubrique du Fil (« Tout voir » / « Voir tous ») */
 function memberCardHtml(m){
@@ -2110,19 +2085,23 @@ function openListing(kind){
     body.innerHTML=members.length
       ? `<div class="people-grid">${tete}${members.map(memberCardHtml).join('')}</div>`
       : '<div class="rail-empty">Aucun membre pour le moment.</div>';
+  }else if(kind==='club'){
+    // « Par le club », c'est désormais l'ensemble des séances : le cercle réuni
+    // autour d'un cigare, et non plus une sélection cochée à la publication.
+    eyebrow.textContent='Le club';
+    title.textContent='Par le club';
+    sub.textContent=`${sessions.length} séance${sessions.length>1?'s':''} du cercle.`;
+    body.innerHTML=sessions.length
+      ? `<div class="poster-grid">${sessions.map(seanceCardHtml).join('')}</div>`
+      : `<div class="rail-empty">Aucune séance pour le moment.</div>`;
   }else{
-    const isClub=kind==='club';
-    const items=isClub
-      ? clubLogs.slice()
-      : feed.map(p=>({terroir:p.terroir,av:p.av,who:p.init,by:p.user,rating:p.rating,name:p.name,pid:p.id}));
-    eyebrow.textContent=isClub?'Le club':'Votre cercle';
-    title.textContent=isClub?'Par le club':'Par les membres';
-    sub.textContent=isClub
-      ? `${items.length} référence${items.length>1?'s':''} retenue${items.length>1?'s':''} par le club.`
-      : `${items.length} dégustation${items.length>1?'s':''}.`;
+    const items=feed.map(p=>({terroir:p.terroir,av:p.av,who:p.init,by:p.user,rating:p.rating,name:p.name,pid:p.id}));
+    eyebrow.textContent='Votre cercle';
+    title.textContent='Par les membres';
+    sub.textContent=`${items.length} dégustation${items.length>1?'s':''}.`;
     body.innerHTML=items.length
       ? `<div class="poster-grid">${items.map(posterCard).join('')}</div>`
-      : `<div class="rail-empty">${isClub?'Aucune référence pour le moment.':'Aucune publication pour le moment.'}</div>`;
+      : `<div class="rail-empty">Aucune publication pour le moment.</div>`;
   }
   go('listing');
 }
@@ -2805,12 +2784,12 @@ function seanceCardHtml(s){
   </div>`;
 }
 function renderSessions(){
-  const wrap=document.getElementById('rail-seances-wrap');
-  if(!sessionsActives){ wrap.style.display='none'; return; }
-  wrap.style.display='block';
-  document.getElementById('rail-seances').innerHTML = sessions.length
-    ? sessions.slice(0,12).map(seanceCardHtml).join('')
-    : '<div class="rail-empty">Aucune séance. Appuyez sur « Organiser » pour convier le cercle.</div>';
+  document.getElementById('rail-seances').innerHTML = !sessionsActives
+    ? '<div class="rail-empty">Les séances ne sont pas encore activées en base.</div>'
+    : (sessions.length
+      ? sessions.slice(0,12).map(seanceCardHtml).join('')
+      : '<div class="rail-empty">Aucune séance. Appuyez sur « Organiser » pour convier le cercle autour d\'un cigare.</div>');
+  show('rail-more-seances', (sessionsActives&&sessions.length>12)?'inline-block':'none');
 }
 /* La confrontation. Une moyenne cache ce qui fait l'intérêt d'une séance :
    là où le cercle s'accorde, et là où il se sépare. On donne donc l'écart
@@ -3577,8 +3556,6 @@ function openFumeeSheet(){
   document.getElementById('ac-list').classList.remove('open');
   ['f-name','f-note','f-flavors'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('f-err').textContent='';
-  document.getElementById('f-club-field').style.display=isAdmin()?'block':'none';
-  document.getElementById('f-club').checked=false;
   resetNewCigarFields();
   setTerroir(null);
   resetThirds();
@@ -3628,7 +3605,6 @@ function openEditPostSheet(id){
   document.getElementById('f-name').value=p.name||'';
   document.getElementById('f-note').value=p.note||'';
   document.getElementById('f-flavors').value=(p.flavors||[]).join(', ');
-  document.getElementById('f-club').checked=!!p.isClub;
   setTerroir(p.terroir||null);
   if(p.terroir==='autre')document.getElementById('f-terroir-autre').value=p.origin||'';
   setThirds(p.thirds&&p.thirds.t1, p.thirds&&p.thirds.t2, p.thirds&&p.thirds.t3, p.rating);
@@ -3878,10 +3854,9 @@ async function saveFumee(){
   const note=document.getElementById('f-note').value.trim();
   const flavors=document.getElementById('f-flavors').value.split(',').map(x=>x.trim()).filter(Boolean);
   const terroir=selectedTerroir;
-  const isClub=isAdmin()&&document.getElementById('f-club').checked;
   const row={user_id:currentUser.id,cigar_name:name,origin,terroir,rating:Math.round(fRating*10)/10,
     t1:thirds.t1||null,t2:thirds.t2||null,t3:thirds.t3||null,
-    note,flavors:flavors.length?flavors:['à découvrir'],place:'',is_club:isClub};
+    note,flavors:flavors.length?flavors:['à découvrir'],place:''};
   const btn=document.querySelector('#fumee-overlay .btn-primary'); if(btn)btn.disabled=true;
   // La fiche est résolue AVANT la publication, et sa résolution conditionne
   // celle-ci : une dégustation sans fiche n'alimenterait aucun cigare.

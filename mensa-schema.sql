@@ -29,7 +29,8 @@ create table if not exists public.posts (
   note       text,
   flavors    text[] default '{}',
   place      text default '',
-  is_club    boolean not null default false,  -- affiché aussi dans "Par le club" (réservé au compte admin)
+  is_club    boolean not null default false,  -- HISTORIQUE : « Par le club » est devenu l'ensemble des séances.
+                                              -- Colonne conservée comme trace des sélections migrées, plus lue ni écrite.
   catalog_id text,                            -- fiche notée : « mensa-0041 » (embarquée) ou « m-<uuid> » (membre)
   photo_url  text,                            -- photo de la bague, déposée dans l'espace de stockage « bagues »
   session_id uuid,                            -- séance à laquelle la lecture se rattache (clé ajoutée plus bas)
