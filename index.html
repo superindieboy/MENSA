@@ -905,7 +905,7 @@ body{
     <div id="f-cave-note" style="display:none;font-size:12.5px;color:var(--cognac);background:rgba(176,109,58,0.10);border:1px solid var(--line-2);border-radius:10px;padding:10px 12px;margin:-8px 0 16px;line-height:1.45"></div>
 
     <div class="field">
-      <label>Rechercher dans le catalogue</label>
+      <label>Le cigare <span style="color:var(--ink-3);font-weight:400">— choisissez sa fiche au catalogue, ou créez-la</span></label>
       <div class="ac-wrap">
         <input id="f-name" placeholder="Tapez : montecristo, padrón, behike…" autocomplete="off" oninput="acSearch(this.value)">
         <div class="ac-list" id="ac-list"></div>
@@ -2400,6 +2400,12 @@ function specCardHtml(c,badge,modifiable){
 
 function acSearch(q){
   const list=document.getElementById('ac-list');
+  // une fiche affichée ne doit pas survivre au nom qu'on est en train de réécrire
+  if(selectedCigar&&normCigar(selectedCigar.name)!==normCigar(q)){
+    selectedCigar=null;
+    document.getElementById('f-spec').innerHTML='';
+    document.getElementById('f-newcigar-toggle').style.display='block';
+  }
   q=normCigar(q);
   if(q.length<2){list.classList.remove('open');list.innerHTML='';return;}
   const matches=catalog.filter(c=>normCigar([c.name,c.brand,c.country].join(' ')).includes(q)).slice(0,8);
@@ -3002,16 +3008,22 @@ async function saveFumee(){
   const flavors=document.getElementById('f-flavors').value.split(',').map(x=>x.trim()).filter(Boolean);
   const terroir=selectedTerroir;
   const isClub=isAdmin()&&document.getElementById('f-club').checked;
-  const row={user_id:currentUser.id,cigar_name:name||'Cigare sans nom',origin,terroir,rating:Math.round(fRating*10)/10,
+  const row={user_id:currentUser.id,cigar_name:name,origin,terroir,rating:Math.round(fRating*10)/10,
     t1:thirds.t1||null,t2:thirds.t2||null,t3:thirds.t3||null,
     note,flavors:flavors.length?flavors:['à découvrir'],place:'',is_club:isClub};
   const btn=document.querySelector('#fumee-overlay .btn-primary'); if(btn)btn.disabled=true;
-  // La fiche est résolue AVANT la publication, pour rattacher la dégustation à
-  // un format précis plutôt qu'à un nom : une même ligne en compte jusqu'à huit.
-  // La fiche choisie ne vaut que si le nom saisi correspond toujours.
-  const picked=(selectedCigar&&normCigar(selectedCigar.name)===normCigar(row.cigar_name))?selectedCigar:null;
+  // La fiche est résolue AVANT la publication, et sa résolution conditionne
+  // celle-ci : une dégustation sans fiche n'alimenterait aucun cigare.
+  const fiche=await resoudreFiche(name,terroir,origin);
+  if(fiche.erreur){
+    err.textContent=fiche.erreur;
+    if(fiche.ouvrirPanneau)ouvrirPanneauFiche();
+    if(btn)btn.disabled=false;
+    return;
+  }
+  row.catalog_id=fiche.id;
+  row.cigar_name=fiche.nom;      // le nom de la fiche fait foi, casse et accents compris
   try{
-    row.catalog_id=picked?picked.id:await ensureCigarCard(row.cigar_name,terroir,origin);
     row.photo_url=await envoyerPhoto();
     await writePost(row,editingPostId);
   }catch(e){
@@ -3131,28 +3143,45 @@ async function backfillCatalog(){
   toast(`${created.length} fiche${created.length>1?'s':''} ajoutée${created.length>1?'s':''} au catalogue.`);
 }
 /* Enregistre la fiche catalogue saisie manuellement, si le cigare n'existe pas déjà */
-async function ensureCigarCard(name,terroir,country){
-  if(!name)return null;
-  const k=normCigar(name);
-  const matches=catalog.filter(c=>normCigar(c.name)===k);
-  // nom déjà au catalogue : on s'y rattache, sauf s'il couvre plusieurs formats,
-  // auquel cas rien ne permet de trancher sans choix explicite du membre
-  if(matches.length)return matches.length===1?matches[0].id:null;
-  // Tout cigare dégusté entre au catalogue, même sans détail : sinon il resterait
-  // introuvable à la recherche. Le panneau de fiche ne fait qu'enrichir la saisie.
-  const open=document.getElementById('f-newcigar-fields').style.display!=='none';
-  const val=id=>open?document.getElementById(id).value.trim():'';
-  const strength=+val('nc-strength')||null;
-  let created=null;
-  try{
-    const {data,error}=await sb.from('catalog_items').insert({user_id:currentUser.id,name,brand:val('nc-brand'),vitola:val('nc-vitola'),
-      module:val('nc-module'),country,terroir,length:+val('nc-length')||null,ring:+val('nc-ring')||null,
-      wrapper:val('nc-wrapper'),binder:val('nc-binder'),filler:val('nc-filler'),strength}).select();
-    if(error)throw error;
-    created=(data||[])[0]||null;
-  }catch(e){ return null; }
+/* Toute dégustation doit désigner une fiche : c'est elle qui porte le format,
+   le terroir et la note moyenne du cigare. Sans ce lien, la dégustation
+   n'alimente aucune fiche, le cigare reste introuvable à la recherche et la
+   note du cercle ne se calcule pas.
+
+   Trois chemins y mènent, et aucun autre : choisir une fiche dans le catalogue,
+   saisir un nom qui n'y désigne qu'une seule fiche, ou en créer une.
+   Renvoie {id, nom} ou {erreur, ouvrirPanneau}. */
+async function resoudreFiche(nom,terroir,country){
+  if(!nom)return {erreur:'Choisissez un cigare dans le catalogue, ou renseignez sa fiche pour publier.',ouvrirPanneau:true};
+  // fiche explicitement choisie, à condition que le nom saisi lui corresponde encore
+  if(selectedCigar&&normCigar(selectedCigar.name)===normCigar(nom))
+    return {id:selectedCigar.id,nom:selectedCigar.name};
+  const memes=catalog.filter(c=>normCigar(c.name)===normCigar(nom));
+  if(memes.length===1)return {id:memes[0].id,nom:memes[0].name};
+  // une ligne comme « Flor de Selva Clásica » couvre huit vitoles : rien ne
+  // permet de trancher à la place du membre, et se tromper fausse la note
+  if(memes.length>1)
+    return {erreur:`${memes.length} formats portent ce nom. Choisissez le vôtre dans la liste de suggestions.`};
+  // cigare inconnu : sa fiche doit être créée, et sciemment
+  if(document.getElementById('f-newcigar-fields').style.display==='none')
+    return {erreur:"Ce cigare n'est pas au catalogue. Renseignez sa fiche pour pouvoir publier.",ouvrirPanneau:true};
+  const val=id=>document.getElementById(id).value.trim();
+  const {data,error}=await sb.from('catalog_items').insert({
+    user_id:currentUser.id,name:nom,brand:val('nc-brand'),vitola:val('nc-vitola'),
+    module:val('nc-module'),country,terroir,length:+val('nc-length')||null,ring:+val('nc-ring')||null,
+    wrapper:val('nc-wrapper'),binder:val('nc-binder'),filler:val('nc-filler'),
+    strength:+val('nc-strength')||null}).select();
+  if(error)return {erreur:"La fiche n'a pas pu être créée : "+(error.message||'réessayez.')};
+  const creee=(data||[])[0];
+  if(!creee)return {erreur:"La fiche n'a pas pu être créée. Réessayez."};
   await loadMemberCatalog();
-  return created?'m-'+created.id:null;
+  return {id:'m-'+creee.id,nom};
+}
+function ouvrirPanneauFiche(){
+  const box=document.getElementById('f-newcigar-fields');
+  if(box.style.display==='none')toggleNewCigarFields();
+  document.getElementById('f-newcigar-toggle').style.display='block';
+  box.scrollIntoView({block:'center',behavior:'smooth'});
 }
 /* Même précaution que pour les dégustations : Supabase renvoie { error } sans
    lever d'exception, et la colonne price peut ne pas encore exister en base. */
