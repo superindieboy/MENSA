@@ -2667,6 +2667,20 @@ function openWlSheetFromPost(id){
   wlSelectedTerroir=(c&&c.terroir)||p.terroir||null;
   document.getElementById('wl-overlay').classList.add('open');
 }
+/* Depuis le catalogue : c'est là qu'on découvre un cigare qu'on n'a pas
+   encore fumé, donc le premier endroit d'où l'envie naît. */
+function openWlSheetFromCigar(id){
+  const c=catalog.find(x=>x.id===id);if(!c)return;
+  closeSheet('detail-overlay');
+  wlAddMode(); clearWlFields();
+  renderWlSpec(c);
+  document.getElementById('w-name').value=c.name||'';
+  document.getElementById('w-country').value=(c.country&&c.country!=='—')?c.country:(countryMeta[c.terroir]||{}).label||'';
+  const mod=(c.module&&c.module!=='—')?c.module:(c.vitola||'');
+  document.getElementById('w-detail').value=mod||'';
+  wlSelectedTerroir=c.terroir||null;
+  document.getElementById('wl-overlay').classList.add('open');
+}
 function openEditWlSheet(id){
   const w=wishlist.find(x=>x.id===id);if(!w)return;
   wlAddMode();
@@ -3332,7 +3346,15 @@ function openCigarDetail(id){
     prixFrancaisHtml(c.name)+
     bloc;
   document.getElementById('detail-log').onclick=()=>{closeSheet('detail-overlay');openFumeeSheet();acPick(c.id);};
-  const oldEdit=document.getElementById('detail-edit-btn'); if(oldEdit)oldEdit.remove();
+  // les boutons ajoutés sont retirés d'abord, sinon ils s'empilent d'une ouverture à l'autre
+  ['detail-wl-btn','detail-edit-btn'].forEach(id=>{const e=document.getElementById(id);if(e)e.remove();});
+  if(currentUser&&wishlistActive){
+    // déjà convoité : on mène à l'envie existante plutôt que d'en créer une seconde
+    const deja=wishlist.find(w=>normCigar(w.name)===normCigar(c.name));
+    document.getElementById('detail-actions').insertAdjacentHTML('afterbegin', deja
+      ? `<button class="btn-ghost" id="detail-wl-btn" style="flex-basis:100%" onclick="closeSheet('detail-overlay');openEditWlSheet('${deja.id}')">🎯 Déjà dans votre wishlist</button>`
+      : `<button class="btn-primary" id="detail-wl-btn" style="flex-basis:100%" onclick="openWlSheetFromCigar('${c.id}')">🎯 Ajouter à ma wishlist</button>`);
+  }
   if(isAdmin()){
     document.getElementById('detail-actions').insertAdjacentHTML('beforeend',
       `<button class="btn-ghost" id="detail-edit-btn" style="flex-basis:100%" onclick="openEditCigarSheet('${c.id}')">Modifier la fiche</button>`);
