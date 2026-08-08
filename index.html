@@ -276,6 +276,30 @@ body{
 .rail-empty{color:var(--ink-3);font-size:13px;text-align:center;padding:18px 14px;line-height:1.55}
 .prof-back{color:var(--cognac);font-size:13px;cursor:pointer;margin-bottom:14px;display:inline-block}
 .prof-back:hover{text-decoration:underline}
+
+/* ===== BADGES ===== */
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+.badge{display:inline-flex;align-items:center;gap:5px;background:var(--card);border:1px solid var(--line-2);
+  border-radius:20px;padding:3px 11px;font-size:11.5px;color:var(--ink-2);white-space:nowrap}
+.badge b{font-weight:600;color:var(--cognac)}
+.badge-em{font-size:12.5px;line-height:1}
+.badge-donner{margin-top:10px;background:none;border:1px dashed var(--line-2);color:var(--ink-3);
+  border-radius:9px;padding:7px 13px;font-family:inherit;font-size:12px;cursor:pointer}
+.badge-donner:hover{border-style:solid;border-color:var(--cognac);color:var(--cognac)}
+.member-badges{display:flex;gap:2px;justify-content:center;margin-top:3px;font-size:12px;line-height:1}
+.badge-sub{font-size:13px;color:var(--ink-3);margin:-6px 0 18px;line-height:1.5}
+.badge-choix{display:flex;flex-wrap:wrap;gap:7px}
+.badge-opt{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line-2);
+  border-radius:20px;padding:7px 13px;font-size:12.5px;color:var(--ink-2);cursor:pointer;transition:.15s}
+.badge-opt:hover{border-color:var(--cognac);color:var(--cognac)}
+.badge-opt:disabled{opacity:.4;cursor:default;border-style:dashed}
+.badge-libre{display:flex;gap:9px}
+.badge-libre #badge-emoji{flex:0 0 74px;min-width:0;text-align:center;font-size:17px}
+.badge-libre #badge-label{flex:1;min-width:0}
+.badge-actuel{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;padding:8px 11px;margin-bottom:7px}
+.badge-actuel span{flex:1;min-width:0;font-size:13px;color:var(--ink-2)}
+.badge-vide{font-size:12.5px;color:var(--ink-3);margin:0}
 .pp-card{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px;margin-bottom:10px}
 .pp-thumb{flex-shrink:0;width:64px;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .pp-body{flex:1;min-width:0}
@@ -460,10 +484,7 @@ body{
 }
 .prof-name{font-family:var(--serif);font-size:24px;font-weight:600}
 .prof-handle{font-size:13px;color:var(--ink-3);margin-bottom:4px}
-.prof-club{
-  display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;
-  background:var(--ink);color:var(--paper);border-radius:20px;padding:3px 11px;margin-bottom:10px;
-}
+#prof-badges{margin-bottom:11px}
 .prof-stats{display:flex;gap:22px}
 .pstat{cursor:pointer}
 .pstat-n{font-family:var(--serif);font-size:18px;font-weight:600}
@@ -844,7 +865,7 @@ body{
       <div style="flex:1">
         <div class="prof-name serif" id="prof-name">Hippolyte</div>
         <div class="prof-handle" id="prof-handle">@hippolyte</div>
-        <div class="prof-club" id="prof-club">🏛️ Membre fondateur</div>
+        <div id="prof-badges"></div>
         <div class="prof-stats">
           <div class="pstat"><div class="pstat-n serif" id="ps-fumees">—</div><div class="pstat-l">cigares</div></div>
         </div>
@@ -1124,6 +1145,39 @@ body{
   </div>
 </div>
 
+<!-- ===== BADGES (modération) ===== -->
+<div class="overlay" id="badge-overlay">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <h3 class="serif" id="badge-title">Décerner un badge</h3>
+    <p class="badge-sub" id="badge-sub"></p>
+
+    <div class="field">
+      <label>Badges déjà décernés</label>
+      <div id="badge-actuels"></div>
+    </div>
+
+    <div class="field">
+      <label>Distinctions du cercle</label>
+      <div class="badge-choix" id="badge-choix"></div>
+    </div>
+
+    <div class="field">
+      <label>Ou une distinction sur mesure</label>
+      <div class="badge-libre">
+        <input id="badge-emoji" maxlength="4" placeholder="🎖️" aria-label="Emoji du badge">
+        <input id="badge-label" maxlength="40" placeholder="Intitulé du badge">
+      </div>
+    </div>
+
+    <div class="f-err" id="badge-err"></div>
+    <div class="sheet-actions">
+      <button class="btn-ghost" onclick="closeSheet('badge-overlay')">Fermer</button>
+      <button class="btn-primary" id="badge-submit-btn" onclick="decernerBadgeLibre()">Décerner</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== ÉCRAN DE CONNEXION ===== -->
 <div class="auth-screen show" id="auth-screen">
   <div class="auth-card">
@@ -1309,7 +1363,7 @@ async function loadAll(){
   chargementEchoue=false;
   await loadProfiles();
   await loadMemberCatalog();
-  await Promise.all([loadPosts(), loadCave(), loadPrices(), loadComments()]);
+  await Promise.all([loadPosts(), loadCave(), loadPrices(), loadComments(), loadBadges()]);
   renderRails();renderMembers();renderFeed();renderCave();renderProfile();renderDiscover();
   lastLoad=Date.now();
 }
@@ -1323,6 +1377,111 @@ async function loadPrices(){
   const {data,error}=await sb.from('price_reports').select('name,price,bought_in,added');
   if(error){console.warn('loadPrices',error.message);return;}   // table absente : on s'en passe
   cavePrices=(data||[]).map(r=>({name:r.name,price:Number(r.price),boughtIn:r.bought_in||'',added:r.added}));
+}
+/* ---- Badges ----
+   Une distinction n'a de valeur que si elle vient de quelqu'un : ces badges
+   ne s'obtiennent pas par un compteur, ils se décernent. Le modérateur seul
+   les attribue, tout le cercle les voit. Table récente : si elle manque
+   encore en base, les badges disparaissent sans rien casser. */
+let badges={};                 // user_id -> [{id,label,emoji}]
+let badgesActifs=true;
+const BADGES_TYPES=[
+  {emoji:'🏛️',label:'Fondateur'},
+  {emoji:'🔥',label:'Aficionado'},
+  {emoji:'🌍',label:'Explorateur'},
+  {emoji:'👃',label:'Grand nez'},
+  {emoji:'🗄️',label:'Maître de cave'},
+  {emoji:'✍️',label:'Belle plume'},
+  {emoji:'🎓',label:'Encyclopédiste'},
+  {emoji:'🥃',label:'Homme patient'}
+];
+async function loadBadges(){
+  badges={};
+  if(!sb)return;
+  const {data,error}=await sb.from('member_badges').select('id,user_id,label,emoji').order('created_at');
+  if(error){ badgesActifs=false; console.warn('loadBadges',error.message); return; }
+  badgesActifs=true;
+  (data||[]).forEach(b=>{
+    (badges[b.user_id]=badges[b.user_id]||[]).push({id:b.id,label:b.label,emoji:b.emoji||''});
+  });
+}
+function badgesDe(uid){ return badges[uid]||[]; }
+function badgesHtml(uid){
+  const liste=badgesDe(uid);
+  if(!badgesActifs||!liste.length)return '';
+  return `<div class="badges">${liste.map(b=>
+    `<span class="badge">${b.emoji?`<span class="badge-em">${echapper(b.emoji)}</span>`:''}<b>${echapper(b.label)}</b></span>`
+  ).join('')}</div>`;
+}
+/* Sur une vignette de membre, seuls les emblèmes tiennent : l'intitulé
+   complet reviendrait à empiler du texte sous chaque visage. */
+function badgesVignetteHtml(uid){
+  const em=badgesDe(uid).map(b=>b.emoji).filter(Boolean).slice(0,3);
+  if(!badgesActifs||!em.length)return '';
+  const noms=badgesDe(uid).map(b=>b.label).join(', ').replace(/"/g,'&quot;');
+  return `<div class="member-badges" title="${noms}">${em.map(echapper).join('')}</div>`;
+}
+let badgeMembreId=null;
+function openBadgeSheet(uid){
+  if(!isAdmin()||!uid)return;
+  badgeMembreId=uid;
+  document.getElementById('badge-err').textContent='';
+  document.getElementById('badge-emoji').value='';
+  document.getElementById('badge-label').value='';
+  document.getElementById('badge-sub').textContent=`Distinctions de ${nomDuMembre(uid)}, visibles de tout le cercle.`;
+  renderBadgeSheet();
+  document.getElementById('badge-overlay').classList.add('open');
+}
+function renderBadgeSheet(){
+  const uid=badgeMembreId; if(!uid)return;
+  const liste=badgesDe(uid);
+  document.getElementById('badge-actuels').innerHTML = liste.length
+    ? liste.map(b=>`<div class="badge-actuel">
+        <span>${b.emoji?echapper(b.emoji)+' ':''}${echapper(b.label)}</span>
+        <button class="cm-act cm-del" aria-label="Retirer ce badge" onclick="retirerBadge('${b.id}')">×</button>
+      </div>`).join('')
+    : `<p class="badge-vide">Aucun badge pour le moment.</p>`;
+  const deja=new Set(liste.map(b=>b.label.toLowerCase()));
+  document.getElementById('badge-choix').innerHTML=BADGES_TYPES.map(t=>{
+    const pris=deja.has(t.label.toLowerCase());
+    return `<button class="badge-opt" ${pris?'disabled':''}
+      onclick="decernerBadge('${t.emoji}','${t.label}')">${t.emoji} ${t.label}</button>`;
+  }).join('');
+}
+async function decernerBadge(emoji,label){
+  if(!isAdmin()||!sb||!badgeMembreId)return;
+  const err=document.getElementById('badge-err'); err.textContent='';
+  label=(label||'').trim();
+  if(!label){ err.textContent="Donnez un intitulé au badge."; return; }
+  if(badgesDe(badgeMembreId).some(b=>b.label.toLowerCase()===label.toLowerCase())){
+    err.textContent='Ce membre porte déjà ce badge.'; return;
+  }
+  const btn=document.getElementById('badge-submit-btn'); btn.disabled=true;
+  // .select() révèle un refus de la RLS, qui ne lève aucune erreur
+  const {data,error}=await sb.from('member_badges')
+    .insert({user_id:badgeMembreId,label,emoji:emoji||null,awarded_by:currentUser.id}).select();
+  btn.disabled=false;
+  if(error){ err.textContent="Échec : "+(error.message||'réessayez.'); return; }
+  if(!(data&&data.length)){ err.textContent='Attribution refusée : exécutez ajout-badges.sql dans Supabase.'; return; }
+  const b=data[0];
+  (badges[badgeMembreId]=badges[badgeMembreId]||[]).push({id:b.id,label:b.label,emoji:b.emoji||''});
+  document.getElementById('badge-emoji').value='';
+  document.getElementById('badge-label').value='';
+  renderBadgeSheet(); renderProfile(); renderMembers();
+  toast(`Badge décerné à ${nomDuMembre(badgeMembreId)}.`);
+}
+function decernerBadgeLibre(){
+  return decernerBadge(document.getElementById('badge-emoji').value.trim(),
+                       document.getElementById('badge-label').value);
+}
+async function retirerBadge(id){
+  if(!isAdmin()||!sb||!badgeMembreId)return;
+  const err=document.getElementById('badge-err'); err.textContent='';
+  const {data,error}=await sb.from('member_badges').delete().eq('id',id).select();
+  if(error||!(data&&data.length)){ err.textContent='Retrait refusé : droits insuffisants.'; return; }
+  badges[badgeMembreId]=badgesDe(badgeMembreId).filter(b=>b.id!==id);
+  renderBadgeSheet(); renderProfile(); renderMembers();
+  toast('Badge retiré.');
 }
 /* ---- Commentaires ----
    Le cercle n'avait que le cœur pour tout échange, alors qu'une dégustation
@@ -1524,8 +1683,8 @@ async function refreshFeed(force){
   refreshing=true;
   try{
     await loadProfiles();
-    // les prix et les commentaires des autres membres doivent suivre, eux aussi
-    await Promise.all([loadPosts(), loadPrices(), loadComments()]);
+    // les prix, commentaires et badges des autres membres doivent suivre, eux aussi
+    await Promise.all([loadPosts(), loadPrices(), loadComments(), loadBadges()]);
     renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();
     lastLoad=Date.now();
     return true;
@@ -1751,6 +1910,7 @@ function memberCardHtml(m){
     </div>
     <div class="member-name">${m.name}</div>
     <div class="member-count">${m.count} cigares</div>
+    ${badgesVignetteHtml(m.id)}
   </div>`;
 }
 function openListing(kind){
@@ -2309,6 +2469,10 @@ function renderProfileFor(id){
   document.getElementById('prof-handle').textContent='@'+(isSelf?currentUser.email.split('@')[0]:slugify(m.name));
   document.getElementById('prof-bio').textContent=(m.bio&&m.bio.trim())?m.bio:BIO_PLACEHOLDER;
   document.getElementById('ps-fumees').textContent=posts.length;
+  // remplace la mention « Membre fondateur », qui s'affichait à l'identique
+  // sur tous les profils sans rien distinguer
+  document.getElementById('prof-badges').innerHTML = badgesHtml(id)
+    + (isAdmin()?`<button class="badge-donner" onclick="openBadgeSheet('${id}')">🎖️ Décerner un badge</button>`:'');
 
   // contrôles réservés à soi
   show('prof-bio-edit', isSelf?'inline-block':'none');

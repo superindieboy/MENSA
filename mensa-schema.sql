@@ -90,6 +90,19 @@ create table if not exists public.post_comments (
 create index if not exists post_comments_post_idx
   on public.post_comments (post_id, created_at);
 
+-- Badges décernés aux membres. Ils ne s'obtiennent pas par un compteur :
+-- le modérateur seul les attribue, tout le cercle les voit.
+create table if not exists public.member_badges (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users on delete cascade,
+  label      text not null check (length(trim(label)) between 1 and 40),
+  emoji      text check (length(emoji) <= 8),
+  awarded_by uuid not null references auth.users on delete cascade,
+  created_at timestamptz default now(),
+  unique (user_id, label)
+);
+create index if not exists member_badges_user_idx on public.member_badges (user_id);
+
 -- ---------- CRÉATION AUTO DU PROFIL À L'INSCRIPTION ----------
 
 create or replace function public.handle_new_user()
@@ -123,6 +136,7 @@ alter table public.cave_items    enable row level security;
 alter table public.catalog_items enable row level security;
 alter table public.post_likes    enable row level security;
 alter table public.post_comments enable row level security;
+alter table public.member_badges enable row level security;
 
 -- PROFILES
 create policy "profiles_read"        on public.profiles   for select using (auth.uid() is not null);
@@ -175,6 +189,12 @@ create policy "posts_update_admin"    on public.posts         for update using (
 create policy "catalog_update_admin"  on public.catalog_items for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "catalog_delete_admin"  on public.catalog_items for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "commentaires_delete_admin" on public.post_comments for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+
+-- BADGES : lisibles par tout le cercle, décernés par le seul modérateur.
+create policy "badges_lecture"      on public.member_badges for select to authenticated using (true);
+create policy "badges_insert_admin" on public.member_badges for insert to authenticated with check ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+create policy "badges_update_admin" on public.member_badges for update to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+create policy "badges_delete_admin" on public.member_badges for delete to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 
 -- =====================================================================
 --  Terminé. Pensez ensuite à désactiver la confirmation par email
