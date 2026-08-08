@@ -32,8 +32,29 @@ create table if not exists public.posts (
   is_club    boolean not null default false,  -- affiché aussi dans "Par le club" (réservé au compte admin)
   catalog_id text,                            -- fiche notée : « mensa-0041 » (embarquée) ou « m-<uuid> » (membre)
   photo_url  text,                            -- photo de la bague, déposée dans l'espace de stockage « bagues »
+  session_id uuid,                            -- séance à laquelle la lecture se rattache (clé ajoutée plus bas)
   created_at timestamptz default now()
 );
+
+-- Séances : plusieurs membres fument le même cigare, l'app confronte leurs
+-- lectures. Une séance ne porte aucune note — c'est un point de rendez-vous.
+create table if not exists public.tasting_sessions (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users on delete cascade,   -- l'organisateur
+  cigar_name text not null,
+  catalog_id text,
+  terroir    text,
+  held_on    date not null,
+  place      text,
+  created_at timestamptz default now()
+);
+create index if not exists sessions_date_idx on public.tasting_sessions (held_on desc);
+-- « set null » : annuler une séance ne doit pas emporter les dégustations.
+alter table public.posts
+  drop constraint if exists posts_session_id_fkey,
+  add constraint posts_session_id_fkey
+    foreign key (session_id) references public.tasting_sessions(id) on delete set null;
+create index if not exists posts_session_idx on public.posts (session_id);
 
 -- Cave personnelle de chaque membre (privée : lui seul y accède).
 -- Une ligne = un LOT d'achat : le même cigare racheté plus tard, ailleurs ou
@@ -151,6 +172,7 @@ alter table public.catalog_items enable row level security;
 alter table public.post_likes    enable row level security;
 alter table public.post_comments enable row level security;
 alter table public.member_badges enable row level security;
+alter table public.tasting_sessions enable row level security;
 
 -- PROFILES
 create policy "profiles_read"        on public.profiles   for select using (auth.uid() is not null);
@@ -209,6 +231,14 @@ create policy "posts_update_admin"    on public.posts         for update using (
 create policy "catalog_update_admin"  on public.catalog_items for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "catalog_delete_admin"  on public.catalog_items for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "commentaires_delete_admin" on public.post_comments for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+
+-- SÉANCES : une invitation, donc visible de tous ; seul l'organisateur la corrige.
+create policy "seances_lecture"    on public.tasting_sessions for select to authenticated using (true);
+create policy "seances_insert_own" on public.tasting_sessions for insert to authenticated with check (auth.uid() = user_id);
+create policy "seances_update_own" on public.tasting_sessions for update to authenticated using (auth.uid() = user_id);
+create policy "seances_delete_own" on public.tasting_sessions for delete to authenticated using (auth.uid() = user_id);
+create policy "seances_update_admin" on public.tasting_sessions for update to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+create policy "seances_delete_admin" on public.tasting_sessions for delete to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 
 -- BADGES : lisibles par tout le cercle, décernés par le seul modérateur.
 create policy "badges_lecture"      on public.member_badges for select to authenticated using (true);

@@ -290,6 +290,31 @@ body{
 .member-av-cercle{background:linear-gradient(135deg,var(--amber),var(--cognac));color:#fff;
   font-family:var(--serif);font-weight:600}
 
+/* ===== SÉANCES ===== */
+.seance-card{flex:0 0 200px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);
+  overflow:hidden;cursor:pointer;transition:.15s}
+.seance-card:hover{border-color:var(--cognac)}
+.seance-visual{height:96px;display:flex;align-items:center;justify-content:center}
+.seance-body{padding:11px 12px}
+.seance-date{font-size:10.5px;color:var(--cognac);text-transform:uppercase;letter-spacing:.05em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seance-name{font-family:var(--serif);font-size:14px;font-weight:600;line-height:1.25;margin:4px 0 7px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.seance-parts{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.seance-n{font-size:11px;color:var(--ink-3)}
+.sc-table{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.sc-row{display:flex;align-items:center;gap:6px;padding:9px 11px;border-bottom:1px solid var(--line);cursor:pointer}
+.sc-row:last-child{border-bottom:none}
+.sc-row:not(.sc-head):not(.sc-total):hover{background:var(--paper)}
+.sc-head,.sc-total{cursor:default;background:var(--paper)}
+.sc-head .sc-v,.sc-head .sc-who{font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
+.sc-who{flex:1;min-width:0;display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-v{flex:0 0 42px;text-align:center;font-family:var(--serif);font-size:14px;font-weight:600;color:var(--ink-2)}
+.sc-glob{flex:0 0 52px;color:var(--cognac)}
+.sc-total .sc-who{font-weight:600;color:var(--ink)}
+.sc-verdict{font-size:12.5px;color:var(--ink-2);line-height:1.55;margin:11px 2px 0}
+
 /* ===== PROFIL AROMATIQUE ===== */
 #prof-aromes{margin-bottom:26px}
 .arome-row{display:flex;align-items:center;gap:11px;padding:4px 0}
@@ -802,6 +827,14 @@ body{
       <div class="rail-scroll" id="rail-club"></div>
     </div>
 
+    <div class="rail" id="rail-seances-wrap">
+      <div class="rail-head">
+        <div class="rail-title"><span class="ico">🕯️</span> Les séances</div>
+        <span class="rail-all" onclick="openSessionSheet()">Organiser ↗</span>
+      </div>
+      <div class="rail-scroll" id="rail-seances"></div>
+    </div>
+
     <div class="rail">
       <div class="rail-head">
         <div class="rail-title"><span class="ico">👥</span> Les membres</div>
@@ -1178,6 +1211,41 @@ body{
   </div>
 </div>
 
+<!-- ===== SÉANCE : CONFRONTATION DES LECTURES ===== -->
+<div class="overlay" id="seance-overlay">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div id="seance-body"></div>
+    <div class="sheet-actions" id="seance-actions"></div>
+  </div>
+</div>
+
+<!-- ===== ORGANISER UNE SÉANCE ===== -->
+<div class="overlay" id="seance-edit-overlay">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div id="sc-spec"></div>
+    <h3 class="serif" id="sc-title">Organiser une séance</h3>
+    <p class="badge-sub">Un rendez-vous autour d'un même cigare. Chacun y publie sa dégustation, et l'app confronte les lectures.</p>
+    <div class="field">
+      <label>Le cigare <span style="color:var(--ink-3);font-weight:400">— cherchez dans le catalogue</span></label>
+      <div class="ac-wrap">
+        <input id="sc-name" placeholder="Tapez : montecristo, padrón, behike…" autocomplete="off" oninput="scAcSearch(this.value)">
+        <div class="ac-list" id="sc-ac-list"></div>
+      </div>
+    </div>
+    <div class="field field-pair">
+      <div><label>Date</label><input id="sc-date" type="date"></div>
+      <div><label>Lieu <span style="color:var(--ink-3);font-weight:400">— facultatif</span></label><input id="sc-place" placeholder="Ex : chez Charles"></div>
+    </div>
+    <div class="f-err" id="sc-err"></div>
+    <div class="sheet-actions" id="sc-actions">
+      <button class="btn-ghost" onclick="closeSheet('seance-edit-overlay')">Annuler</button>
+      <button class="btn-primary" id="sc-submit-btn" onclick="saveSession()">Créer la séance</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== WISHLIST ===== -->
 <div class="overlay" id="wl-overlay">
   <div class="sheet">
@@ -1428,8 +1496,8 @@ async function loadAll(){
   chargementEchoue=false;
   await loadProfiles();
   await loadMemberCatalog();
-  await Promise.all([loadPosts(), loadCave(), loadPrices(), loadComments(), loadBadges(), loadWishlist()]);
-  renderRails();renderMembers();renderFeed();renderCave();renderWishlist();renderProfile();renderDiscover();
+  await Promise.all([loadPosts(), loadCave(), loadPrices(), loadComments(), loadBadges(), loadWishlist(), loadSessions()]);
+  renderRails();renderMembers();renderSessions();renderFeed();renderCave();renderWishlist();renderProfile();renderDiscover();
   lastLoad=Date.now();
 }
 /* Prix partagés par le cercle. Les caves restent privées : c'est une table
@@ -1798,8 +1866,8 @@ async function refreshFeed(force){
   try{
     await loadProfiles();
     // les prix, commentaires et badges des autres membres doivent suivre, eux aussi
-    await Promise.all([loadPosts(), loadPrices(), loadComments(), loadBadges()]);
-    renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();
+    await Promise.all([loadPosts(), loadPrices(), loadComments(), loadBadges(), loadSessions()]);
+    renderFeed();renderRails();renderMembers();renderSessions();renderProfile();renderDiscover();
     lastLoad=Date.now();
     return true;
   }catch(e){ return false; }
@@ -1855,7 +1923,8 @@ async function loadPosts(){
       terroir:p.terroir||'cuba', rating:p.rating||0, thirds:{t1:p.t1,t2:p.t2,t3:p.t3}, note:p.note||'',
       flavors:p.flavors||[], place:p.place||'', likes:likeCount[p.id]||0, liked:!!likedMine[p.id],
       likers:(likedBy[p.id]||[]).slice(),
-      isClub:!!p.is_club, catalogId:p.catalog_id||null, photoUrl:p.photo_url||null});
+      isClub:!!p.is_club, catalogId:p.catalog_id||null, photoUrl:p.photo_url||null,
+      sessionId:p.session_id||null});
   });
   syncCatalogScores();
   // "Par le club" présente la fiche du cigare, pas la dégustation qui l'a signalé
@@ -2150,11 +2219,12 @@ function retirerAncre(){
   if(location.hash)history.replaceState(null,'',location.pathname+location.search);
 }
 function appliquerAncre(){
-  const m=/^#\/(degustation|cigare)\/(.+)$/.exec(location.hash||'');
+  const m=/^#\/(degustation|cigare|seance)\/(.+)$/.exec(location.hash||'');
   if(!m)return false;
   const [,type,id]=m;
   if(type==='degustation'&&feed.some(p=>p.id===id)){ openPostDetail(id); return true; }
   if(type==='cigare'&&catalog.some(c=>c.id===id)){ openCigarDetail(id); return true; }
+  if(type==='seance'&&sessions.some(s=>s.id===id)){ openSessionDetail(id); return true; }
   // cible introuvable : on nettoie plutôt que de laisser une adresse trompeuse
   retirerAncre();
   toast("Ce lien ne correspond à rien d'existant.",'err');
@@ -2692,6 +2762,221 @@ async function consommerEnvie(id){
   if(!(data&&data.length))return false;
   await loadWishlist(); renderWishlist();
   return true;
+}
+
+/* ================= LES SÉANCES =================
+   Plusieurs membres fument le même cigare, et l'app confronte leurs lectures
+   tiers par tiers. Une séance ne contient aucune note : c'est un point de
+   rendez-vous, et chacun y rattache la dégustation qu'il publie normalement.
+   Table récente : si elle manque encore en base, la rubrique disparaît. */
+let sessions=[];
+let sessionsActives=true;
+async function loadSessions(){
+  sessions=[];
+  if(!sb)return;
+  const {data,error}=await sb.from('tasting_sessions').select('*').order('held_on',{ascending:false});
+  if(error){ sessionsActives=false; console.warn('loadSessions',error.message); return; }
+  sessionsActives=true;
+  sessions=(data||[]).map(s=>({id:s.id,user_id:s.user_id,name:s.cigar_name,
+    catalogId:s.catalog_id||null,terroir:s.terroir||'cuba',
+    heldOn:s.held_on,date:s.held_on?fmtDate(s.held_on):'',place:s.place||''}));
+}
+function postsDeSeance(id){ return feed.filter(p=>p.sessionId===id); }
+function ficheDeSeance(s){
+  if(s.catalogId){const c=catalog.find(x=>x.id===s.catalogId);if(c)return c;}
+  return ficheByName(s.name);
+}
+function seanceCardHtml(s){
+  const parts=postsDeSeance(s.id);
+  const pal=palette[s.terroir]||palette.cuba;
+  const pastilles=parts.slice(0,4).map(p=>{
+    const c=avColors[p.av]||avColors[0];
+    return `<span class="lk" style="background:${c[0]};color:${c[1]}">${p.init}</span>`;
+  }).join('')+(parts.length>4?`<span class="lk lk-plus">+${parts.length-4}</span>`:'');
+  return `<div class="seance-card" onclick="openSessionDetail('${s.id}')">
+    <div class="seance-visual" style="background:${pal.fill}">${cigarHtml(s.terroir,86)}</div>
+    <div class="seance-body">
+      <div class="seance-date">${echapper(s.date)}${s.place?' · '+echapper(s.place):''}</div>
+      <div class="seance-name">${echapper(s.name)}</div>
+      <div class="seance-parts">${parts.length
+        ? `${pastilles}<span class="seance-n">${parts.length} lecture${parts.length>1?'s':''}</span>`
+        : `<span class="seance-n">Personne n'a encore publié</span>`}</div>
+    </div>
+  </div>`;
+}
+function renderSessions(){
+  const wrap=document.getElementById('rail-seances-wrap');
+  if(!sessionsActives){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  document.getElementById('rail-seances').innerHTML = sessions.length
+    ? sessions.slice(0,12).map(seanceCardHtml).join('')
+    : '<div class="rail-empty">Aucune séance. Appuyez sur « Organiser » pour convier le cercle.</div>';
+}
+/* La confrontation. Une moyenne cache ce qui fait l'intérêt d'une séance :
+   là où le cercle s'accorde, et là où il se sépare. On donne donc l'écart
+   tiers par tiers, pas seulement la moyenne. */
+function statsTiers(parts,cle){
+  const vals=parts.map(p=>p.thirds&&p.thirds[cle]).filter(v=>v>0);
+  if(!vals.length)return null;
+  const moy=vals.reduce((a,b)=>a+b,0)/vals.length;
+  return {moy,min:Math.min(...vals),max:Math.max(...vals),n:vals.length,ecart:Math.max(...vals)-Math.min(...vals)};
+}
+function verdictSeance(parts){
+  if(parts.length<2)return '';
+  const libelles={t1:'premier tiers',t2:'deuxième tiers',t3:'dernier tiers'};
+  const st=['t1','t2','t3'].map(k=>({k,s:statsTiers(parts,k)})).filter(x=>x.s&&x.s.n>1);
+  if(st.length<2)return '';
+  const trie=st.slice().sort((a,b)=>a.s.ecart-b.s.ecart);
+  const accord=trie[0], discorde=trie[trie.length-1];
+  if(discorde.s.ecart<0.6)
+    return `Le cercle est d'accord d'un bout à l'autre — pas plus de ${un(discorde.s.ecart)} point d'écart.`;
+  return `Accord le plus net sur le ${libelles[accord.k]} (${un(accord.s.ecart)} point d'écart). Divergence sur le ${libelles[discorde.k]} : de ${un(discorde.s.min)} à ${un(discorde.s.max)}.`;
+}
+function tableauSeance(parts){
+  if(!parts.length)
+    return `<div class="rail-empty" style="padding:22px 0">Personne n'a encore publié sa dégustation.</div>`;
+  const cel=v=>`<span class="sc-v">${v>0?un(v):'—'}</span>`;
+  const lignes=parts.map(p=>{
+    const c=avColors[p.av]||avColors[0];
+    return `<div class="sc-row" onclick="closeSheet('seance-overlay');openPostDetail('${p.id}')">
+      <span class="sc-who"><span class="lk" style="background:${c[0]};color:${c[1]}">${p.init}</span>${echapper(p.user)}</span>
+      ${cel(p.thirds&&p.thirds.t1)}${cel(p.thirds&&p.thirds.t2)}${cel(p.thirds&&p.thirds.t3)}
+      <span class="sc-v sc-glob">${un(p.rating||0)}</span>
+    </div>`;
+  }).join('');
+  const moyTiers=k=>{const s=statsTiers(parts,k);return s?s.moy:0;};
+  const moyGlob=parts.reduce((a,p)=>a+(p.rating||0),0)/parts.length;
+  const pied=parts.length>1?`<div class="sc-row sc-total">
+      <span class="sc-who">Le cercle</span>
+      ${cel(moyTiers('t1'))}${cel(moyTiers('t2'))}${cel(moyTiers('t3'))}
+      <span class="sc-v sc-glob">${un(moyGlob)}</span>
+    </div>`:'';
+  return `<div class="sc-table">
+    <div class="sc-row sc-head"><span class="sc-who"></span>
+      <span class="sc-v">1ᵉʳ</span><span class="sc-v">2ᵉ</span><span class="sc-v">3ᵉ</span>
+      <span class="sc-v sc-glob">Global</span></div>
+    ${lignes}${pied}
+  </div>`;
+}
+function openSessionDetail(id){
+  const s=sessions.find(x=>x.id===id);if(!s)return;
+  const parts=postsDeSeance(id);
+  const c=ficheDeSeance(s);
+  const mienne=currentUser&&parts.some(p=>p.user_id===currentUser.id);
+  const verdict=verdictSeance(parts);
+  document.getElementById('seance-body').innerHTML=`
+    <div class="eyebrow">Séance</div>
+    <h3 class="serif" style="font-size:21px;margin:2px 0 6px">${echapper(s.name)}</h3>
+    <div class="pd-origin">🕯️ ${echapper(s.date)}${s.place?' · 📍 '+echapper(s.place):''} · organisée par ${echapper(nomDuMembre(s.user_id))}</div>
+    <div class="sec-label" style="margin:20px 0 10px">Les lectures${parts.length?' · '+parts.length:''}</div>
+    ${tableauSeance(parts)}
+    ${verdict?`<p class="sc-verdict">${verdict}</p>`:''}
+    ${c?`<div class="sec-label" style="margin:20px 0 10px">Fiche catalogue</div>${specCardHtml(c,'Fiche catalogue',true)}`:''}`;
+  const organisateur=currentUser&&s.user_id===currentUser.id;
+  document.getElementById('seance-actions').innerHTML=
+      (currentUser&&!mienne?`<button class="btn-primary" style="flex-basis:100%" onclick="openFumeeSheetFromSession('${s.id}')">Publier ma dégustation</button>`:'')
+    + ((organisateur||isAdmin())?`<button class="btn-ghost" onclick="openEditSessionSheet('${s.id}')">Modifier</button>`:'')
+    + ((organisateur||isAdmin())?`<button class="btn-danger" onclick="deleteSession('${s.id}')">Annuler la séance</button>`:'')
+    + `<button class="btn-ghost" onclick="closeSheet('seance-overlay')">Fermer</button>`;
+  document.getElementById('seance-overlay').classList.add('open');
+  poserAncre('seance',s.id);
+}
+/* ---- Organiser ---- */
+let editingSessionId=null, scSelected=null;
+function scAcSearch(q){
+  scSelected=null;
+  const list=document.getElementById('sc-ac-list');
+  document.getElementById('sc-spec').innerHTML='';
+  q=normCigar(q);
+  if(q.length<2){list.classList.remove('open');list.innerHTML='';return;}
+  const matches=catalog.filter(c=>normCigar([c.name,c.brand,c.country].join(' ')).includes(q)).slice(0,8);
+  if(!matches.length){list.classList.remove('open');list.innerHTML='';return;}
+  list.innerHTML=matches.map(c=>{
+    const p=palette[c.terroir]||palette.autre;
+    const sub=[c.country,c.module||c.vitola].filter(x=>x&&x!=='—').join(' · ');
+    return `<div class="ac-item" onclick="scAcPick('${c.id}')">
+      <div class="ac-thumb" style="background:${p.fill}">${cigarHtml(c.terroir,30)}</div>
+      <div><div class="ac-name">${c.name}</div><div class="ac-sub">${sub}</div></div>
+    </div>`;
+  }).join('');
+  list.classList.add('open');
+}
+function scAcPick(id){
+  const c=catalog.find(x=>x.id===id);if(!c)return;
+  scSelected=c;
+  document.getElementById('sc-name').value=c.name;
+  document.getElementById('sc-spec').innerHTML=specCardHtml(c,'✓ Fiche catalogue')+'<div style="height:16px"></div>';
+  document.getElementById('sc-ac-list').classList.remove('open');
+}
+function scAddMode(){
+  editingSessionId=null; scSelected=null;
+  document.getElementById('sc-title').textContent='Organiser une séance';
+  document.getElementById('sc-submit-btn').textContent='Créer la séance';
+  document.getElementById('sc-submit-btn').disabled=false;
+  document.getElementById('sc-err').textContent='';
+  ['sc-name','sc-place'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('sc-date').value=todayISO();
+  document.getElementById('sc-spec').innerHTML='';
+  document.getElementById('sc-ac-list').classList.remove('open');
+}
+function openSessionSheet(){
+  if(!currentUser)return;
+  scAddMode();
+  document.getElementById('seance-edit-overlay').classList.add('open');
+}
+function openEditSessionSheet(id){
+  const s=sessions.find(x=>x.id===id);if(!s)return;
+  if(!currentUser||(s.user_id!==currentUser.id&&!isAdmin()))return;
+  scAddMode();
+  closeSheet('seance-overlay');
+  editingSessionId=id;
+  scSelected=ficheDeSeance(s);
+  document.getElementById('sc-title').textContent='Modifier la séance';
+  document.getElementById('sc-submit-btn').textContent='Enregistrer';
+  document.getElementById('sc-name').value=s.name;
+  document.getElementById('sc-place').value=s.place;
+  document.getElementById('sc-date').value=(s.heldOn||'').slice(0,10)||todayISO();
+  if(scSelected)document.getElementById('sc-spec').innerHTML=specCardHtml(scSelected,'✓ Fiche catalogue')+'<div style="height:16px"></div>';
+  document.getElementById('seance-edit-overlay').classList.add('open');
+}
+async function saveSession(){
+  if(!currentUser||!sb)return;
+  const err=document.getElementById('sc-err'); err.textContent='';
+  const nom=document.getElementById('sc-name').value.trim();
+  if(!nom){err.textContent='Nommez le cigare de la séance.';return;}
+  const date=document.getElementById('sc-date').value;
+  if(!date){err.textContent='Donnez une date à la séance.';return;}
+  // la fiche choisie ne vaut que si le nom saisi lui correspond encore
+  const fiche=(scSelected&&normCigar(scSelected.name)===normCigar(nom))?scSelected:ficheByName(nom);
+  const champs={user_id:currentUser.id,cigar_name:fiche?fiche.name:nom,
+    catalog_id:fiche?fiche.id:null,terroir:(fiche&&fiche.terroir)||'autre',
+    held_on:date,place:document.getElementById('sc-place').value.trim()||null};
+  const btn=document.getElementById('sc-submit-btn');
+  if(btn.disabled)return;
+  btn.disabled=true;
+  const {data,error}=editingSessionId
+    ? await sb.from('tasting_sessions').update(champs).eq('id',editingSessionId).select()
+    : await sb.from('tasting_sessions').insert(champs).select();
+  btn.disabled=false;
+  if(error){ err.textContent="Échec de l'enregistrement : "+(error.message||'réessayez.'); return; }
+  if(!(data&&data.length)){ err.textContent='Enregistrement refusé : exécutez ajout-seances.sql dans Supabase.'; return; }
+  const modifiee=!!editingSessionId;
+  closeSheet('seance-edit-overlay'); scAddMode();
+  await loadSessions(); renderSessions();
+  toast(modifiee?'Séance modifiée.':'Séance créée — le cercle peut s\'y joindre.');
+}
+async function deleteSession(id){
+  if(!currentUser||!sb)return;
+  const parts=postsDeSeance(id).length;
+  if(!confirm(parts
+    ? `Annuler cette séance ? Les ${parts} dégustation${parts>1?'s':''} publiée${parts>1?'s':''} seront conservées.`
+    : 'Annuler cette séance ?'))return;
+  const {data,error}=await sb.from('tasting_sessions').delete().eq('id',id).select();
+  if(error||!(data&&data.length)){ toast('Annulation refusée : droits insuffisants.','err'); return; }
+  closeSheet('seance-overlay');
+  await loadSessions(); await loadPosts();
+  renderSessions(); renderFeed();
+  toast('Séance annulée.');
 }
 
 /* ================= LE CERCLE =================
@@ -3252,7 +3537,7 @@ async function envoyerPhoto(){
    publication refusée passait pour un succès et la dégustation disparaissait.
    Si une colonne récente manque encore en base, on republie sans elle plutôt
    que de perdre la dégustation. */
-const COLONNES_RECENTES=['catalog_id','photo_url'];
+const COLONNES_RECENTES=['catalog_id','photo_url','session_id'];
 async function writePost(row,postId){
   const envoi=r=>postId ? sb.from('posts').update(r).eq('id',postId) : sb.from('posts').insert(r);
   let corps=Object.assign({},row);
@@ -3265,10 +3550,25 @@ async function writePost(row,postId){
   }
   if(error)throw error;
 }
+let sessionCible=null;   // séance à laquelle rattacher la dégustation publiée
+/* Depuis une séance : le cigare est imposé, c'est le propre du rendez-vous. */
+function openFumeeSheetFromSession(id){
+  const s=sessions.find(x=>x.id===id);if(!s)return;
+  closeSheet('seance-overlay');
+  openFumeeSheet();
+  sessionCible=id;                     // après openFumeeSheet, qui remet à zéro
+  const c=ficheDeSeance(s);
+  if(c)acPick(c.id);
+  else{ document.getElementById('f-name').value=s.name; setTerroir(s.terroir||null); }
+  const n=document.getElementById('f-cave-note');
+  n.textContent=`Séance du ${s.date}${s.place?' · '+s.place:''} — votre lecture rejoindra celles du cercle.`;
+  n.style.display='block';
+}
 function openFumeeSheet(){
   selectedCigar=null;
   editingPostId=null;
   smokingFromCaveId=null;
+  sessionCible=null;
   retirerPhoto();
   document.getElementById('f-cave-note').style.display='none';
   document.getElementById('fumee-title').textContent='Noter un cigare';
@@ -3335,6 +3635,7 @@ function openEditPostSheet(id){
   afficherPhotoExistante(p.photoUrl);
   const c=ficheOf(p);
   if(c){ selectedCigar=c; document.getElementById('f-spec').innerHTML=specCardHtml(c,'✓ Fiche catalogue'); }
+  sessionCible=p.sessionId||null;   // corriger une dégustation ne doit pas la détacher de sa séance
 }
 let editingCaveId=null;
 function caveAddMode(){
@@ -3509,7 +3810,7 @@ async function deleteCaveItem(){
 function closeSheet(id){
   document.getElementById(id).classList.remove('open');
   // l'adresse ne doit plus désigner un panneau fermé
-  if(id==='post-overlay'||id==='detail-overlay')retirerAncre();
+  if(id==='post-overlay'||id==='detail-overlay'||id==='seance-overlay')retirerAncre();
 }
 const BIO_PLACEHOLDER='Aucune bio pour le moment.';
 function openBioSheet(){
@@ -3593,6 +3894,7 @@ async function saveFumee(){
   }
   row.catalog_id=fiche.id;
   row.cigar_name=fiche.nom;      // le nom de la fiche fait foi, casse et accents compris
+  row.session_id=sessionCible||null;
   try{
     row.photo_url=await envoyerPhoto();
     await writePost(row,editingPostId);
@@ -3617,7 +3919,7 @@ async function saveFumee(){
   retirerPhoto();
   // sans cela une recherche en cours masquerait la dégustation tout juste publiée
   document.getElementById('feed-search').value=''; resetFeedPaging();
-  await loadPosts(); renderFeed();renderRails();renderMembers();renderProfile();renderDiscover();go('feed');
+  await loadPosts(); renderFeed();renderRails();renderMembers();renderSessions();renderProfile();renderDiscover();go('feed');
 }
 /* Rattrapage : crée les fiches manquantes des cigares déjà dégustés ou en cave.
    Se fait ici et non en SQL, car le catalogue embarqué n'existe pas en base :
