@@ -1451,7 +1451,7 @@ async function loadPrices(){
 let badges={};                 // user_id -> [{id,label,emoji}]
 let badgesActifs=true;
 const BADGES_TYPES=[
-  {emoji:'⚜️',label:'Membre MENSA'},
+  {emoji:'',label:'Membre MENSA'},
   {emoji:'🏛️',label:'Fondateur'},
   {emoji:'🔥',label:'Aficionado'},
   {emoji:'🌍',label:'Explorateur'},
@@ -1552,8 +1552,9 @@ function renderBadgeSheet(){
   paletteCourante=paletteBadges();
   document.getElementById('badge-choix').innerHTML=paletteCourante.map((t,i)=>{
     const pris=deja.has(t.label.toLowerCase());
+    // un badge sans emoji ne doit pas commencer par une espace
     return `<button class="badge-opt" ${pris?'disabled':''}
-      onclick="decernerBadgeDeLaPalette(${i})">${echapper(t.emoji||'')} ${echapper(t.label)}</button>`;
+      onclick="decernerBadgeDeLaPalette(${i})">${t.emoji?echapper(t.emoji)+' ':''}${echapper(t.label)}</button>`;
   }).join('');
 }
 let paletteCourante=[];
@@ -2716,7 +2717,6 @@ function cercleCardHtml(){
     </div>
     <div class="member-name">Le Cercle</div>
     <div class="member-count">${n} cigare${n>1?'s':''}</div>
-    <div class="member-badges" title="Fondateurs et membres MENSA">⚜️</div>
   </div>`;
 }
 /* Profil aromatique : ce que les arômes saisis dessinent une fois réunis.
