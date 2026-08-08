@@ -437,6 +437,7 @@ body{
 .vc-row span{font-size:13px;color:var(--ink-2);min-width:0}
 .vc-row b{font-family:var(--serif);font-size:16px;font-weight:600;color:var(--cognac);white-space:nowrap}
 .vc-note{font-size:12px;color:var(--ink-3);line-height:1.5;margin:9px 0 0;padding-top:9px;border-top:1px solid var(--line)}
+.wl-note{font-size:12.5px;color:var(--ink-2);line-height:1.45;margin:6px 0 0;font-style:italic;overflow-wrap:anywhere}
 .shelf{margin-bottom:22px}
 .shelf-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
 .shelf-title{display:flex;align-items:center;gap:9px;font-family:var(--serif);font-weight:600;font-size:17px}
@@ -859,6 +860,20 @@ body{
     <div id="cave-shelves"></div>
   </section>
 
+  <!-- ============ WISHLIST ============ -->
+  <section class="screen" id="wishlist">
+    <div class="eyebrow">Vos envies</div>
+    <h1 class="screen-title serif">Ma Wishlist</h1>
+    <p class="screen-sub">Les cigares que vous voulez goûter, et ce que le cercle en dit déjà.</p>
+
+    <div class="cave-stats" id="wl-stats"></div>
+    <div class="search" id="wl-search-wrap" style="display:none">
+      <i>🔍</i>
+      <input id="wl-search" placeholder="Chercher dans ma wishlist…" autocomplete="off" oninput="renderWishlist()">
+    </div>
+    <div id="wl-shelves"></div>
+  </section>
+
   <!-- ============ PROFIL ============ -->
   <section class="screen" id="profile">
     <div class="prof-back" id="prof-back" style="display:none" onclick="goProfile()">← Mon profil</div>
@@ -904,12 +919,14 @@ body{
   <!-- COMPOSE FAB -->
   <button class="fab" id="fab" onclick="openFumeeSheet()">✚</button>
   <button class="fab" id="fab-cave" onclick="openCaveSheet()" style="display:none" aria-label="Ajouter un cigare à la cave">✚</button>
+  <button class="fab" id="fab-wishlist" onclick="openWlSheet()" style="display:none" aria-label="Ajouter un cigare à ma wishlist">✚</button>
 
   <!-- TAB BAR -->
   <nav class="tabbar">
     <div class="tabbar-inner">
       <button class="tab active" data-screen="feed" onclick="go('feed')"><span class="tab-ico">🏠</span>Fil</button>
       <button class="tab" data-screen="discover" onclick="go('discover')"><span class="tab-ico">🔍</span>Découvrir</button>
+      <button class="tab" data-screen="wishlist" onclick="go('wishlist')"><span class="tab-ico">🎯</span>Wishlist</button>
       <button class="tab" data-screen="cave" onclick="go('cave')"><span class="tab-ico">🗄️</span>Cave</button>
       <button class="tab" data-screen="profile" onclick="goProfile()"><span class="tab-ico">👤</span>Profil</button>
     </div>
@@ -1147,6 +1164,33 @@ body{
   </div>
 </div>
 
+<!-- ===== WISHLIST ===== -->
+<div class="overlay" id="wl-overlay">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div id="wl-spec"></div>
+    <h3 class="serif" id="wl-title">Ajouter à ma wishlist</h3>
+    <div class="field">
+      <label>Cigare <span style="color:var(--ink-3);font-weight:400">— cherchez dans le catalogue</span></label>
+      <div class="ac-wrap">
+        <input id="w-name" placeholder="Tapez : montecristo, padrón, behike…" autocomplete="off" oninput="wlAcSearch(this.value)">
+        <div class="ac-list" id="wl-ac-list"></div>
+      </div>
+    </div>
+    <div class="field"><label>Terroir</label><input id="w-country" placeholder="Ex : Cuba, Nicaragua, Honduras…"></div>
+    <div class="field"><label>Module</label><input id="w-detail" placeholder="Ex : Robusto"></div>
+    <div class="field">
+      <label>Pourquoi <span style="color:var(--ink-3);font-weight:400">— facultatif</span></label>
+      <textarea id="w-note" rows="2" placeholder="Recommandé par Charles, à trouver en voyage…"></textarea>
+    </div>
+    <div class="f-err" id="wl-err"></div>
+    <div class="sheet-actions" id="wl-actions">
+      <button class="btn-ghost" onclick="closeSheet('wl-overlay')">Fermer</button>
+      <button class="btn-primary" id="wl-submit-btn" onclick="saveWishlist()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== BADGES (modération) ===== -->
 <div class="overlay" id="badge-overlay">
   <div class="sheet">
@@ -1370,8 +1414,8 @@ async function loadAll(){
   chargementEchoue=false;
   await loadProfiles();
   await loadMemberCatalog();
-  await Promise.all([loadPosts(), loadCave(), loadPrices(), loadComments(), loadBadges()]);
-  renderRails();renderMembers();renderFeed();renderCave();renderProfile();renderDiscover();
+  await Promise.all([loadPosts(), loadCave(), loadPrices(), loadComments(), loadBadges(), loadWishlist()]);
+  renderRails();renderMembers();renderFeed();renderCave();renderWishlist();renderProfile();renderDiscover();
   lastLoad=Date.now();
 }
 /* Prix partagés par le cercle. Les caves restent privées : c'est une table
@@ -1904,6 +1948,7 @@ function go(s){
   if(tab)tab.classList.add('active');
   document.getElementById('fab').style.display = s==='feed' ? 'flex':'none';
   document.getElementById('fab-cave').style.display = s==='cave' ? 'flex':'none';
+  document.getElementById('fab-wishlist').style.display = s==='wishlist' ? 'flex':'none';
   window.scrollTo({top:0,behavior:'smooth'});
   if(s==='feed')refreshFeed(false);
 }
@@ -2066,6 +2111,7 @@ function renderFeed(){
         <button class="act ${p.liked?'on':''}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes}</button>
         ${likersHtml(p)}
         ${commentairesActifs?`<button class="act" onclick="openPostDetail('${p.id}')" aria-label="Commenter cette dégustation">💬 ${nbCommentaires(p.id)}</button>`:''}
+        <button class="act" onclick="openWlSheetFromPost('${p.id}')" aria-label="Ajouter à ma wishlist">🎯</button>
         <button class="act" onclick="openCaveSheetFromPost('${p.id}')">🗄️ Ma cave</button>
         <button class="act" style="margin-left:auto" onclick="sharePost('${p.id}')" aria-label="Partager cette dégustation">↗</button>
       </div>
@@ -2422,6 +2468,211 @@ function renderCave(){
   document.getElementById('cave-shelves').innerHTML = h ? h
     : (q ? `<div class="rail-empty" style="padding:32px 0">Aucune référence ne correspond à « ${document.getElementById('cave-search').value.trim()} ».</div>`
          : messageVide('Votre cave est vide.<br>Appuyez sur ✚ pour ajouter une référence.'));
+}
+
+/* ================= WISHLIST =================
+   Ce qu'on convoite regarde son auteur : la liste est privée, comme la cave,
+   et suit la même présentation par terroir. Sa valeur tient à ce qu'elle
+   confronte l'envie au verdict du cercle : la note moyenne du cigare, quand
+   quelqu'un l'a déjà fumé, s'affiche à côté de chaque envie. */
+let wishlist=[];
+let wishlistActive=true;
+async function loadWishlist(){
+  wishlist=[];
+  if(!currentUser||!sb)return;
+  const {data,error}=await sb.from('wishlist_items').select('*')
+    .eq('user_id',currentUser.id).order('created_at');
+  if(error){ wishlistActive=false; console.warn('loadWishlist',error.message); return; }
+  wishlistActive=true;
+  wishlist=(data||[]).map(w=>({id:w.id,user_id:w.user_id,name:w.name,
+    detail:w.detail||'—',terroir:cave[w.terroir]?w.terroir:'autre',
+    note:w.note||'',added:w.added?fmtDate(w.added):'',addedRaw:w.added||''}));
+}
+function ligneEnvie(w){
+  const c=ficheByName(w.name);
+  const bouts=[];
+  if(c&&c.votes)bouts.push(`⭐ ${c.score.toFixed(1)} au cercle · ${c.votes} avis`);
+  else bouts.push('Personne ne l\'a encore noté');
+  if(w.added)bouts.push(`🗓️ ajouté le ${w.added}`);
+  return `<div class="cave-item" onclick="openEditWlSheet('${w.id}')">
+    <div class="cave-bar" style="background:${(palette[w.terroir]||palette.autre).band}"></div>
+    <div class="cave-info">
+      <div class="cave-name">${echapper(w.name)}</div>
+      <div class="cave-detail">${echapper(w.detail)}</div>
+      <span class="cave-date">${bouts.join(' · ')}</span>
+      ${w.note?`<p class="wl-note">${echapper(w.note)}</p>`:''}
+    </div>
+    <span class="cave-edit">✎</span>
+  </div>`;
+}
+function renderWishlist(){
+  const notes=wishlist.filter(w=>{const c=ficheByName(w.name);return c&&c.votes;}).length;
+  const terroirs=new Set(wishlist.map(w=>w.terroir)).size;
+  document.getElementById('wl-stats').innerHTML=`
+    <div class="cstat"><div class="cstat-n">${wishlist.length}</div><div class="cstat-l">envie${wishlist.length>1?'s':''}</div></div>
+    <div class="cstat"><div class="cstat-n">${terroirs}</div><div class="cstat-l">terroir${terroirs>1?'s':''}</div></div>
+    <div class="cstat"><div class="cstat-n">${notes}</div><div class="cstat-l">notés par le cercle</div></div>`;
+
+  const q=normCigar(document.getElementById('wl-search').value);
+  document.getElementById('wl-search-wrap').style.display=wishlist.length>3?'flex':'none';
+  const vus=q?wishlist.filter(w=>normCigar([w.name,w.detail,w.note].join(' ')).includes(q)):wishlist;
+  let h='';
+  Object.keys(cave).forEach(k=>{
+    const items=vus.filter(w=>w.terroir===k);
+    if(!items.length)return;
+    const m=countryMeta[k];
+    h+=`<div class="shelf"><div class="shelf-head"><div class="shelf-title">${flagHtml(m.flag)} ${m.label}</div>
+      <span class="shelf-count">${items.length} envie${items.length>1?'s':''}</span></div>
+      ${items.map(ligneEnvie).join('')}</div>`;
+  });
+  document.getElementById('wl-shelves').innerHTML = h ? h
+    : (q ? `<div class="rail-empty" style="padding:32px 0">Aucune envie ne correspond à « ${echapper(document.getElementById('wl-search').value.trim())} ».</div>`
+         : messageVide("Votre wishlist est vide.<br>Appuyez sur ✚, ou sur « Wishlist » sous une dégustation."));
+}
+let wlSelectedTerroir=null, editingWlId=null;
+function wlAcSearch(q){
+  wlSelectedTerroir=null;
+  const list=document.getElementById('wl-ac-list');
+  q=normCigar(q);
+  if(q.length<2){list.classList.remove('open');list.innerHTML='';return;}
+  const matches=catalog.filter(c=>normCigar([c.name,c.brand,c.country].join(' ')).includes(q)).slice(0,8);
+  if(!matches.length){list.classList.remove('open');list.innerHTML='';return;}
+  list.innerHTML=matches.map(c=>{
+    const p=palette[c.terroir]||palette.autre;
+    const sub=[c.country,c.module||c.vitola].filter(x=>x&&x!=='—').join(' · ');
+    return `<div class="ac-item" onclick="wlAcPick('${c.id}')">
+      <div class="ac-thumb" style="background:${p.fill}">${cigarHtml(c.terroir,30)}</div>
+      <div><div class="ac-name">${c.name}</div><div class="ac-sub">${sub}</div></div>
+    </div>`;
+  }).join('');
+  list.classList.add('open');
+}
+function wlAcPick(id){
+  const c=catalog.find(x=>x.id===id);if(!c)return;
+  wlSelectedTerroir=c.terroir||null;
+  document.getElementById('w-name').value=c.name;
+  document.getElementById('w-country').value=(c.country&&c.country!=='—')?c.country:(countryMeta[c.terroir]||{}).label||'';
+  const mod=(c.module&&c.module!=='—')?c.module:(c.vitola||'');
+  if(mod)document.getElementById('w-detail').value=mod;
+  renderWlSpec(c);
+  document.getElementById('wl-ac-list').classList.remove('open');
+}
+function renderWlSpec(c){
+  document.getElementById('wl-spec').innerHTML=c?specCardHtml(c,'Fiche catalogue',true)+'<div style="height:16px"></div>':'';
+}
+function wlAddMode(){
+  editingWlId=null;
+  document.getElementById('wl-title').textContent='Ajouter à ma wishlist';
+  document.getElementById('wl-submit-btn').textContent='Ajouter';
+  document.getElementById('wl-submit-btn').disabled=false;
+  ['wl-cave-btn','wl-delete-btn'].forEach(id=>{const e=document.getElementById(id);if(e)e.remove();});
+}
+function clearWlFields(){
+  ['w-name','w-country','w-detail','w-note'].forEach(id=>document.getElementById(id).value='');
+  wlSelectedTerroir=null;
+  document.getElementById('wl-err').textContent='';
+  document.getElementById('wl-ac-list').classList.remove('open');
+  renderWlSpec(null);
+}
+function openWlSheet(){
+  wlAddMode(); clearWlFields();
+  document.getElementById('wl-overlay').classList.add('open');
+}
+/* Depuis une dégustation : le cigare est connu, on ne redemande rien. */
+function openWlSheetFromPost(id){
+  const p=feed.find(x=>x.id===id);if(!p)return;
+  closeSheet('post-overlay');
+  wlAddMode(); clearWlFields();
+  const c=ficheOf(p);
+  renderWlSpec(c);
+  document.getElementById('w-name').value=p.name||'';
+  document.getElementById('w-country').value=(countryMeta[(c&&c.terroir)||p.terroir]||{}).label||'';
+  document.getElementById('w-detail').value=(c&&c.module&&c.module!=='—')?c.module:'';
+  document.getElementById('w-note').value=`Repéré chez ${p.user}.`;
+  wlSelectedTerroir=(c&&c.terroir)||p.terroir||null;
+  document.getElementById('wl-overlay').classList.add('open');
+}
+function openEditWlSheet(id){
+  const w=wishlist.find(x=>x.id===id);if(!w)return;
+  wlAddMode();
+  editingWlId=id;
+  wlSelectedTerroir=w.terroir||null;
+  document.getElementById('wl-title').textContent='Modifier cette envie';
+  document.getElementById('wl-submit-btn').textContent='Enregistrer';
+  document.getElementById('wl-err').textContent='';
+  renderWlSpec(ficheByName(w.name));
+  document.getElementById('w-name').value=w.name||'';
+  document.getElementById('w-country').value=(countryMeta[w.terroir]||{}).label||'';
+  document.getElementById('w-detail').value=w.detail==='—'?'':(w.detail||'');
+  document.getElementById('w-note').value=w.note||'';
+  const actions=document.getElementById('wl-actions');
+  actions.insertAdjacentHTML('afterbegin',
+    `<button class="btn-primary" id="wl-cave-btn" style="flex-basis:100%" onclick="envieVersCave()">Je l'ai acheté — passer en cave</button>`);
+  actions.insertAdjacentHTML('beforeend',
+    `<button class="btn-danger" id="wl-delete-btn" onclick="deleteWishlist()">Retirer</button>`);
+  document.getElementById('wl-overlay').classList.add('open');
+}
+async function saveWishlist(){
+  if(!currentUser||!sb)return closeSheet('wl-overlay');
+  const err=document.getElementById('wl-err'); err.textContent='';
+  const name=document.getElementById('w-name').value.trim();
+  if(!name){err.textContent='Nommez le cigare avant d\'enregistrer.';return;}
+  const country=document.getElementById('w-country').value.trim().toLowerCase();
+  const terroir=(wlSelectedTerroir&&cave[wlSelectedTerroir])?wlSelectedTerroir:caveTerroirFromText(country);
+  const champs={user_id:currentUser.id,name,detail:document.getElementById('w-detail').value.trim()||'—',
+    terroir,note:document.getElementById('w-note').value.trim()||null};
+  // un double appui, courant sur mobile, insérerait deux fois la même envie
+  const btn=document.getElementById('wl-submit-btn');
+  if(btn.disabled)return;
+  btn.disabled=true;
+  const {data,error}=editingWlId
+    ? await sb.from('wishlist_items').update(champs).eq('id',editingWlId).select()
+    : await sb.from('wishlist_items').insert(champs).select();
+  btn.disabled=false;
+  if(error){ err.textContent="Échec de l'enregistrement : "+(error.message||'réessayez.'); return; }
+  if(!(data&&data.length)){ err.textContent='Enregistrement refusé : exécutez ajout-wishlist.sql dans Supabase.'; return; }
+  const modifiee=!!editingWlId;
+  closeSheet('wl-overlay'); wlAddMode(); clearWlFields();
+  document.getElementById('wl-search').value='';
+  await loadWishlist(); renderWishlist(); go('wishlist');
+  toast(modifiee?'Envie modifiée.':'Ajouté à votre wishlist.');
+}
+async function deleteWishlist(){
+  if(!editingWlId||!currentUser||!sb)return;
+  if(!confirm('Retirer cette envie de votre wishlist ?'))return;
+  // .select() révèle un refus de la RLS, qui ne lève aucune erreur
+  const {data,error}=await sb.from('wishlist_items').delete().eq('id',editingWlId).select();
+  if(error||!(data&&data.length)){ toast('Suppression refusée : droits insuffisants.','err'); return; }
+  closeSheet('wl-overlay'); wlAddMode(); clearWlFields();
+  document.getElementById('wl-search').value='';
+  await loadWishlist(); renderWishlist();
+  toast('Envie retirée.');
+}
+/* Une envie assouvie doit quitter la liste : on ouvre la cave pré-remplie, et
+   l'envie ne disparaît qu'une fois le lot réellement enregistré. */
+let envieAConsommer=null;
+function envieVersCave(){
+  const w=wishlist.find(x=>x.id===editingWlId);if(!w)return;
+  closeSheet('wl-overlay');
+  caveAddMode(); clearCaveFields();
+  envieAConsommer=w.id;          // après caveAddMode, qui remet ce drapeau à zéro
+  renderCaveSpec(ficheByName(w.name));
+  document.getElementById('c-name').value=w.name;
+  document.getElementById('c-country').value=(countryMeta[w.terroir]||{}).label||'';
+  document.getElementById('c-detail').value=w.detail==='—'?'':(w.detail||'');
+  caveSelectedTerroir=w.terroir||null;
+  closeCaveAc();
+  document.getElementById('cave-overlay').classList.add('open');
+}
+/* L'identifiant est passé en argument, jamais relu depuis la variable :
+   caveAddMode() efface le drapeau au milieu de l'enregistrement, et l'envie
+   restait alors dans la liste après l'achat. */
+async function consommerEnvie(id){
+  if(!id||!sb)return false;
+  const {data}=await sb.from('wishlist_items').delete().eq('id',id).select();
+  if(!(data&&data.length))return false;
+  await loadWishlist(); renderWishlist();
+  return true;
 }
 
 /* ================= PROFILE ================= */
@@ -2816,6 +3067,7 @@ function openPostDetail(id){
   const delLabel = mine ? 'Supprimer' : 'Supprimer (modération)';
   actions.innerHTML=(currentUser?`<button class="btn-primary" style="flex-basis:100%" onclick="openFumeeSheetFromPost('${p.id}')">Ajouter une dégustation</button>`:'')
     + (currentUser?`<button class="btn-primary" style="flex-basis:100%" onclick="openCaveSheetFromPost('${p.id}')">Ajouter à ma cave</button>`:'')
+    + (currentUser?`<button class="btn-primary" style="flex-basis:100%" onclick="openWlSheetFromPost('${p.id}')">🎯 Wishlist</button>`:'')
     + (mine?`<button class="btn-ghost" onclick="openEditPostSheet('${p.id}')">Modifier</button>`:'')
     + (canDelete?`<button class="btn-danger" onclick="deletePost('${p.id}')">${delLabel}</button>`:'')
     + '<button class="btn-ghost" onclick="closeSheet(\'post-overlay\')">Fermer</button>';
@@ -2988,6 +3240,7 @@ function openEditPostSheet(id){
 let editingCaveId=null;
 function caveAddMode(){
   editingCaveId=null;
+  envieAConsommer=null;   // une envie abandonnée ne doit pas disparaître au prochain ajout
   document.getElementById('cave-title').textContent='Ajouter à la cave';
   document.getElementById('cave-submit-btn').textContent='Ajouter';
   document.getElementById('cave-submit-btn').disabled=false;
@@ -3447,12 +3700,15 @@ async function saveCave(){
   await publierPrix(lotId,champs);
   btn.disabled=false;
   const modif=!!editingCaveId;
+  const envie=envieAConsommer;        // à lire avant caveAddMode, qui l'efface
   closeSheet('cave-overlay');
   caveAddMode(); clearCaveFields();
   // sans cela une recherche en cours masquerait la référence qu'on vient d'ajouter
   document.getElementById('cave-search').value='';
   await loadCave(); await loadPrices(); renderCave();
-  toast(modif?'Référence modifiée.':'Ajouté à votre cave.');
+  // l'envie ne quitte la wishlist qu'une fois le lot réellement enregistré
+  const assouvie=await consommerEnvie(envie);
+  toast(assouvie?'Acheté — retiré de votre wishlist.':(modif?'Référence modifiée.':'Ajouté à votre cave.'));
 }
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
 /* Navigation par ancre : coller un lien ou revenir en arrière rouvre la cible. */

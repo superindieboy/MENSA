@@ -51,6 +51,19 @@ create table if not exists public.cave_items (
   created_at timestamptz default now()
 );
 
+-- Liste d'envies, privée comme la cave : ce qu'on convoite regarde son auteur.
+create table if not exists public.wishlist_items (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users on delete cascade,
+  name       text not null,
+  detail     text,                  -- module / vitole
+  terroir    text,
+  note       text,                  -- pourquoi on le veut
+  added      date default current_date,
+  created_at timestamptz default now()
+);
+create index if not exists wishlist_user_idx on public.wishlist_items (user_id, created_at);
+
 -- Fiches cigare ajoutées par les membres (complète le catalogue embarqué)
 create table if not exists public.catalog_items (
   id         uuid primary key default gen_random_uuid(),
@@ -133,6 +146,7 @@ create trigger on_auth_user_created
 alter table public.profiles      enable row level security;
 alter table public.posts         enable row level security;
 alter table public.cave_items    enable row level security;
+alter table public.wishlist_items enable row level security;
 alter table public.catalog_items enable row level security;
 alter table public.post_likes    enable row level security;
 alter table public.post_comments enable row level security;
@@ -155,6 +169,12 @@ create policy "cave_read_own"     on public.cave_items for select using (auth.ui
 create policy "cave_insert_own"   on public.cave_items for insert with check (auth.uid() = user_id);
 create policy "cave_update_own"   on public.cave_items for update using (auth.uid() = user_id);
 create policy "cave_delete_own"   on public.cave_items for delete using (auth.uid() = user_id);
+
+-- WISHLIST (privée elle aussi : aucune policy administrateur)
+create policy "wishlist_read_own"   on public.wishlist_items for select using (auth.uid() = user_id);
+create policy "wishlist_insert_own" on public.wishlist_items for insert with check (auth.uid() = user_id);
+create policy "wishlist_update_own" on public.wishlist_items for update using (auth.uid() = user_id);
+create policy "wishlist_delete_own" on public.wishlist_items for delete using (auth.uid() = user_id);
 
 -- CATALOGUE (fiches ajoutées par les membres, lisibles par tous)
 create policy "catalog_read"       on public.catalog_items for select using (auth.uid() is not null);
