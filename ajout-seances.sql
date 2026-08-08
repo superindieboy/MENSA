@@ -35,6 +35,7 @@ drop policy if exists "seances_lecture"      on public.tasting_sessions;
 drop policy if exists "seances_insert_own"   on public.tasting_sessions;
 drop policy if exists "seances_update_own"   on public.tasting_sessions;
 drop policy if exists "seances_delete_own"   on public.tasting_sessions;
+drop policy if exists "seances_insert_admin" on public.tasting_sessions;
 drop policy if exists "seances_update_admin" on public.tasting_sessions;
 drop policy if exists "seances_delete_admin" on public.tasting_sessions;
 
@@ -42,14 +43,12 @@ drop policy if exists "seances_delete_admin" on public.tasting_sessions;
 create policy "seances_lecture"    on public.tasting_sessions
   for select to authenticated using (true);
 
--- Chacun peut en organiser une ; seul l'organisateur la corrige ou l'annule.
-create policy "seances_insert_own" on public.tasting_sessions
-  for insert to authenticated with check (auth.uid() = user_id);
-create policy "seances_update_own" on public.tasting_sessions
-  for update to authenticated using (auth.uid() = user_id);
-create policy "seances_delete_own" on public.tasting_sessions
-  for delete to authenticated using (auth.uid() = user_id);
-
+-- Convier le cercle revient au seul modérateur. Publier sa lecture reste
+-- ouvert à tous : c'est la colonne posts.session_id, régie par les policies
+-- de posts, et non par celles-ci.
+create policy "seances_insert_admin" on public.tasting_sessions
+  for insert to authenticated
+  with check ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com' and auth.uid() = user_id);
 create policy "seances_update_admin" on public.tasting_sessions
   for update to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "seances_delete_admin" on public.tasting_sessions

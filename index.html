@@ -824,7 +824,7 @@ body{
     <div class="rail">
       <div class="rail-head">
         <div class="rail-title"><span class="ico">🏛️</span> Par le club</div>
-        <span class="rail-all" onclick="openSessionSheet()">Organiser ↗</span>
+        <span class="rail-all" id="rail-organiser" style="display:none" onclick="openSessionSheet()">Organiser ↗</span>
       </div>
       <div class="rail-scroll" id="rail-seances"></div>
       <span class="rail-more" id="rail-more-seances" style="display:none" onclick="openListing('club')">Toutes les séances ↗</span>
@@ -2784,11 +2784,14 @@ function seanceCardHtml(s){
   </div>`;
 }
 function renderSessions(){
+  // seul le modérateur convie le cercle : les autres n'ont pas à voir le lien
+  show('rail-organiser', isAdmin()?'inline-block':'none');
+  const vide=isAdmin()
+    ? 'Aucune séance. Appuyez sur « Organiser » pour convier le cercle autour d\'un cigare.'
+    : 'Aucune séance pour le moment.';
   document.getElementById('rail-seances').innerHTML = !sessionsActives
     ? '<div class="rail-empty">Les séances ne sont pas encore activées en base.</div>'
-    : (sessions.length
-      ? sessions.slice(0,12).map(seanceCardHtml).join('')
-      : '<div class="rail-empty">Aucune séance. Appuyez sur « Organiser » pour convier le cercle autour d\'un cigare.</div>');
+    : (sessions.length ? sessions.slice(0,12).map(seanceCardHtml).join('') : `<div class="rail-empty">${vide}</div>`);
   show('rail-more-seances', (sessionsActives&&sessions.length>12)?'inline-block':'none');
 }
 /* La confrontation. Une moyenne cache ce qui fait l'intérêt d'une séance :
@@ -2851,11 +2854,12 @@ function openSessionDetail(id){
     ${tableauSeance(parts)}
     ${verdict?`<p class="sc-verdict">${verdict}</p>`:''}
     ${c?`<div class="sec-label" style="margin:20px 0 10px">Fiche catalogue</div>${specCardHtml(c,'Fiche catalogue',true)}`:''}`;
-  const organisateur=currentUser&&s.user_id===currentUser.id;
+  // organiser, corriger et annuler reviennent au seul modérateur ; publier sa
+  // lecture reste ouvert à tout le cercle, c'est le propre du rendez-vous
   document.getElementById('seance-actions').innerHTML=
       (currentUser&&!mienne?`<button class="btn-primary" style="flex-basis:100%" onclick="openFumeeSheetFromSession('${s.id}')">Publier ma dégustation</button>`:'')
-    + ((organisateur||isAdmin())?`<button class="btn-ghost" onclick="openEditSessionSheet('${s.id}')">Modifier</button>`:'')
-    + ((organisateur||isAdmin())?`<button class="btn-danger" onclick="deleteSession('${s.id}')">Annuler la séance</button>`:'')
+    + (isAdmin()?`<button class="btn-ghost" onclick="openEditSessionSheet('${s.id}')">Modifier</button>`:'')
+    + (isAdmin()?`<button class="btn-danger" onclick="deleteSession('${s.id}')">Annuler la séance</button>`:'')
     + `<button class="btn-ghost" onclick="closeSheet('seance-overlay')">Fermer</button>`;
   document.getElementById('seance-overlay').classList.add('open');
   poserAncre('seance',s.id);
@@ -2899,13 +2903,13 @@ function scAddMode(){
   document.getElementById('sc-ac-list').classList.remove('open');
 }
 function openSessionSheet(){
-  if(!currentUser)return;
+  if(!isAdmin())return;
   scAddMode();
   document.getElementById('seance-edit-overlay').classList.add('open');
 }
 function openEditSessionSheet(id){
   const s=sessions.find(x=>x.id===id);if(!s)return;
-  if(!currentUser||(s.user_id!==currentUser.id&&!isAdmin()))return;
+  if(!isAdmin())return;
   scAddMode();
   closeSheet('seance-overlay');
   editingSessionId=id;
@@ -2919,7 +2923,7 @@ function openEditSessionSheet(id){
   document.getElementById('seance-edit-overlay').classList.add('open');
 }
 async function saveSession(){
-  if(!currentUser||!sb)return;
+  if(!isAdmin()||!sb)return;
   const err=document.getElementById('sc-err'); err.textContent='';
   const nom=document.getElementById('sc-name').value.trim();
   if(!nom){err.textContent='Nommez le cigare de la séance.';return;}
@@ -2945,7 +2949,7 @@ async function saveSession(){
   toast(modifiee?'Séance modifiée.':'Séance créée — le cercle peut s\'y joindre.');
 }
 async function deleteSession(id){
-  if(!currentUser||!sb)return;
+  if(!isAdmin()||!sb)return;
   const parts=postsDeSeance(id).length;
   if(!confirm(parts
     ? `Annuler cette séance ? Les ${parts} dégustation${parts>1?'s':''} publiée${parts>1?'s':''} seront conservées.`

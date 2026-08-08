@@ -233,11 +233,11 @@ create policy "catalog_update_admin"  on public.catalog_items for update using (
 create policy "catalog_delete_admin"  on public.catalog_items for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "commentaires_delete_admin" on public.post_comments for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 
--- SÉANCES : une invitation, donc visible de tous ; seul l'organisateur la corrige.
-create policy "seances_lecture"    on public.tasting_sessions for select to authenticated using (true);
-create policy "seances_insert_own" on public.tasting_sessions for insert to authenticated with check (auth.uid() = user_id);
-create policy "seances_update_own" on public.tasting_sessions for update to authenticated using (auth.uid() = user_id);
-create policy "seances_delete_own" on public.tasting_sessions for delete to authenticated using (auth.uid() = user_id);
+-- SÉANCES : une invitation, donc visible de tous ; conviée par le seul
+-- modérateur. Publier sa lecture reste ouvert à tous — c'est posts.session_id,
+-- régi par les policies de posts.
+create policy "seances_lecture"      on public.tasting_sessions for select to authenticated using (true);
+create policy "seances_insert_admin" on public.tasting_sessions for insert to authenticated with check ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com' and auth.uid() = user_id);
 create policy "seances_update_admin" on public.tasting_sessions for update to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 create policy "seances_delete_admin" on public.tasting_sessions for delete to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
 
