@@ -299,6 +299,8 @@ body{
 .badge-actuel{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);
   border-radius:10px;padding:8px 11px;margin-bottom:7px}
 .badge-actuel span{flex:1;min-width:0;font-size:13px;color:var(--ink-2)}
+.badge-actuel small{font-size:11px;color:var(--ink-3);white-space:nowrap}
+.badge-merite{border-style:dashed}
 .badge-vide{font-size:12.5px;color:var(--ink-3);margin:0}
 .pp-card{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px;margin-bottom:10px}
 .pp-thumb{flex-shrink:0;width:64px;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden}
@@ -1158,6 +1160,11 @@ body{
     </div>
 
     <div class="field">
+      <label>Distinctions gagnées <span style="color:var(--ink-3);font-weight:400">— au compteur, non retirables</span></label>
+      <div id="badge-merites"></div>
+    </div>
+
+    <div class="field">
       <label>Distinctions du cercle</label>
       <div class="badge-choix" id="badge-choix"></div>
     </div>
@@ -1392,9 +1399,32 @@ const BADGES_TYPES=[
   {emoji:'👃',label:'Grand nez'},
   {emoji:'🗄️',label:'Maître de cave'},
   {emoji:'✍️',label:'Belle plume'},
-  {emoji:'🎓',label:'Encyclopédiste'},
   {emoji:'🥃',label:'Homme patient'}
 ];
+/* Un badge inventé pour quelqu'un ne doit pas se perdre : la palette réunit
+   les distinctions prédéfinies et toutes celles déjà décernées dans le cercle. */
+function paletteBadges(){
+  const vus=new Map();
+  BADGES_TYPES.forEach(t=>vus.set(t.label.toLowerCase(),t));
+  Object.values(badges).forEach(liste=>liste.forEach(b=>{
+    const k=b.label.toLowerCase();
+    if(!vus.has(k))vus.set(k,{emoji:b.emoji,label:b.label});
+  }));
+  return [...vus.values()];
+}
+/* Badges gagnés : ils ne se décernent pas, ils se méritent au compteur.
+   Calculés à l'affichage plutôt qu'écrits en base — la RLS réserve l'écriture
+   au modérateur, un membre ne pourrait donc pas s'attribuer le sien. Une règle
+   qui change se répercute ainsi sur tout le monde, sans migration. */
+const SEUIL_ENCYCLOPEDISTE=75;
+function nbDegustations(uid){ return feed.filter(p=>p.user_id===uid).length; }
+function badgesGagnes(uid){
+  const g=[];
+  if(nbDegustations(uid)>=SEUIL_ENCYCLOPEDISTE)
+    g.push({emoji:'🎓',label:'Encyclopédiste',gagne:true,
+            detail:`${SEUIL_ENCYCLOPEDISTE} dégustations publiées`});
+  return g;
+}
 async function loadBadges(){
   badges={};
   if(!sb)return;
@@ -1405,10 +1435,17 @@ async function loadBadges(){
     (badges[b.user_id]=badges[b.user_id]||[]).push({id:b.id,label:b.label,emoji:b.emoji||''});
   });
 }
-function badgesDe(uid){ return badges[uid]||[]; }
+function badgesAttribues(uid){ return badgesActifs?(badges[uid]||[]):[]; }
+/* Les badges gagnés ne passent pas par la table : ils survivent donc à une
+   base où elle manque encore. */
+function badgesDe(uid){
+  const donnes=badgesAttribues(uid);
+  const vus=new Set(donnes.map(b=>b.label.toLowerCase()));
+  return donnes.concat(badgesGagnes(uid).filter(b=>!vus.has(b.label.toLowerCase())));
+}
 function badgesHtml(uid){
   const liste=badgesDe(uid);
-  if(!badgesActifs||!liste.length)return '';
+  if(!liste.length)return '';
   return `<div class="badges">${liste.map(b=>
     `<span class="badge">${b.emoji?`<span class="badge-em">${echapper(b.emoji)}</span>`:''}<b>${echapper(b.label)}</b></span>`
   ).join('')}</div>`;
@@ -1417,7 +1454,7 @@ function badgesHtml(uid){
    complet reviendrait à empiler du texte sous chaque visage. */
 function badgesVignetteHtml(uid){
   const em=badgesDe(uid).map(b=>b.emoji).filter(Boolean).slice(0,3);
-  if(!badgesActifs||!em.length)return '';
+  if(!em.length)return '';
   const noms=badgesDe(uid).map(b=>b.label).join(', ').replace(/"/g,'&quot;');
   return `<div class="member-badges" title="${noms}">${em.map(echapper).join('')}</div>`;
 }
@@ -1434,19 +1471,36 @@ function openBadgeSheet(uid){
 }
 function renderBadgeSheet(){
   const uid=badgeMembreId; if(!uid)return;
-  const liste=badgesDe(uid);
-  document.getElementById('badge-actuels').innerHTML = liste.length
-    ? liste.map(b=>`<div class="badge-actuel">
+  const donnes=badgesAttribues(uid);
+  document.getElementById('badge-actuels').innerHTML = donnes.length
+    ? donnes.map(b=>`<div class="badge-actuel">
         <span>${b.emoji?echapper(b.emoji)+' ':''}${echapper(b.label)}</span>
         <button class="cm-act cm-del" aria-label="Retirer ce badge" onclick="retirerBadge('${b.id}')">×</button>
       </div>`).join('')
-    : `<p class="badge-vide">Aucun badge pour le moment.</p>`;
-  const deja=new Set(liste.map(b=>b.label.toLowerCase()));
-  document.getElementById('badge-choix').innerHTML=BADGES_TYPES.map(t=>{
+    : `<p class="badge-vide">Aucun badge décerné pour le moment.</p>`;
+
+  // un badge gagné ne se retire pas : il tombe de lui-même si le compteur baisse
+  const gagnes=badgesGagnes(uid), n=nbDegustations(uid);
+  document.getElementById('badge-merites').innerHTML = gagnes.length
+    ? gagnes.map(b=>`<div class="badge-actuel badge-merite">
+        <span>${b.emoji} ${echapper(b.label)}</span><small>${echapper(b.detail)}</small>
+      </div>`).join('')
+    : `<p class="badge-vide">Encyclopédiste s'obtient à ${SEUIL_ENCYCLOPEDISTE} dégustations — ${nomDuMembre(uid)} en compte ${n}.</p>`;
+
+  // l'intitulé transite par un index, jamais par du texte interpolé dans
+  // l'attribut : « Fumeur d'exception » y casserait la chaîne JavaScript
+  const deja=new Set(badgesDe(uid).map(b=>b.label.toLowerCase()));
+  paletteCourante=paletteBadges();
+  document.getElementById('badge-choix').innerHTML=paletteCourante.map((t,i)=>{
     const pris=deja.has(t.label.toLowerCase());
     return `<button class="badge-opt" ${pris?'disabled':''}
-      onclick="decernerBadge('${t.emoji}','${t.label}')">${t.emoji} ${t.label}</button>`;
+      onclick="decernerBadgeDeLaPalette(${i})">${echapper(t.emoji||'')} ${echapper(t.label)}</button>`;
   }).join('');
+}
+let paletteCourante=[];
+function decernerBadgeDeLaPalette(i){
+  const t=paletteCourante[i];
+  return t?decernerBadge(t.emoji,t.label):undefined;
 }
 async function decernerBadge(emoji,label){
   if(!isAdmin()||!sb||!badgeMembreId)return;
