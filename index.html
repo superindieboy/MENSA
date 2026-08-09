@@ -712,6 +712,13 @@ body{
 .cmp-cell b{display:block;font-family:var(--serif);font-size:20px;font-weight:600;color:var(--cognac);line-height:1.25}
 .cmp-cell small{display:block;font-size:10.5px;color:var(--ink-3)}
 .cmp-note{font-size:12px;color:var(--ink-2);line-height:1.5;margin:9px 0 0;text-align:center}
+.hist-suite{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.hist-etape{display:inline-flex;flex-direction:column;align-items:center;background:var(--paper);
+  border:1px solid var(--line);border-radius:9px;padding:6px 9px;min-width:50px}
+.hist-etape b{font-family:var(--serif);font-size:15px;font-weight:600;color:var(--cognac);line-height:1.1}
+.hist-etape small{font-size:10px;color:var(--ink-3);margin-top:2px;white-space:nowrap}
+.hist-fleche{color:var(--ink-3);font-size:12px;flex:0 0 auto}
+.hist-verdict{font-size:12px;color:var(--ink-2);line-height:1.5;margin:9px 0 0}
 .spec-edit{display:block;width:100%;margin-top:13px;padding:9px;border-radius:9px;
   border:1px dashed var(--line-2);background:none;color:var(--ink-3);
   font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer}
@@ -3228,6 +3235,37 @@ function comparatifNotesHtml(c){
     </div>
     <p class="cmp-note">${verdict}</p>`;
 }
+/* Votre histoire avec ce cigare. Un cigare qu'on réévalue au fil des années,
+   c'est ce qu'un carnet doit savoir raconter : la moyenne l'écrase, la suite
+   des notes le montre. Rien sous deux dégustations — une seule n'est pas une
+   histoire, et le comparatif juste au-dessus la donne déjà. */
+function moisCourt(iso){
+  const d=new Date(iso);
+  return isNaN(d)?'':d.toLocaleDateString('fr-FR',{month:'short',year:'2-digit'});
+}
+function historiqueHtml(c){
+  if(!currentUser||!feed.length)return '';
+  const miennes=feed.filter(p=>p.user_id===currentUser.id&&p.rating>0
+      &&(()=>{const f=ficheOf(p);return f&&f.id===c.id;})())
+    .slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  if(miennes.length<2)return '';
+  const etape=p=>`<span class="hist-etape"><b>${un(p.rating)}</b><small>${moisCourt(p.createdAt)}</small></span>`;
+  // au-delà de six, on garde la première et les quatre dernières : c'est l'arc
+  // qui compte, et une rangée qui se replie perd sa lecture
+  const suite = miennes.length<=6
+    ? miennes.map(etape).join('<span class="hist-fleche">→</span>')
+    : etape(miennes[0])+'<span class="hist-fleche">⋯</span>'
+      +miennes.slice(-4).map(etape).join('<span class="hist-fleche">→</span>');
+  const ecart=miennes[miennes.length-1].rating-miennes[0].rating;
+  const verdict=Math.abs(ecart)<0.3
+    ? "Votre appréciation n'a guère bougé d'une fois à l'autre."
+    : (ecart>0
+      ? `Il vous plaît de plus en plus : ${un(Math.abs(ecart))} point de mieux qu'à la première.`
+      : `Il vous séduit moins qu'à la première : ${un(Math.abs(ecart))} point de moins.`);
+  return `<div class="sec-label" style="margin:16px 0 8px">Votre histoire · ${miennes.length} dégustations</div>
+    <div class="hist-suite">${suite}</div>
+    <p class="hist-verdict">${verdict}</p>`;
+}
 function specCardHtml(c,badge,modifiable){
   const p=palette[c.terroir]||palette.autre;
   const flavors=(c.flavors||[]).map(f=>`<span class="flavor">${f}</span>`).join('');
@@ -3254,6 +3292,7 @@ function specCardHtml(c,badge,modifiable){
       </div>
       ${flavors?`<div class="spec-flavors">${flavors}</div>`:''}
       ${comparatifNotesHtml(c)}
+      ${historiqueHtml(c)}
       ${(modifiable&&isAdmin())?`<button class="spec-edit" onclick="event.stopPropagation();openEditCigarSheet('${c.id}')">✎ Corriger cette fiche</button>`:''}
     </div>
   </div>`;
