@@ -459,6 +459,8 @@ body{
 .disc-score{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500}
 .score-dot{width:8px;height:8px;border-radius:50%;background:var(--gold)}
 .disc-count{color:var(--ink-3);font-weight:400}
+.disc-vierge{color:var(--cognac);font-weight:500;font-size:11.5px;
+  border:1px dashed var(--line-2);border-radius:20px;padding:1px 8px}
 
 .rank{display:flex;flex-direction:column;gap:9px;margin-bottom:8px}
 .rank-row{
@@ -719,6 +721,16 @@ body{
 .hist-etape small{font-size:10px;color:var(--ink-3);margin-top:2px;white-space:nowrap}
 .hist-fleche{color:var(--ink-3);font-size:12px;flex:0 0 auto}
 .hist-verdict{font-size:12px;color:var(--ink-2);line-height:1.5;margin:9px 0 0}
+
+/* ===== RÉTROSPECTIVE ===== */
+.retro{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:16px;margin-bottom:26px}
+.retro-chiffre{text-align:center;padding-bottom:14px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+.retro-chiffre b{display:block;font-family:var(--serif);font-size:38px;font-weight:600;color:var(--cognac);line-height:1}
+.retro-chiffre span{display:block;font-size:12px;color:var(--ink-3);margin-top:5px}
+.retro-row{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:6px 0}
+.retro-row span{font-size:12.5px;color:var(--ink-3);flex-shrink:0}
+.retro-row b{font-size:13px;font-weight:600;color:var(--ink-2);text-align:right;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .spec-edit{display:block;width:100%;margin-top:13px;padding:9px;border-radius:9px;
   border:1px dashed var(--line-2);background:none;color:var(--ink-3);
   font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer}
@@ -948,6 +960,9 @@ body{
 
     <div class="sec-label" id="palais-label" style="display:none">Le palais</div>
     <div class="palais" id="palais" style="display:none"></div>
+
+    <div class="sec-label" id="retro-label" style="display:none">L'année</div>
+    <div id="prof-retro" style="display:none"></div>
 
     <div class="sec-label" id="aromes-label" style="display:none">Profil aromatique</div>
     <div id="prof-aromes" style="display:none"></div>
@@ -2011,7 +2026,8 @@ const members=[];
    s'en tenir aux quatre historiques rendait invisibles au filtre les cigares
    du Costa Rica, du Mexique et du Brésil. */
 const TERROIR_FILTERS={'Cuba':'cuba','Nicaragua':'nica','Rép. Dom.':'rep','Honduras':'hon','Costa Rica':'cr','Mexique':'mex','Brésil':'bre','Autre':'autre'};
-const filterList=['Tous',...Object.keys(TERROIR_FILTERS),'Doux','Médium','Corsé','Note 4,5+'];
+const filterList=['Tous',...Object.keys(TERROIR_FILTERS),'Doux','Médium','Corsé','Note 4,5+',
+  'Fumés par le cercle','Jamais fumés'];
 let activeFilter='Tous';
 
 /* ================= NAV ================= */
@@ -2223,10 +2239,134 @@ function appliquerAncre(){
   toast("Ce lien ne correspond à rien d'existant.",'err');
   return false;
 }
+/* ---- Carte partageable ----
+   Un lien nu ne dit rien de ce qu'on a fumé. On dessine la dégustation sur
+   une toile — le cigare, la note, les trois tiers, le cercle — et on partage
+   l'image. Le texte et le lien restent le repli si le navigateur ne sait pas
+   partager de fichier. */
+const CARTE_L=1080, CARTE_H=1350;
+function carteTexte(ctx,txt,x,y,maxL,pas){
+  const mots=String(txt).split(' ');
+  let ligne='', lignes=[];
+  mots.forEach(m=>{
+    const essai=ligne?ligne+' '+m:m;
+    if(ctx.measureText(essai).width>maxL&&ligne){ lignes.push(ligne); ligne=m; }
+    else ligne=essai;
+  });
+  if(ligne)lignes.push(ligne);
+  lignes.slice(0,3).forEach((l,i)=>ctx.fillText(l,x,y+i*pas));
+  return y+lignes.slice(0,3).length*pas;
+}
+/* roundRect n'existe pas avant Safari 16.4 : sans ce repli, la carte n'y
+   serait jamais dessinée et le partage retomberait toujours sur le texte. */
+function cadreArrondi(g,x,y,w,h,r){
+  g.beginPath();
+  if(typeof g.roundRect==='function'){ g.roundRect(x,y,w,h,r); return; }
+  g.moveTo(x+r,y);
+  g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r);
+  g.arcTo(x,y+h,x,y,r);     g.arcTo(x,y,x+w,y,r);
+  g.closePath();
+}
+function dessinerCarte(p){
+  const c=document.createElement('canvas');
+  c.width=CARTE_L; c.height=CARTE_H;
+  const g=c.getContext('2d');
+  // fond : le brun profond de l'app, avec la lueur du terroir
+  g.fillStyle='#16100A'; g.fillRect(0,0,CARTE_L,CARTE_H);
+  const halo=g.createRadialGradient(CARTE_L*0.3,CARTE_H*0.28,40,CARTE_L*0.3,CARTE_H*0.28,760);
+  const teinte={cuba:'#3a2614',nica:'#1d3a2a',rep:'#3a1414',hon:'#2a1a3b',
+    cr:'#163a34',mex:'#3a2a14',bre:'#28341a',autre:'#33291c'}[p.terroir]||'#3a2614';
+  halo.addColorStop(0,teinte); halo.addColorStop(1,'#16100A');
+  g.fillStyle=halo; g.fillRect(0,0,CARTE_L,CARTE_H);
+
+  g.textAlign='center';
+  g.fillStyle='#B06D3A';
+  g.font='600 34px Georgia, serif';
+  g.fillText('MENSA', CARTE_L/2, 130);
+  g.fillStyle='rgba(240,230,215,0.45)';
+  g.font='24px Georgia, serif';
+  g.fillText('cercle privé d\'amateurs de cigares', CARTE_L/2, 174);
+
+  // la note, en grand
+  g.fillStyle='#D9A05B';
+  g.font='600 210px Georgia, serif';
+  g.fillText(un(p.rating||0), CARTE_L/2, 470);
+  g.fillStyle='rgba(240,230,215,0.5)';
+  g.font='28px Georgia, serif';
+  g.fillText('sur 5', CARTE_L/2, 520);
+
+  // le cigare
+  g.fillStyle='#F0E6D7';
+  g.font='600 64px Georgia, serif';
+  let y=carteTexte(g,p.name,CARTE_L/2,650,880,78);
+  if(p.origin){
+    g.fillStyle='rgba(240,230,215,0.55)';
+    g.font='30px Georgia, serif';
+    g.fillText(p.origin, CARTE_L/2, y+16);
+  }
+
+  // les trois tiers, s'ils ont été notés
+  if(aTiers(p)){
+    const libelles=['Premier tiers','Deuxième tiers','Dernier tiers'];
+    const vals=[p.thirds.t1,p.thirds.t2,p.thirds.t3];
+    const largeur=260, ecart=30;
+    const total=largeur*3+ecart*2;
+    let x=(CARTE_L-total)/2;
+    vals.forEach((v,i)=>{
+      g.strokeStyle='rgba(240,230,215,0.16)'; g.lineWidth=2;
+      cadreArrondi(g,x,y+80,largeur,150,18); g.stroke();
+      g.fillStyle='rgba(240,230,215,0.5)'; g.font='24px Georgia, serif';
+      g.fillText(libelles[i], x+largeur/2, y+128);
+      g.fillStyle='#D9A05B'; g.font='600 56px Georgia, serif';
+      g.fillText(v>0?un(v):'—', x+largeur/2, y+196);
+      x+=largeur+ecart;
+    });
+    y+=250;
+  }else y+=90;
+
+  // le commentaire, s'il tient
+  if(p.note){
+    g.fillStyle='rgba(240,230,215,0.72)';
+    g.font='italic 34px Georgia, serif';
+    y=carteTexte(g,'« '+p.note+' »',CARTE_L/2,y+70,880,48);
+  }
+
+  // signature
+  g.fillStyle='rgba(240,230,215,0.55)';
+  g.font='30px Georgia, serif';
+  g.fillText('noté par '+p.user, CARTE_L/2, CARTE_H-150);
+  g.fillStyle='#B06D3A';
+  g.font='600 30px Georgia, serif';
+  g.fillText('mensa-club.fr', CARTE_L/2, CARTE_H-92);
+  return c;
+}
+function carteEnBlob(canvas){
+  return new Promise(res=>canvas.toBlob(b=>res(b),'image/png'));
+}
 async function sharePost(id){
   const p=feed.find(x=>x.id===id);if(!p)return;
   const text=`${p.name} — ${(p.rating||0).toFixed(1)}/5, noté par ${p.user} sur MENSA`;
   const url=location.origin+location.pathname+`#/degustation/${id}`;
+  // l'image d'abord : c'est elle qui donne envie. Un échec de dessin ne doit
+  // pas empêcher le partage, on retombe alors sur le texte.
+  try{
+    const blob=await carteEnBlob(dessinerCarte(p));
+    if(blob){
+      const fichier=new File([blob],'mensa.png',{type:'image/png'});
+      if(navigator.canShare&&navigator.canShare({files:[fichier]})){
+        try{ await navigator.share({files:[fichier],text,url}); }
+        catch(e){ /* partage annulé par le membre */ }
+        return;
+      }
+      // pas de partage de fichier : on télécharge la carte et on copie le lien
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download='mensa.png';
+      a.click(); URL.revokeObjectURL(a.href);
+      try{ await navigator.clipboard.writeText(`${text}\n${url}`); }catch(e){}
+      toast('Carte enregistrée, lien copié.');
+      return;
+    }
+  }catch(e){ console.warn('carte',e&&e.message); }
   if(navigator.share){
     try{ await navigator.share({title:'MENSA',text,url}); }
     catch(e){ /* partage annulé par le membre */ }
@@ -2342,17 +2482,24 @@ function renderDiscover(){
     if(activeFilter==='Médium'&&c.force!=='Médium')return false;
     if(activeFilter==='Corsé'&&c.force!=='Corsé')return false;
     if(activeFilter==='Note 4,5+'&&!(c.score>=4.5))return false;
+    // le catalogue est un territoire : on doit pouvoir isoler ce qui reste à explorer
+    if(activeFilter==='Fumés par le cercle'&&!(c.votes>0))return false;
+    if(activeFilter==='Jamais fumés'&&(c.votes||0)>0)return false;
     return true;
   });
   list=trierCatalogue(list);
   const shown=list.slice(0,discShown);
+  const vierges=catalog.filter(c=>!(c.votes>0)).length;
   document.getElementById('disc-count').textContent=`${list.length} référence${list.length>1?'s':''} · ${catalog.length} au catalogue`
+    +(activeFilter==='Tous'&&vierges?` · ${vierges.toLocaleString('fr-FR')} jamais fumées`:'')
     +(list.length>shown.length?` · ${shown.length} affichées`:'');
   document.getElementById('disc-grid').innerHTML = shown.length? shown.map(c=>{
     const p=palette[c.terroir]||palette.autre;
     const sub=`${c.country||'—'}${c.force?' · '+c.force:(c.module?' · '+c.module:'')}`;
+    // sans marque explicite, une fiche jamais fumée affichait ses dimensions et
+    // se confondait avec les autres : rien ne disait qu'elle restait à découvrir
     const score=c.score>0?`<div class="disc-score"><span class="score-dot"></span>${c.score.toFixed(1)}${c.votes>0?` <span class="disc-count">· ${c.votes.toLocaleString('fr-FR')} avis</span>`:''}</div>`
-      :`<div class="disc-score"><span class="disc-count">${c.length?c.length+' mm · RG '+c.ring:'Non noté'}</span></div>`;
+      :`<div class="disc-score"><span class="disc-vierge">Jamais fumé</span>${c.length?` <span class="disc-count">· ${c.length} mm</span>`:''}</div>`;
     return `<div class="disc-card" onclick="openCigarDetail('${c.id}')">
       <div class="disc-img" style="background:${p.fill}">${cigarHtml(c.terroir,70)}</div>
       <div class="disc-info">
@@ -3046,6 +3193,39 @@ function renderAromes(posts,titre){
        <span class="arome-n">${a.n}</span>
      </div>`).join('');
 }
+/* La rétrospective de l'année. Le profil dit un cumul depuis toujours ; une
+   année se raconte autrement — ce qu'on a exploré, ce qui a marqué, à quel
+   rythme. Rien à afficher tant que l'année n'a pas commencé pour de bon. */
+const MOIS=['janvier','février','mars','avril','mai','juin','juillet','août',
+            'septembre','octobre','novembre','décembre'];
+function renderRetro(posts,titre){
+  const annee=new Date().getFullYear();
+  const cette=posts.filter(p=>new Date(p.createdAt).getFullYear()===annee);
+  if(cette.length<3){ show('retro-label','none'); show('prof-retro','none'); return; }
+  show('retro-label','block'); show('prof-retro','block');
+  document.getElementById('retro-label').textContent=`${titre} ${annee}`;
+
+  const terroirs=new Set(cette.map(p=>p.terroir)).size;
+  const meilleure=cette.slice().sort((a,b)=>(b.rating||0)-(a.rating||0))[0];
+  const parMois={};
+  cette.forEach(p=>{const m=new Date(p.createdAt).getMonth();parMois[m]=(parMois[m]||0)+1;});
+  const moisFort=Object.keys(parMois).sort((a,b)=>parMois[b]-parMois[a])[0];
+  const aromes=profilAromatique(cette);
+  const moyenne=cette.reduce((s,p)=>s+(p.rating||0),0)/cette.length;
+  const nouveaux=new Set(cette.map(p=>{const f=ficheOf(p);return f?f.id:normCigar(p.name);})).size;
+
+  const ligne=(k,v)=>`<div class="retro-row"><span>${k}</span><b>${v}</b></div>`;
+  document.getElementById('prof-retro').innerHTML=`
+    <div class="retro">
+      <div class="retro-chiffre"><b>${cette.length}</b><span>cigare${cette.length>1?'s':''} cette année</span></div>
+      ${ligne('Références distinctes',nouveaux)}
+      ${ligne('Terroirs parcourus',terroirs)}
+      ${ligne('Note moyenne',un(moyenne)+' / 5')}
+      ${ligne('Mois le plus fumé',`${MOIS[moisFort]} · ${parMois[moisFort]}`)}
+      ${meilleure?ligne('Le sommet',`${echapper(meilleure.name)} · ${un(meilleure.rating||0)}`):''}
+      ${aromes.length?ligne('Arôme dominant',`${echapper(aromes[0].label)} · ${aromes[0].n}×`):''}
+    </div>`;
+}
 function renderHistogramme(posts){
   const labels=['5','4','3','2','1'];
   const dist=labels.map(l=>posts.filter(p=>Math.round(p.rating)===+l).length);
@@ -3072,6 +3252,7 @@ function renderProfileCercle(){
   document.getElementById('prof-posts-label').textContent='Les dégustations du cercle';
   document.getElementById('palais-label').textContent='Le palais du cercle';
   renderPalais(posts);
+  renderRetro(posts,'Le cercle en');
   renderAromes(posts,'Le profil aromatique du cercle');
   document.getElementById('prof-posts').innerHTML = posts.length
     ? posts.slice(0,30).map(profPostCard).join('')
@@ -3192,6 +3373,7 @@ function renderProfileFor(id){
   document.getElementById('prof-posts-label').textContent = isSelf?'Mes dégustations':'Ses dégustations';
   document.getElementById('palais-label').textContent = isSelf?'Mon palais':'Son palais';
   renderPalais(posts);
+  renderRetro(posts, isSelf?'Votre':'Son année');
   renderAromes(posts, isSelf?'Mon profil aromatique':'Son profil aromatique');
 
   // liste des dégustations
