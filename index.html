@@ -1618,7 +1618,7 @@ function renderBadgeSheet(){
     ? gagnes.map(b=>`<div class="badge-actuel badge-merite">
         <span>${b.emoji} ${echapper(b.label)}</span><small>${echapper(b.detail)}</small>
       </div>`).join('')
-    : `<p class="badge-vide">Encyclopédiste s'obtient à ${SEUIL_ENCYCLOPEDISTE} dégustations — ${nomDuMembre(uid)} en compte ${n}.</p>`;
+    : `<p class="badge-vide">Encyclopédiste s'obtient à ${SEUIL_ENCYCLOPEDISTE} dégustations — ${echapper(nomDuMembre(uid))} en compte ${n}.</p>`;
 
   // l'intitulé transite par un index, jamais par du texte interpolé dans
   // l'attribut : « Fumeur d'exception » y casserait la chaîne JavaScript
@@ -2053,7 +2053,7 @@ function posterCard(it){
     sub=it.sub||'Fiche catalogue';
   }else{
     const c=avColors[it.av]||avColors[0];
-    badge=`<div class="poster-av" style="background:${c[0]};color:${c[1]}">${it.who}</div>`;
+    badge=`<div class="poster-av" style="background:${c[0]};color:${c[1]}">${echapper(it.who)}</div>`;
     sub=`par ${it.by}`;
   }
   const click = it.cid ? `openCigarDetail('${it.cid}')`
@@ -2064,8 +2064,8 @@ function posterCard(it){
       ${badge}
       <div class="poster-rating"><span style="color:var(--gold)">●</span> ${(it.rating||0).toFixed(1)}</div>
     </div>
-    <div class="poster-name">${it.name}</div>
-    <div class="poster-sub">${sub}</div>
+    <div class="poster-name">${echapper(it.name)}</div>
+    <div class="poster-sub">${echapper(sub)}</div>
   </div>`;
 }
 function renderRails(){
@@ -2079,9 +2079,9 @@ function memberCardHtml(m){
   const crown=m.founder?`<div class="member-crown">★</div>`:'';
   return `<div class="member" onclick="openMemberProfile('${m.id}')">
     <div class="member-ph">
-      <div class="member-av" style="background:${c[0]};color:${c[1]}">${m.init}</div>${crown}
+      <div class="member-av" style="background:${c[0]};color:${c[1]}">${echapper(m.init)}</div>${crown}
     </div>
-    <div class="member-name">${m.name}</div>
+    <div class="member-name">${echapper(m.name)}</div>
     <div class="member-count">${m.count} cigares</div>
     ${badgesVignetteHtml(m.id)}
   </div>`;
@@ -2155,7 +2155,7 @@ function renderFeed(){
   if(!liste.length){
     more.innerHTML='';
     el.innerHTML=q
-      ? `<div class="rail-empty" style="padding:32px 0">Aucune dégustation ne correspond à « ${document.getElementById('feed-search').value.trim()} ».</div>`
+      ? `<div class="rail-empty" style="padding:32px 0">Aucune dégustation ne correspond à « ${echapper(document.getElementById('feed-search').value.trim())} ».</div>`
       : messageVide('Aucune dégustation publiée pour le moment.<br>Appuyez sur ✚ pour partager la première.');
     return;
   }
@@ -2170,23 +2170,23 @@ function renderFeed(){
     const oColors={cuba:['#FAC775','#633806'],nica:['#C0DD97','#27500A'],rep:['#F5C4B3','#712B13'],hon:['#CECBF6','#3C3489']}[p.terroir]||['#FAC775','#633806'];
     return `<article class="post">
       <div class="post-head" onclick="openMemberProfile('${p.user_id}')" style="cursor:pointer">
-        <div class="av" style="background:${c[0]};color:${c[1]}">${p.init}</div>
-        <div style="flex:1"><div class="post-user">${p.user}</div><div class="post-meta">${p.time} · <span class="count">${p.count} cigares</span></div></div>
+        <div class="av" style="background:${c[0]};color:${c[1]}">${echapper(p.init)}</div>
+        <div style="flex:1"><div class="post-user">${echapper(p.user)}</div><div class="post-meta">${p.time} · <span class="count">${p.count} cigares</span></div></div>
         <button class="icon-btn" style="border:none;background:none">⋯</button>
       </div>
       <div class="post-visual" style="background:${p2.fill};cursor:pointer" onclick="openPostDetail('${p.id}')">
         ${p.photoUrl
-          ? `<img src="${p.photoUrl}" alt="Bague de ${p.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover">`
+          ? `<img src="${echapper(p.photoUrl)}" alt="Bague de ${echapper(p.name)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">`
           : cigarHtml(p.terroir,130)}
         <div class="post-rating"><span style="color:var(--gold)">●</span> ${p.rating.toFixed(1)}</div>
       </div>
       <div class="post-body" style="cursor:pointer" onclick="openPostDetail('${p.id}')">
-        <div class="cig-name">${p.name}</div>
-        <span class="origin" style="background:${oColors[0]};color:${oColors[1]}">📍 ${p.origin}</span>
+        <div class="cig-name">${echapper(p.name)}</div>
+        <span class="origin" style="background:${oColors[0]};color:${oColors[1]}">📍 ${echapper(p.origin)}</span>
         ${tiersHtml(p)}
-        ${p.note?`<p class="note">${p.note}</p>`:''}
-        <div class="flavors">${p.flavors.map(f=>`<span class="flavor">${f}</span>`).join('')}</div>
-        ${p.place?`<div class="post-place">📍 Fumé à ${p.place}</div>`:''}
+        ${p.note?`<p class="note">${echapper(p.note)}</p>`:''}
+        <div class="flavors">${p.flavors.map(f=>`<span class="flavor">${echapper(f)}</span>`).join('')}</div>
+        ${p.place?`<div class="post-place">📍 Fumé à ${echapper(p.place)}</div>`:''}
       </div>
       <div class="post-actions">
         <button class="act ${p.liked?'on':''}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes}</button>
@@ -2257,7 +2257,7 @@ function likersHtml(p){
   const vus=ids.slice(0,3), reste=ids.length-vus.length;
   const pastilles=vus.map(uid=>{
     const c=avColors[avIndex(uid)]||avColors[0];
-    return `<span class="lk" style="background:${c[0]};color:${c[1]}">${initialsOf(nomDuMembre(uid))}</span>`;
+    return `<span class="lk" style="background:${c[0]};color:${c[1]}">${echapper(initialsOf(nomDuMembre(uid)))}</span>`;
   }).join('')+(reste>0?`<span class="lk lk-plus">+${reste}</span>`:'');
   const libelle=libelleLikers(p).replace(/"/g,'&quot;');
   return `<span class="likers" role="button" tabindex="0" title="${libelle}" aria-label="${libelle}"
@@ -2356,8 +2356,8 @@ function renderDiscover(){
     return `<div class="disc-card" onclick="openCigarDetail('${c.id}')">
       <div class="disc-img" style="background:${p.fill}">${cigarHtml(c.terroir,70)}</div>
       <div class="disc-info">
-        <div class="disc-name">${c.name}</div>
-        <div class="disc-sub">${sub}</div>
+        <div class="disc-name">${echapper(c.name)}</div>
+        <div class="disc-sub">${echapper(sub)}</div>
         ${score}
       </div>
     </div>`;
@@ -2395,7 +2395,7 @@ function renderTrending(){
   document.getElementById('trending').innerHTML=trend.length?trend.map((x,i)=>`
     <div class="rank-row" onclick="openCigarDetail('${x.c.id}')" style="cursor:pointer">
       <div class="rank-n">#${i+1}</div>
-      <div class="rank-info"><div class="rank-name">${x.c.name}</div><div class="rank-sub">${x.c.country||''}${hebdo?` · ${x.n} dégustation${x.n>1?'s':''}`:(x.c.profile?' · '+x.c.profile:'')}</div></div>
+      <div class="rank-info"><div class="rank-name">${echapper(x.c.name)}</div><div class="rank-sub">${echapper(x.c.country||'')}${hebdo?` · ${x.n} dégustation${x.n>1?'s':''}`:(x.c.profile?' · '+echapper(x.c.profile):'')}</div></div>
       <div class="rank-score">⭐ ${x.note.toFixed(1)}</div>
     </div>`).join('')
     :'<div class="rail-empty">Aucun cigare noté pour le moment.</div>';
@@ -2445,12 +2445,12 @@ function ligneLot(l,k,seul){
   const age=dureeEnCave(l.addedRaw);
   if(age)bouts.push(`${age.mois>=12?'🥃':'⏳'} en cave depuis ${age.texte}`);
   else if(l.added)bouts.push(`🗓️ ${l.added}`);
-  if(l.boughtIn)bouts.push(`📍 ${l.boughtIn}`);
+  if(l.boughtIn)bouts.push(`📍 ${echapper(l.boughtIn)}`);
   if(l.price!==null&&l.price!==undefined)bouts.push(`💶 ${fmtPrix(l.price)} l'unité${l.qty>1?` · ${fmtPrix(l.price*l.qty)}`:''}`);
   return `<div class="cave-item${seul?'':' cave-lot'}" onclick="openEditCaveSheet('${l.id}')">
     <div class="cave-bar" style="background:${(palette[k]||palette.autre).band}"></div>
     <div class="cave-info">
-      ${seul?`<div class="cave-name">${l.name}</div><div class="cave-detail">${l.detail}</div>`:''}
+      ${seul?`<div class="cave-name">${echapper(l.name)}</div><div class="cave-detail">${echapper(l.detail)}</div>`:''}
       ${bouts.length?`<span class="cave-date">${bouts.join(' · ')}</span>`:`<span class="cave-date">Lot sans détail</span>`}
     </div>
     <span class="cave-qty">×${l.qty}</span>
@@ -2537,7 +2537,7 @@ function renderCave(){
       h+=`<div class="cave-groupe">
         <div class="cave-item cave-tete">
           <div class="cave-bar" style="background:${(palette[k]||palette.autre).band}"></div>
-          <div class="cave-info"><div class="cave-name">${g.nom}</div><div class="cave-detail">${g.detail}</div>
+          <div class="cave-info"><div class="cave-name">${echapper(g.nom)}</div><div class="cave-detail">${echapper(g.detail)}</div>
             <span class="cave-date">${g.lots.length} lots${prix?' · '+prix:''}${g.valeur>0?` · ${fmtPrix(g.valeur)} au total`:''}</span>
           </div>
           <span class="cave-qty">×${g.qty}</span>
@@ -2548,7 +2548,7 @@ function renderCave(){
     h+='</div>';
   });
   document.getElementById('cave-shelves').innerHTML = h ? h
-    : (q ? `<div class="rail-empty" style="padding:32px 0">Aucune référence ne correspond à « ${document.getElementById('cave-search').value.trim()} ».</div>`
+    : (q ? `<div class="rail-empty" style="padding:32px 0">Aucune référence ne correspond à « ${echapper(document.getElementById('cave-search').value.trim())} ».</div>`
          : messageVide('Votre cave est vide.<br>Appuyez sur ✚ pour ajouter une référence.'));
 }
 
@@ -2624,7 +2624,7 @@ function wlAcSearch(q){
     const sub=[c.country,c.module||c.vitola].filter(x=>x&&x!=='—').join(' · ');
     return `<div class="ac-item" onclick="wlAcPick('${c.id}')">
       <div class="ac-thumb" style="background:${p.fill}">${cigarHtml(c.terroir,30)}</div>
-      <div><div class="ac-name">${c.name}</div><div class="ac-sub">${sub}</div></div>
+      <div><div class="ac-name">${echapper(c.name)}</div><div class="ac-sub">${echapper(sub)}</div></div>
     </div>`;
   }).join('');
   list.classList.add('open');
@@ -2802,7 +2802,7 @@ function seanceCardHtml(s){
   // rail n'avaient plus la même hauteur
   const pastilles=parts.slice(0,3).map(p=>{
     const c=avColors[p.av]||avColors[0];
-    return `<span class="seance-av" style="background:${c[0]};color:${c[1]}">${p.init}</span>`;
+    return `<span class="seance-av" style="background:${c[0]};color:${c[1]}">${echapper(p.init)}</span>`;
   }).join('')+(parts.length>3?`<span class="seance-av seance-av-plus">+${parts.length-3}</span>`:'');
   return `<div class="seance-card" onclick="openSessionDetail('${s.id}')">
     <div class="seance-visual" style="background:${pal.fill}">${cigarHtml(s.terroir,86)}</div>
@@ -2853,7 +2853,7 @@ function tableauSeance(parts){
   const lignes=parts.map(p=>{
     const c=avColors[p.av]||avColors[0];
     return `<div class="sc-row" onclick="closeSheet('seance-overlay');openPostDetail('${p.id}')">
-      <span class="sc-who"><span class="seance-av" style="background:${c[0]};color:${c[1]}">${p.init}</span>${echapper(p.user)}</span>
+      <span class="sc-who"><span class="seance-av" style="background:${c[0]};color:${c[1]}">${echapper(p.init)}</span>${echapper(p.user)}</span>
       ${cel(p.thirds&&p.thirds.t1)}${cel(p.thirds&&p.thirds.t2)}${cel(p.thirds&&p.thirds.t3)}
       <span class="sc-v sc-glob">${un(p.rating||0)}</span>
     </div>`;
@@ -2911,7 +2911,7 @@ function scAcSearch(q){
     const sub=[c.country,c.module||c.vitola].filter(x=>x&&x!=='—').join(' · ');
     return `<div class="ac-item" onclick="scAcPick('${c.id}')">
       <div class="ac-thumb" style="background:${p.fill}">${cigarHtml(c.terroir,30)}</div>
-      <div><div class="ac-name">${c.name}</div><div class="ac-sub">${sub}</div></div>
+      <div><div class="ac-name">${echapper(c.name)}</div><div class="ac-sub">${echapper(sub)}</div></div>
     </div>`;
   }).join('');
   list.classList.add('open');
@@ -3084,14 +3084,14 @@ let viewedMemberId=null;
 function slugify(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'').slice(0,20);}
 function profPostCard(p){
   const pal=palette[p.terroir]||palette.cuba;
-  const flav=(p.flavors||[]).slice(0,5).map(f=>`<span class="flavor">${f}</span>`).join('');
+  const flav=(p.flavors||[]).slice(0,5).map(f=>`<span class="flavor">${echapper(f)}</span>`).join('');
   return `<div class="pp-card" onclick="openPostDetail('${p.id}')" style="cursor:pointer">
     <div class="pp-thumb" style="background:${pal.fill}">${cigarHtml(p.terroir,52)}</div>
     <div class="pp-body">
-      <div class="pp-top"><span class="pp-name">${p.name}</span><span class="pp-rate"><span style="color:var(--gold)">●</span> ${(p.rating||0).toFixed(1)}</span></div>
-      <div class="pp-origin">${p.origin||''} · ${p.time}</div>
+      <div class="pp-top"><span class="pp-name">${echapper(p.name)}</span><span class="pp-rate"><span style="color:var(--gold)">●</span> ${(p.rating||0).toFixed(1)}</span></div>
+      <div class="pp-origin">${echapper(p.origin||'')} · ${p.time}</div>
       ${tiersHtml(p,true)}
-      ${p.note?`<p class="pp-note">${p.note}</p>`:''}
+      ${p.note?`<p class="pp-note">${echapper(p.note)}</p>`:''}
       ${flav?`<div class="pp-flavors">${flav}</div>`:''}
     </div>
   </div>`;
@@ -3160,7 +3160,7 @@ function renderPalais(posts){
       ${ligne('Terroirs explorés',axes.length)}
       ${force?ligne('Force la plus fumée',force):''}
     </div>
-    ${aromes.length?`<div class="spec-flavors" style="margin-top:10px">${aromes.map(f=>`<span class="flavor">${f}</span>`).join('')}</div>`:''}`;
+    ${aromes.length?`<div class="spec-flavors" style="margin-top:10px">${aromes.map(f=>`<span class="flavor">${echapper(f)}</span>`).join('')}</div>`:''}`;
 
   box.innerHTML = axes.length>=3
     ? radarSvg(axes)+`<div>${resume}</div>`
@@ -3268,7 +3268,7 @@ function historiqueHtml(c){
 }
 function specCardHtml(c,badge,modifiable){
   const p=palette[c.terroir]||palette.autre;
-  const flavors=(c.flavors||[]).map(f=>`<span class="flavor">${f}</span>`).join('');
+  const flavors=(c.flavors||[]).map(f=>`<span class="flavor">${echapper(f)}</span>`).join('');
   let strengthRow='';
   if(c.strength){let pips='';for(let i=1;i<=5;i++)pips+=`<span class="spec-pip ${i<=c.strength?'on':''}"></span>`;strengthRow=`<div class="spec-row"><span class="spec-k">Force</span><span class="spec-v spec-strength">${pips}</span></div>`;}
   return `<div class="spec-card">
@@ -3278,15 +3278,15 @@ function specCardHtml(c,badge,modifiable){
       ${c.score?`<div class="spec-score-pill">⭐ ${c.score.toFixed(1)}</div>`:''}
     </div>
     <div class="spec-body">
-      <div class="spec-name">${c.name}</div>
-      <div class="spec-brand">${c.brand?c.brand+' · ':''}${c.country||''}</div>
+      <div class="spec-name">${echapper(c.name)}</div>
+      <div class="spec-brand">${c.brand?echapper(c.brand)+' · ':''}${echapper(c.country||'')}</div>
       <div class="spec-grid">
-        ${c.vitola?`<div class="spec-row"><span class="spec-k">Vitole</span><span class="spec-v">${c.vitola}</span></div>`:''}
-        ${c.module?`<div class="spec-row"><span class="spec-k">Module</span><span class="spec-v">${c.module}</span></div>`:''}
+        ${c.vitola?`<div class="spec-row"><span class="spec-k">Vitole</span><span class="spec-v">${echapper(c.vitola)}</span></div>`:''}
+        ${c.module?`<div class="spec-row"><span class="spec-k">Module</span><span class="spec-v">${echapper(c.module)}</span></div>`:''}
         ${(c.length&&c.ring)?`<div class="spec-row"><span class="spec-k">Format</span><span class="spec-v">${c.length} mm · RG ${c.ring}</span></div>`:''}
-        ${c.wrapper?`<div class="spec-row"><span class="spec-k">Cape</span><span class="spec-v">${c.wrapper}</span></div>`:''}
-        ${c.binder?`<div class="spec-row"><span class="spec-k">Sous-cape</span><span class="spec-v">${c.binder}</span></div>`:''}
-        ${c.filler?`<div class="spec-row"><span class="spec-k">Tripe</span><span class="spec-v">${c.filler}</span></div>`:''}
+        ${c.wrapper?`<div class="spec-row"><span class="spec-k">Cape</span><span class="spec-v">${echapper(c.wrapper)}</span></div>`:''}
+        ${c.binder?`<div class="spec-row"><span class="spec-k">Sous-cape</span><span class="spec-v">${echapper(c.binder)}</span></div>`:''}
+        ${c.filler?`<div class="spec-row"><span class="spec-k">Tripe</span><span class="spec-v">${echapper(c.filler)}</span></div>`:''}
         ${strengthRow}
         ${c.votes?`<div class="spec-row"><span class="spec-k">Avis</span><span class="spec-v">${c.votes.toLocaleString('fr-FR')}</span></div>`:''}
       </div>
@@ -3314,7 +3314,7 @@ function acSearch(q){
     const sub=[c.country,c.module||c.force].filter(Boolean).join(' · ');
     return `<div class="ac-item" onclick="acPick('${c.id}')">
       <div class="ac-thumb" style="background:${p.fill}">${cigarHtml(c.terroir,30)}</div>
-      <div><div class="ac-name">${c.name}</div><div class="ac-sub">${sub}</div></div>
+      <div><div class="ac-name">${echapper(c.name)}</div><div class="ac-sub">${echapper(sub)}</div></div>
     </div>`;
   }).join('');
   if(!matches.length)h=`<div class="ac-empty">Aucune correspondance dans le catalogue.</div>`;
@@ -3355,14 +3355,14 @@ function acCreate(){
    les arômes relevés — vaut d'autant plus ici qu'on vient comparer. */
 function ficheTastingCard(p){
   const av=avColors[p.av]||avColors[0];
-  const flav=(p.flavors||[]).slice(0,5).map(f=>`<span class="flavor">${f}</span>`).join('');
+  const flav=(p.flavors||[]).slice(0,5).map(f=>`<span class="flavor">${echapper(f)}</span>`).join('');
   return `<div class="pp-card" onclick="closeSheet('detail-overlay');openPostDetail('${p.id}')" style="cursor:pointer">
-    <div class="pp-thumb" style="background:${av[0]};color:${av[1]};font-family:var(--serif);font-size:22px;font-weight:600">${p.init}</div>
+    <div class="pp-thumb" style="background:${av[0]};color:${av[1]};font-family:var(--serif);font-size:22px;font-weight:600">${echapper(p.init)}</div>
     <div class="pp-body">
-      <div class="pp-top"><span class="pp-name">${p.user}</span><span class="pp-rate"><span style="color:var(--gold)">●</span> ${(p.rating||0).toFixed(1)}</span></div>
+      <div class="pp-top"><span class="pp-name">${echapper(p.user)}</span><span class="pp-rate"><span style="color:var(--gold)">●</span> ${(p.rating||0).toFixed(1)}</span></div>
       <div class="pp-origin">${p.time}</div>
       ${tiersHtml(p,true)}
-      ${p.note?`<p class="pp-note">${p.note}</p>`:''}
+      ${p.note?`<p class="pp-note">${echapper(p.note)}</p>`:''}
       ${flav?`<div class="pp-flavors">${flav}</div>`:''}
     </div>
   </div>`;
@@ -3381,7 +3381,7 @@ function openCigarDetail(id){
   document.getElementById('detail-body').innerHTML=
     `<h3 class="serif" style="margin-bottom:14px">Fiche cigare</h3>`+
     specCardHtml(c,'Fiche catalogue')+
-    (c.profile?`<p style="font-size:13px;color:var(--ink-2);margin:-4px 2px 4px;line-height:1.55">${c.profile}</p>`:'')+
+    (c.profile?`<p style="font-size:13px;color:var(--ink-2);margin:-4px 2px 4px;line-height:1.55">${echapper(c.profile)}</p>`:'')+
     prixFrancaisHtml(c.name)+
     bloc;
   document.getElementById('detail-log').onclick=()=>{closeSheet('detail-overlay');openFumeeSheet();acPick(c.id);};
@@ -3474,24 +3474,24 @@ function openPostDetail(id){
   const c=avColors[p.av]||avColors[0];
   const thirdsLine=aTiers(p)
     ? `<div class="pd-thirds">${['Premier tiers','Deuxième tiers','Dernier tiers'].map((l,j)=>{const v=[p.thirds.t1,p.thirds.t2,p.thirds.t3][j];return `<div class="pd-third"><span>${l}</span><b>${v?v.toFixed(1):'—'}</b></div>`}).join('')}</div>` : '';
-  const flav=(p.flavors||[]).map(f=>`<span class="flavor">${f}</span>`).join('');
+  const flav=(p.flavors||[]).map(f=>`<span class="flavor">${echapper(f)}</span>`).join('');
   const cInfo=ficheOf(p);
   document.getElementById('post-detail-body').innerHTML=`
     <div class="pd-head" onclick="closeSheet('post-overlay');openMemberProfile('${p.user_id}')" style="cursor:pointer">
-      <div class="av" style="background:${c[0]};color:${c[1]}">${p.init}</div>
-      <div><div class="post-user">${p.user}</div><div class="post-meta">${p.time}</div></div>
+      <div class="av" style="background:${c[0]};color:${c[1]}">${echapper(p.init)}</div>
+      <div><div class="post-user">${echapper(p.user)}</div><div class="post-meta">${p.time}</div></div>
     </div>
     <div class="pd-visual" style="background:${pal.fill}">${p.photoUrl
-      ? `<img src="${p.photoUrl}" alt="Bague de ${p.name}" style="width:100%;height:100%;object-fit:cover">`
+      ? `<img src="${echapper(p.photoUrl)}" alt="Bague de ${echapper(p.name)}" style="width:100%;height:100%;object-fit:cover">`
       : cigarHtml(p.terroir,130)}
       <div class="post-rating"><span style="color:var(--gold)">●</span> ${(p.rating||0).toFixed(1)}</div>
     </div>
-    <div class="pd-name serif">${p.name}</div>
-    ${p.origin?`<div class="pd-origin">📍 ${p.origin}</div>`:''}
+    <div class="pd-name serif">${echapper(p.name)}</div>
+    ${p.origin?`<div class="pd-origin">📍 ${echapper(p.origin)}</div>`:''}
     ${thirdsLine}
-    ${p.note?`<p class="pd-note">${p.note}</p>`:''}
+    ${p.note?`<p class="pd-note">${echapper(p.note)}</p>`:''}
     ${flav?`<div class="flavors" style="margin-top:6px">${flav}</div>`:''}
-    ${p.place?`<div class="post-place" style="margin-top:10px">📍 Fumé à ${p.place}</div>`:''}
+    ${p.place?`<div class="post-place" style="margin-top:10px">📍 Fumé à ${echapper(p.place)}</div>`:''}
     <span style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
       <button class="pd-like ${p.liked?'on':''}" id="pd-like-btn" data-pid="${p.id}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes} j'aime</button>
       <span id="pd-likers">${likersHtml(p)}</span>
@@ -3724,7 +3724,7 @@ function caveAcSearch(q){
     const sub=[c.country,c.module||c.vitola].filter(x=>x&&x!=='—').join(' · ');
     return `<div class="ac-item" onclick="caveAcPick('${c.id}')">
       <div class="ac-thumb" style="background:${p.fill}">${cigarHtml(c.terroir,30)}</div>
-      <div><div class="ac-name">${c.name}</div><div class="ac-sub">${sub}</div></div>
+      <div><div class="ac-name">${echapper(c.name)}</div><div class="ac-sub">${echapper(sub)}</div></div>
     </div>`;
   }).join('');
   list.classList.add('open');
