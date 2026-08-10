@@ -2,7 +2,7 @@
 <html lang="fr" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="dark">
 <title>MENSA — Le cercle des amateurs de cigares</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -741,6 +741,20 @@ body{
 .third{display:flex;align-items:center;gap:10px}
 .third-lbl{font-size:12.5px;color:var(--ink-2);width:104px;flex-shrink:0}
 .stars-track{position:relative;display:inline-block;cursor:pointer;line-height:1;font-size:21px;user-select:none;touch-action:none}
+
+/* ===== ZOOM MOBILE =====
+   La double-tape agrandissait la page et l'y laissait. « manipulation »
+   conserve le défilement et le pincement natif, mais supprime ce geste. */
+body{touch-action:manipulation}
+
+/* La vraie cause du zoom intempestif : iOS agrandit la page dès qu'on donne
+   le focus à un champ dont le texte fait moins de 16 px, et ne revient jamais
+   en arrière — d'où une app bloquée agrandie et décalée. On passe donc tous
+   les champs à 16 px là où le doigt est le moyen de saisie. */
+@media (max-width:768px), (pointer:coarse){
+  .field input,.field textarea,.search input,.cm-form textarea,.cm-edit-input,
+  .bio-textarea,.badge-libre input,.auth-field input,.disc-sort select{font-size:16px}
+}
 .stars-base{color:var(--line-2);letter-spacing:5px}
 .stars-fill{position:absolute;top:0;left:0;width:0;overflow:hidden;white-space:nowrap;color:var(--gold);letter-spacing:5px;pointer-events:none}
 .third-val{font-size:12.5px;font-weight:600;color:var(--ink-2);min-width:26px;text-align:right}
@@ -4351,6 +4365,12 @@ window.addEventListener('hashchange',()=>{
   if(location.hash)appliquerAncre();
   else{ closeSheet('post-overlay'); closeSheet('detail-overlay'); }
 });
+/* Safari ignore « user-scalable=no » depuis iOS 10 : seuls les événements de
+   geste y bloquent le pincement. Sans cela l'app restait agrandie et décalée
+   après un pincement involontaire, sans moyen évident de revenir. */
+['gesturestart','gesturechange','gestureend'].forEach(t=>
+  document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
+
 /* Échap ferme d'abord une liste de suggestions ouverte, puis la fenêtre du
    dessus : les panneaux se fermaient au clic extérieur mais pas au clavier. */
 document.addEventListener('keydown',e=>{
