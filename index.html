@@ -84,6 +84,16 @@ body{
 .rech-txt small{font-size:11.5px;color:var(--ink-3);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rech-reste{font-size:11.5px;color:var(--ink-3);padding:4px 11px 0}
+
+/* ===== GALERIE DES BAGUES ===== */
+.bagues{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:9px}
+.bague-vue{position:relative;aspect-ratio:1;padding:0;overflow:hidden;cursor:pointer;
+  border:1px solid var(--line);border-radius:12px;background:var(--card);transition:.15s}
+.bague-vue:hover{border-color:var(--cognac)}
+.bague-vue img{width:100%;height:100%;object-fit:cover;display:block}
+.bague-qui{position:absolute;left:6px;bottom:6px;width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif);font-size:10px;font-weight:600;border:1.5px solid rgba(0,0,0,.25)}
 .icon-btn{
   width:38px;height:38px;border-radius:10px;border:1px solid var(--line);
   background:var(--card);color:var(--ink-2);cursor:pointer;
@@ -3732,6 +3742,23 @@ function ficheTastingCard(p){
 function tastingsOfFiche(c){
   return feed.filter(p=>{const f=ficheOf(p);return f&&f.id===c.id;});
 }
+/* La galerie des bagues. Les photos ne vivaient que sur la dégustation qui
+   les portait ; réunies sur la fiche, elles disent d'un coup d'œil à quoi
+   reconnaître le cigare en vitrine. Chacune renvoie à sa dégustation, qui
+   l'affiche en grand et dit qui l'a prise. */
+function galerieBaguesHtml(c){
+  const avec=tastingsOfFiche(c).filter(p=>p.photoUrl);
+  if(!avec.length)return '';
+  return `<div class="sec-label" style="margin:22px 0 12px">Les bagues · ${avec.length}</div>
+    <div class="bagues">${avec.map(p=>{
+      const col=avColors[p.av]||avColors[0];
+      return `<button class="bague-vue" onclick="closeSheet('detail-overlay');openPostDetail('${p.id}')"
+        aria-label="Bague photographiée par ${echapper(p.user)}">
+        <img src="${echapper(p.photoUrl)}" alt="Bague de ${echapper(c.name)} par ${echapper(p.user)}" loading="lazy">
+        <span class="bague-qui" style="background:${col[0]};color:${col[1]}">${echapper(p.init)}</span>
+      </button>`;
+    }).join('')}</div>`;
+}
 function openCigarDetail(id){
   const c=catalog.find(x=>x.id===id);if(!c)return;
   const degs=tastingsOfFiche(c);
@@ -3745,6 +3772,7 @@ function openCigarDetail(id){
     specCardHtml(c,'Fiche catalogue')+
     (c.profile?`<p style="font-size:13px;color:var(--ink-2);margin:-4px 2px 4px;line-height:1.55">${echapper(c.profile)}</p>`:'')+
     prixFrancaisHtml(c.name)+
+    galerieBaguesHtml(c)+
     bloc;
   document.getElementById('detail-log').onclick=()=>{closeSheet('detail-overlay');openFumeeSheet();acPick(c.id);};
   // les boutons ajoutés sont retirés d'abord, sinon ils s'empilent d'une ouverture à l'autre
