@@ -4552,7 +4552,34 @@ async function saveCave(){
   const assouvie=await consommerEnvie(envie);
   toast(assouvie?'Acheté — retiré de votre wishlist.':(modif?'Référence modifiée.':'Ajouté à votre cave.'));
 }
-document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
+/* ---- Fermeture accidentelle ----
+   Un panneau de saisie se fermait au moindre clic hors de la feuille, et à la
+   touche Échap. Sur un téléphone, un doigt qui glisse à côté effaçait la note,
+   les tiers et la photo sans un mot. Ces deux gestes demandent désormais
+   confirmation dès que quelque chose a été saisi ; les panneaux de lecture,
+   eux, se ferment toujours aussitôt. */
+const PANNEAUX_DE_SAISIE=['fumee-overlay','cave-overlay','wl-overlay',
+  'seance-edit-overlay','cigar-edit-overlay','bio-overlay'];
+function panneauModifie(id){
+  const o=document.getElementById(id);
+  if(!o||!o.classList.contains('open'))return false;
+  const rempli=[...o.querySelectorAll('input,textarea')].some(el=>
+    el.type!=='file'&&el.type!=='checkbox'&&el.type!=='date'&&(el.value||'').trim()!=='');
+  if(rempli)return true;
+  // le formulaire de dégustation retient aussi ce qui ne passe par aucun champ
+  if(id==='fumee-overlay')
+    return fRating>0||!!selectedTerroir||!!photoEnCours
+      ||thirds.t1>0||thirds.t2>0||thirds.t3>0;
+  return false;
+}
+function demanderFermeture(id){
+  if(PANNEAUX_DE_SAISIE.includes(id)&&panneauModifie(id)
+     &&!confirm('Fermer sans enregistrer ? Ce que vous avez saisi sera perdu.'))return;
+  closeSheet(id);
+}
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{
+  if(e.target===o)demanderFermeture(o.id);
+}));
 /* Navigation par ancre : coller un lien ou revenir en arrière rouvre la cible. */
 window.addEventListener('hashchange',()=>{
   if(!currentUser)return;
@@ -4572,7 +4599,7 @@ document.addEventListener('keydown',e=>{
   const ac=[...document.querySelectorAll('.ac-list.open')].pop();
   if(ac){ac.classList.remove('open');return;}
   const sheet=[...document.querySelectorAll('.overlay.open')].pop();
-  if(sheet)sheet.classList.remove('open');
+  if(sheet)demanderFermeture(sheet.id);
 });
 /* Tirer pour rafraîchir, sur le Fil et uniquement en haut de page, pour ne pas
    entrer en conflit avec le défilement ni avec les panneaux ouverts. */
