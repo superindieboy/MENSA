@@ -1248,6 +1248,23 @@ body{touch-action:manipulation}
         <div class="ac-list" id="cave-ac-list"></div>
       </div>
     </div>
+    <div class="field" id="c-newcigar-toggle">
+      <button type="button" class="btn-ghost" style="width:100%" onclick="basculerFicheCave()" id="c-newcigar-toggle-btn">+ Ce cigare n'est pas dans le catalogue ? Ajouter sa fiche</button>
+    </div>
+    <div id="c-newcigar-fields" style="display:none">
+      <div class="field"><label>Marque</label><input id="cc-brand" placeholder="Ex : Montecristo"></div>
+      <div class="field"><label>Vitole</label><input id="cc-vitola" placeholder="Ex : Robusto"></div>
+      <div class="field"><label>Module</label><input id="cc-module" placeholder="Ex : DE Gros robusto"></div>
+      <div class="field field-pair">
+        <div><label>Longueur (mm)</label><input id="cc-length" type="number" min="0"></div>
+        <div><label>Diamètre (RG)</label><input id="cc-ring" type="number" min="0" placeholder="Ex : 50 = 19,8 mm"></div>
+      </div>
+      <div class="field"><label>Cape</label><input id="cc-wrapper" placeholder="Ex : Équateur"></div>
+      <div class="field"><label>Sous-cape</label><input id="cc-binder" placeholder="Ex : Nicaragua"></div>
+      <div class="field"><label>Tripe</label><input id="cc-filler" placeholder="Ex : Nicaragua, Honduras"></div>
+      <div class="field"><label>Force (1 à 5)</label><input id="cc-strength" type="number" min="1" max="5"></div>
+    </div>
+
     <div class="field"><label>Terroir</label><input id="c-country" placeholder="Ex : Cuba, Nicaragua, Honduras…"></div>
     <div class="field"><label>Module</label><input id="c-detail" placeholder="Ex : Robusto"></div>
     <div class="field field-pair">
@@ -1259,6 +1276,7 @@ body{touch-action:manipulation}
       <div><label>Pays d'achat <span style="color:var(--ink-3);font-weight:400">— facultatif</span></label><input id="c-bought" type="text" autocomplete="off" placeholder="Ex : Cuba, France"></div>
     </div>
     <p style="font-size:11.5px;color:var(--ink-3);margin:-6px 0 16px;line-height:1.5">Chaque enregistrement est un lot d'achat. Rachetez le même cigare à un autre prix ou dans un autre pays, et les deux lots coexisteront.</p>
+    <div class="f-err" id="cave-err"></div>
     <div class="sheet-actions" id="cave-actions">
       <button class="btn-ghost" onclick="closeSheet('cave-overlay')">Annuler</button>
       <button class="btn-primary" id="cave-submit-btn" onclick="saveCave()">Ajouter</button>
@@ -4035,21 +4053,28 @@ function openFumeeSheet(){
   resetThirds();
   document.getElementById('fumee-overlay').classList.add('open');
 }
-const NEW_CIGAR_FIELDS=['nc-brand','nc-vitola','nc-module','nc-length','nc-ring','nc-wrapper','nc-binder','nc-filler','nc-strength'];
-function resetNewCigarFields(){
-  NEW_CIGAR_FIELDS.forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  document.getElementById('f-newcigar-fields').style.display='none';
-  document.getElementById('f-newcigar-toggle-btn').textContent="+ Ce cigare n'est pas dans le catalogue ? Ajouter sa fiche";
-  document.getElementById('f-newcigar-toggle').style.display='block';
+const CHAMPS_FICHE=['brand','vitola','module','length','ring','wrapper','binder','filler','strength'];
+const LIBELLE_FICHE_FERMEE="+ Ce cigare n'est pas dans le catalogue ? Ajouter sa fiche";
+function reinitFiche(cfg){
+  cfg=cfg||FICHE_DEGUSTATION;
+  CHAMPS_FICHE.forEach(n=>{const e=document.getElementById(cfg.prefixe+n);if(e)e.value='';});
+  document.getElementById(cfg.panneau).style.display='none';
+  document.getElementById(cfg.bascule+'-btn').textContent=LIBELLE_FICHE_FERMEE;
+  document.getElementById(cfg.bascule).style.display='block';
 }
-function toggleNewCigarFields(){
-  const box=document.getElementById('f-newcigar-fields');
-  const open=box.style.display!=='none';
-  box.style.display=open?'none':'block';
-  document.getElementById('f-newcigar-toggle-btn').textContent=open
-    ? "+ Ce cigare n'est pas dans le catalogue ? Ajouter sa fiche"
-    : "− Masquer la fiche catalogue";
+function basculerFiche(cfg){
+  cfg=cfg||FICHE_DEGUSTATION;
+  const box=document.getElementById(cfg.panneau);
+  const ouvert=box.style.display!=='none';
+  box.style.display=ouvert?'none':'block';
+  document.getElementById(cfg.bascule+'-btn').textContent=ouvert
+    ? LIBELLE_FICHE_FERMEE : "− Masquer la fiche catalogue";
 }
+// les gabarits appellent encore ces deux noms pour la dégustation
+function resetNewCigarFields(){ reinitFiche(FICHE_DEGUSTATION); }
+function toggleNewCigarFields(){ basculerFiche(FICHE_DEGUSTATION); }
+function reinitFicheCave(){ reinitFiche(FICHE_CAVE); }
+function basculerFicheCave(){ basculerFiche(FICHE_CAVE); }
 function openFumeeSheetFromPost(id){
   const p=feed.find(x=>x.id===id);if(!p)return;
   closeSheet('post-overlay');
@@ -4102,21 +4127,33 @@ function clearCaveFields(){
   ['c-name','c-country','c-detail','c-price','c-bought'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('c-qty').value=5;
   document.getElementById('c-added').value=todayISO();
-  caveSelectedTerroir=null;
+  caveSelectedTerroir=null; caveSelectedCigar=null;
+  const err=document.getElementById('cave-err'); if(err)err.textContent='';
+  reinitFiche(FICHE_CAVE);
   closeCaveAc();
   renderCaveSpec(null);
 }
 /* Recherche catalogue depuis le formulaire de cave.
    Le terroir retenu vient de la fiche choisie : plus fiable que de le
    déduire du texte libre saisi dans le champ Terroir. */
-let caveSelectedTerroir=null;
+let caveSelectedTerroir=null, caveSelectedCigar=null;
 function caveAcSearch(q){
   caveSelectedTerroir=null;
+  // une fiche retenue ne doit pas survivre au nom qu'on réécrit
+  if(caveSelectedCigar&&normCigar(caveSelectedCigar.name)!==normCigar(q)){
+    caveSelectedCigar=null; renderCaveSpec(null);
+    document.getElementById('c-newcigar-toggle').style.display='block';
+  }
   const list=document.getElementById('cave-ac-list');
   q=normCigar(q);
   if(q.length<2){list.classList.remove('open');list.innerHTML='';return;}
   const matches=catalog.filter(c=>normCigar([c.name,c.brand,c.country].join(' ')).includes(q)).slice(0,8);
-  if(!matches.length){list.classList.remove('open');list.innerHTML='';return;}
+  if(!matches.length){
+    // même issue que pour une dégustation : on propose d'en créer la fiche
+    list.innerHTML=`<div class="ac-create" onclick="caveAcCreate()">+ Créer une nouvelle fiche</div>`;
+    list.classList.add('open');
+    return;
+  }
   list.innerHTML=matches.map(c=>{
     const p=palette[c.terroir]||palette.autre;
     const sub=[c.country,c.module||c.vitola].filter(x=>x&&x!=='—').join(' · ');
@@ -4127,9 +4164,20 @@ function caveAcSearch(q){
   }).join('');
   list.classList.add('open');
 }
+/* Cigare absent du catalogue : on ouvre le panneau de fiche, comme au
+   formulaire de dégustation. */
+function caveAcCreate(){
+  caveSelectedCigar=null;
+  closeCaveAc();
+  renderCaveSpec(null);
+  ouvrirPanneauFiche(FICHE_CAVE);
+}
 function caveAcPick(id){
   const c=catalog.find(x=>x.id===id);if(!c)return;
   caveSelectedTerroir=c.terroir||null;
+  caveSelectedCigar=c;
+  reinitFiche(FICHE_CAVE);
+  document.getElementById('c-newcigar-toggle').style.display='none';
   document.getElementById('c-name').value=c.name;
   document.getElementById('c-country').value=(c.country&&c.country!=='—')?c.country:(countryMeta[c.terroir]||{}).label||'';
   const mod=(c.module&&c.module!=='—')?c.module:(c.vitola||'');
@@ -4173,6 +4221,7 @@ function openCaveSheetFromPost(id){
   document.getElementById('c-qty').value=5;
   document.getElementById('c-added').value=todayISO();
   caveSelectedTerroir=(c&&c.terroir)||p.terroir||null;
+  caveSelectedCigar=c||null;
   closeCaveAc();
   document.getElementById('cave-overlay').classList.add('open');
 }
@@ -4185,6 +4234,8 @@ function openEditCaveSheet(id){
   if(!currentUser||it.user_id!==currentUser.id)return;
   editingCaveId=id;
   caveSelectedTerroir=it.terroir||null;
+  caveSelectedCigar=ficheByName(it.name);   // sans quoi une simple correction redemanderait la fiche
+  reinitFiche(FICHE_CAVE);
   closeCaveAc();
   document.getElementById('cave-title').textContent='Modifier la référence';
   document.getElementById('cave-submit-btn').textContent='Enregistrer';
@@ -4472,11 +4523,21 @@ async function backfillCatalog(){
    Trois chemins y mènent, et aucun autre : choisir une fiche dans le catalogue,
    saisir un nom qui n'y désigne qu'une seule fiche, ou en créer une.
    Renvoie {id, nom} ou {erreur, ouvrirPanneau}. */
-async function resoudreFiche(nom,terroir,country){
-  if(!nom)return {erreur:'Choisissez un cigare dans le catalogue, ou renseignez sa fiche pour publier.',ouvrirPanneau:true};
+/* La cave suit exactement la même mécanique que la dégustation : mêmes trois
+   chemins, mêmes refus. Seuls changent les identifiants du panneau et le
+   préfixe des champs, d'où cette configuration plutôt qu'un second exemplaire
+   du raisonnement. */
+const FICHE_DEGUSTATION={panneau:'f-newcigar-fields',bascule:'f-newcigar-toggle',prefixe:'nc-',
+  verbe:'publier', choisie:()=>selectedCigar};
+const FICHE_CAVE={panneau:'c-newcigar-fields',bascule:'c-newcigar-toggle',prefixe:'cc-',
+  verbe:'enregistrer', choisie:()=>caveSelectedCigar};
+async function resoudreFiche(nom,terroir,country,cfg){
+  cfg=cfg||FICHE_DEGUSTATION;
+  if(!nom)return {erreur:`Choisissez un cigare dans le catalogue, ou renseignez sa fiche pour ${cfg.verbe}.`,ouvrirPanneau:true};
   // fiche explicitement choisie, à condition que le nom saisi lui corresponde encore
-  if(selectedCigar&&normCigar(selectedCigar.name)===normCigar(nom))
-    return {id:selectedCigar.id,nom:selectedCigar.name};
+  const choisie=cfg.choisie();
+  if(choisie&&normCigar(choisie.name)===normCigar(nom))
+    return {id:choisie.id,nom:choisie.name};
   const memes=catalog.filter(c=>normCigar(c.name)===normCigar(nom));
   if(memes.length===1)return {id:memes[0].id,nom:memes[0].name};
   // une ligne comme « Flor de Selva Clásica » couvre huit vitoles : rien ne
@@ -4484,24 +4545,25 @@ async function resoudreFiche(nom,terroir,country){
   if(memes.length>1)
     return {erreur:`${memes.length} formats portent ce nom. Choisissez le vôtre dans la liste de suggestions.`};
   // cigare inconnu : sa fiche doit être créée, et sciemment
-  if(document.getElementById('f-newcigar-fields').style.display==='none')
-    return {erreur:"Ce cigare n'est pas au catalogue. Renseignez sa fiche pour pouvoir publier.",ouvrirPanneau:true};
-  const val=id=>document.getElementById(id).value.trim();
+  if(document.getElementById(cfg.panneau).style.display==='none')
+    return {erreur:`Ce cigare n'est pas au catalogue. Renseignez sa fiche pour pouvoir ${cfg.verbe}.`,ouvrirPanneau:true};
+  const val=id=>document.getElementById(cfg.prefixe+id).value.trim();
   const {data,error}=await sb.from('catalog_items').insert({
-    user_id:currentUser.id,name:nom,brand:val('nc-brand'),vitola:val('nc-vitola'),
-    module:val('nc-module'),country,terroir,length:+val('nc-length')||null,ring:+val('nc-ring')||null,
-    wrapper:val('nc-wrapper'),binder:val('nc-binder'),filler:val('nc-filler'),
-    strength:+val('nc-strength')||null}).select();
+    user_id:currentUser.id,name:nom,brand:val('brand'),vitola:val('vitola'),
+    module:val('module'),country,terroir,length:+val('length')||null,ring:+val('ring')||null,
+    wrapper:val('wrapper'),binder:val('binder'),filler:val('filler'),
+    strength:+val('strength')||null}).select();
   if(error)return {erreur:"La fiche n'a pas pu être créée : "+(error.message||'réessayez.')};
   const creee=(data||[])[0];
   if(!creee)return {erreur:"La fiche n'a pas pu être créée. Réessayez."};
   await loadMemberCatalog();
   return {id:'m-'+creee.id,nom};
 }
-function ouvrirPanneauFiche(){
-  const box=document.getElementById('f-newcigar-fields');
-  if(box.style.display==='none')toggleNewCigarFields();
-  document.getElementById('f-newcigar-toggle').style.display='block';
+function ouvrirPanneauFiche(cfg){
+  cfg=cfg||FICHE_DEGUSTATION;
+  const box=document.getElementById(cfg.panneau);
+  if(box.style.display==='none')basculerFiche(cfg);
+  document.getElementById(cfg.bascule).style.display='block';
   box.scrollIntoView({block:'center',behavior:'smooth'});
 }
 /* Même précaution que pour les dégustations : Supabase renvoie { error } sans
@@ -4524,8 +4586,10 @@ async function writeCaveItem(champs,itemId){
 }
 async function saveCave(){
   if(!currentUser||!sb)return closeSheet('cave-overlay');
-  const name=document.getElementById('c-name').value.trim();if(!name)return closeSheet('cave-overlay');
-  const country=document.getElementById('c-country').value.trim().toLowerCase();
+  const name=document.getElementById('c-name').value.trim();
+  // la casse saisie sert à la fiche créée ; la version basse, à deviner le terroir
+  const paysSaisi=document.getElementById('c-country').value.trim();
+  const country=paysSaisi.toLowerCase();
   const detail=document.getElementById('c-detail').value.trim()||'—';
   const qty=+document.getElementById('c-qty').value||1;
   // Terroir de la fiche choisie si la recherche a servi, sinon lecture du texte saisi
@@ -4538,7 +4602,17 @@ async function saveCave(){
   const btn=document.getElementById('cave-submit-btn');
   if(btn.disabled)return;
   btn.disabled=true;
-  const champs={name,detail,terroir:k,qty,added,
+  // Même exigence que pour une dégustation : la référence doit désigner une
+  // fiche. Sans elle, ni le prix partagé ni la note du cercle ne s'y rattachent.
+  const err=document.getElementById('cave-err');
+  const fiche=await resoudreFiche(name,k,paysSaisi||(countryMeta[k]||{}).label||'',FICHE_CAVE);
+  if(fiche.erreur){
+    if(err)err.textContent=fiche.erreur; else toast(fiche.erreur,'err');
+    if(fiche.ouvrirPanneau)ouvrirPanneauFiche(FICHE_CAVE);
+    btn.disabled=false; return;
+  }
+  if(err)err.textContent='';
+  const champs={name:fiche.nom,detail,terroir:k,qty,added,
     price:(price!==null&&!isNaN(price))?price:null, bought_in:boughtIn||null};
   let lotId=null;
   try{
