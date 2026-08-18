@@ -734,6 +734,7 @@ body{
 .spec-row{display:flex;flex-direction:column;gap:1px}
 .spec-k{font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.05em}
 .spec-v{font-size:13px;font-weight:500}
+.spec-mm{display:block;font-size:10.5px;font-weight:400;color:var(--ink-3);margin-top:1px}
 .spec-strength{display:flex;gap:3px;align-items:center}
 .spec-pip{width:14px;height:6px;border-radius:3px;background:var(--line-2)}
 .spec-pip.on{background:var(--cognac)}
@@ -1080,7 +1081,7 @@ body{touch-action:manipulation}
       <div class="field"><label>Module</label><input id="nc-module" placeholder="Ex : DE Gros robusto"></div>
       <div class="field field-pair">
         <div><label>Longueur (mm)</label><input id="nc-length" type="number" min="0"></div>
-        <div><label>Diamètre (RG)</label><input id="nc-ring" type="number" min="0"></div>
+        <div><label>Diamètre (RG)</label><input id="nc-ring" type="number" min="0" placeholder="Ex : 50 = 19,8 mm"></div>
       </div>
       <div class="field"><label>Cape</label><input id="nc-wrapper" placeholder="Ex : Équateur"></div>
       <div class="field"><label>Sous-cape</label><input id="nc-binder" placeholder="Ex : Nicaragua"></div>
@@ -1196,7 +1197,7 @@ body{touch-action:manipulation}
     </div>
     <div class="field field-pair">
       <div><label>Longueur (mm)</label><input id="ec-length" type="number" min="0"></div>
-      <div><label>Diamètre (RG)</label><input id="ec-ring" type="number" min="0"></div>
+      <div><label>Diamètre (RG)</label><input id="ec-ring" type="number" min="0" placeholder="Ex : 50 = 19,8 mm"></div>
     </div>
     <div class="field"><label>Cape</label><input id="ec-wrapper" placeholder="Ex : Équateur"></div>
     <div class="field"><label>Sous-cape</label><input id="ec-binder" placeholder="Ex : Nicaragua"></div>
@@ -3638,6 +3639,13 @@ function historiqueHtml(c){
     <div class="hist-suite">${suite}</div>
     <p class="hist-verdict">${verdict}</p>`;
 }
+/* Le « ring gauge » se compte en soixante-quatrièmes de pouce, et son nom
+   n'a rien à voir avec la bague de papier — un faux ami qui trompe. On donne
+   donc l'équivalent en millimètres à côté. */
+function mmDuRing(rg){
+  if(!rg)return '';
+  return (rg*25.4/64).toFixed(1).replace('.',',')+' mm';
+}
 function specCardHtml(c,badge,modifiable){
   const p=palette[c.terroir]||palette.autre;
   const flavors=(c.flavors||[]).map(f=>`<span class="flavor">${echapper(f)}</span>`).join('');
@@ -3655,7 +3663,7 @@ function specCardHtml(c,badge,modifiable){
       <div class="spec-grid">
         ${c.vitola?`<div class="spec-row"><span class="spec-k">Vitole</span><span class="spec-v">${echapper(c.vitola)}</span></div>`:''}
         ${c.module?`<div class="spec-row"><span class="spec-k">Module</span><span class="spec-v">${echapper(c.module)}</span></div>`:''}
-        ${(c.length&&c.ring)?`<div class="spec-row"><span class="spec-k">Format</span><span class="spec-v">${c.length} mm · RG ${c.ring}</span></div>`:''}
+        ${(c.length&&c.ring)?`<div class="spec-row"><span class="spec-k">Format</span><span class="spec-v">${c.length} mm · RG ${c.ring}<small class="spec-mm">${mmDuRing(c.ring)}</small></span></div>`:''}
         ${c.wrapper?`<div class="spec-row"><span class="spec-k">Cape</span><span class="spec-v">${echapper(c.wrapper)}</span></div>`:''}
         ${c.binder?`<div class="spec-row"><span class="spec-k">Sous-cape</span><span class="spec-v">${echapper(c.binder)}</span></div>`:''}
         ${c.filler?`<div class="spec-row"><span class="spec-k">Tripe</span><span class="spec-v">${echapper(c.filler)}</span></div>`:''}
