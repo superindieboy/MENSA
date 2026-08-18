@@ -520,6 +520,8 @@ body{
 .shelf-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
 .shelf-title{display:flex;align-items:center;gap:9px;font-family:var(--serif);font-weight:600;font-size:17px}
 .flag{width:22px;height:15px;border-radius:2px;flex-shrink:0;display:block}
+/* dans une ligne de texte, le drapeau se pose sur la ligne de base */
+.flag-mini{width:15px;height:10px;display:inline-block;vertical-align:-1px;border-radius:1.5px}
 .shelf-count{font-size:11.5px;color:var(--ink-2);background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:3px 11px}
 .cave-item{
   display:flex;align-items:center;gap:13px;padding:13px 15px;
@@ -2184,6 +2186,41 @@ const DRAPEAUX={
 function flagHtml(code){
   return `<svg class="flag" viewBox="0 0 30 20" role="img" aria-hidden="true">${DRAPEAUX[code]||DRAPEAUX.autre}</svg>`;
 }
+/* Pays d'achat. Il ne suit pas les terroirs : on achète un cubain en Espagne
+   ou en Andorre. D'où ces quelques drapeaux de plus, et l'épingle en repli
+   pour tout pays qu'on n'a pas dessiné — mieux vaut une épingle qu'un
+   drapeau faux. */
+const DRAPEAUX_ACHAT={
+  fr:`<rect width="30" height="20" fill="#fff"/><rect width="10" height="20" fill="#002395"/><rect x="20" width="10" height="20" fill="#ED2939"/>`,
+  it:`<rect width="30" height="20" fill="#fff"/><rect width="10" height="20" fill="#008C45"/><rect x="20" width="10" height="20" fill="#CD212A"/>`,
+  be:`<rect width="30" height="20" fill="#FAE042"/><rect width="10" height="20" fill="#101010"/><rect x="20" width="10" height="20" fill="#ED2939"/>`,
+  ad:`<rect width="30" height="20" fill="#FEDF00"/><rect width="10" height="20" fill="#10069F"/><rect x="20" width="10" height="20" fill="#D50032"/>`,
+  es:`<rect width="30" height="20" fill="#AA151B"/><rect y="5" width="30" height="10" fill="#F1BF00"/>`,
+  de:`<rect width="30" height="20" fill="#DD0000"/><rect width="30" height="6.7" fill="#101010"/><rect y="13.3" width="30" height="6.7" fill="#FFCE00"/>`,
+  nl:`<rect width="30" height="20" fill="#fff"/><rect width="30" height="6.7" fill="#AE1C28"/><rect y="13.3" width="30" height="6.7" fill="#21468B"/>`,
+  lu:`<rect width="30" height="20" fill="#fff"/><rect width="30" height="6.7" fill="#ED2939"/><rect y="13.3" width="30" height="6.7" fill="#00A1DE"/>`,
+  pt:`<rect width="30" height="20" fill="#DA291C"/><rect width="12" height="20" fill="#046A38"/><circle cx="12" cy="10" r="3.6" fill="#FFE900"/>`,
+  ch:`<rect width="30" height="20" fill="#D52B1E"/><rect x="13" y="4" width="4" height="12" fill="#fff"/><rect x="9" y="8" width="12" height="4" fill="#fff"/>`,
+  gb:`<rect width="30" height="20" fill="#012169"/><path d="M0 0L30 20M30 0L0 20" stroke="#fff" stroke-width="4"/><path d="M0 0L30 20M30 0L0 20" stroke="#C8102E" stroke-width="2"/><path d="M15 0V20M0 10H30" stroke="#fff" stroke-width="6"/><path d="M15 0V20M0 10H30" stroke="#C8102E" stroke-width="3"/>`,
+  us:`<rect width="30" height="20" fill="#fff"/><g fill="#B31942"><rect width="30" height="1.6"/><rect y="3.1" width="30" height="1.6"/><rect y="6.2" width="30" height="1.6"/><rect y="9.2" width="30" height="1.6"/><rect y="12.3" width="30" height="1.6"/><rect y="15.4" width="30" height="1.6"/><rect y="18.4" width="30" height="1.6"/></g><rect width="12" height="10.8" fill="#0A3161"/>`,
+  ca:`<rect width="30" height="20" fill="#fff"/><rect width="7.5" height="20" fill="#D80621"/><rect x="22.5" width="7.5" height="20" fill="#D80621"/><polygon fill="#D80621" points="15,4 16.2,8 19.4,7.1 17.4,10.4 20,11.9 16.4,12.4 16.9,16 15,14.2 13.1,16 13.6,12.4 10,11.9 12.6,10.4 10.6,7.1 13.8,8"/>`
+};
+const PAYS_DRAPEAU={
+  france:'fr', espagne:'es', andorre:'ad', suisse:'ch', belgique:'be', italie:'it',
+  allemagne:'de', 'pays bas':'nl', hollande:'nl', portugal:'pt', luxembourg:'lu',
+  'royaume uni':'gb', angleterre:'gb', ecosse:'gb', 'grande bretagne':'gb',
+  'etats unis':'us', usa:'us', 'united states':'us', canada:'ca',
+  cuba:'cuba', 'republique dominicaine':'rep', 'rep dominicaine':'rep',
+  'saint domingue':'rep', nicaragua:'nica', honduras:'hon', 'costa rica':'cr',
+  mexique:'mex', bresil:'bre'
+};
+function drapeauAchat(pays){
+  const cle=PAYS_DRAPEAU[normCigar(pays)];
+  if(!cle)return '📍';
+  const dessin=DRAPEAUX_ACHAT[cle]||DRAPEAUX[cle];
+  if(!dessin)return '📍';
+  return `<svg class="flag flag-mini" viewBox="0 0 30 20" role="img" aria-hidden="true">${dessin}</svg>`;
+}
 
 /* ================= FEED ================= */
 function posterCard(it){
@@ -2720,7 +2757,7 @@ function ligneLot(l,k,seul){
   const age=dureeEnCave(l.addedRaw);
   if(age)bouts.push(`${age.mois>=12?'🥃':'⏳'} en cave depuis ${age.texte}`);
   else if(l.added)bouts.push(`🗓️ ${l.added}`);
-  if(l.boughtIn)bouts.push(`📍 ${echapper(l.boughtIn)}`);
+  if(l.boughtIn)bouts.push(`${drapeauAchat(l.boughtIn)} ${echapper(l.boughtIn)}`);
   if(l.price!==null&&l.price!==undefined)bouts.push(`💶 ${fmtPrix(l.price)} l'unité${l.qty>1?` · ${fmtPrix(l.price*l.qty)}`:''}`);
   return `<div class="cave-item${seul?'':' cave-lot'}" onclick="openEditCaveSheet('${l.id}')">
     <div class="cave-bar" style="background:${(palette[k]||palette.autre).band}"></div>
@@ -4548,11 +4585,14 @@ async function resoudreFiche(nom,terroir,country,cfg){
   cfg=cfg||FICHE_DEGUSTATION;
   if(!nom)return {erreur:`Choisissez un cigare dans le catalogue, ou renseignez sa fiche pour ${cfg.verbe}.`,ouvrirPanneau:true};
   // fiche explicitement choisie, à condition que le nom saisi lui corresponde encore
+  // on renvoie aussi terroir et module : l'appelant n'a pas à relire le
+  // catalogue, dont la mise à jour dépend d'un aller-retour réseau
+  const decrire=c=>({id:c.id,nom:c.name,terroir:c.terroir,
+    module:(c.module&&c.module!=='—')?c.module:(c.vitola||'')});
   const choisie=cfg.choisie();
-  if(choisie&&normCigar(choisie.name)===normCigar(nom))
-    return {id:choisie.id,nom:choisie.name};
+  if(choisie&&normCigar(choisie.name)===normCigar(nom))return decrire(choisie);
   const memes=catalog.filter(c=>normCigar(c.name)===normCigar(nom));
-  if(memes.length===1)return {id:memes[0].id,nom:memes[0].name};
+  if(memes.length===1)return decrire(memes[0]);
   // une ligne comme « Flor de Selva Clásica » couvre huit vitoles : rien ne
   // permet de trancher à la place du membre, et se tromper fausse la note
   if(memes.length>1)
@@ -4570,7 +4610,7 @@ async function resoudreFiche(nom,terroir,country,cfg){
   const creee=(data||[])[0];
   if(!creee)return {erreur:"La fiche n'a pas pu être créée. Réessayez."};
   await loadMemberCatalog();
-  return {id:'m-'+creee.id,nom};
+  return {id:'m-'+creee.id,nom,terroir,module:val('module')||val('vitola')};
 }
 function ouvrirPanneauFiche(cfg){
   cfg=cfg||FICHE_DEGUSTATION;
@@ -4624,10 +4664,8 @@ async function saveCave(){
   }
   if(err)err.textContent='';
   // terroir et module viennent de la fiche résolue, jamais d'une saisie parallèle
-  const f=catalog.find(x=>x.id===fiche.id);
-  const k=(f&&cave[f.terroir])?f.terroir:terroirNeuf;
-  const mod=f?((f.module&&f.module!=='—')?f.module:(f.vitola||'')):'';
-  const detail=mod||'—';
+  const k=(fiche.terroir&&cave[fiche.terroir])?fiche.terroir:terroirNeuf;
+  const detail=fiche.module||'—';
   const champs={name:fiche.nom,detail,terroir:k,qty,added,
     price:(price!==null&&!isNaN(price))?price:null, bought_in:boughtIn||null};
   let lotId=null;
