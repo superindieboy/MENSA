@@ -1255,6 +1255,20 @@ body{touch-action:manipulation}
       <div class="field"><label>Marque</label><input id="cc-brand" placeholder="Ex : Montecristo"></div>
       <div class="field"><label>Vitole</label><input id="cc-vitola" placeholder="Ex : Robusto"></div>
       <div class="field"><label>Module</label><input id="cc-module" placeholder="Ex : DE Gros robusto"></div>
+      <div class="field"><label>Pays</label><input id="cc-country" placeholder="Ex : Cuba"></div>
+      <div class="field">
+        <label>Terroir</label>
+        <div class="terroir-pick" id="cc-terroir">
+          <span class="tchip" data-t="cuba" onclick="pickCcTerroir(this)">Cuba</span>
+          <span class="tchip" data-t="nica" onclick="pickCcTerroir(this)">Nicaragua</span>
+          <span class="tchip" data-t="rep" onclick="pickCcTerroir(this)">Rép. dom.</span>
+          <span class="tchip" data-t="hon" onclick="pickCcTerroir(this)">Honduras</span>
+          <span class="tchip" data-t="cr" onclick="pickCcTerroir(this)">Costa Rica</span>
+          <span class="tchip" data-t="mex" onclick="pickCcTerroir(this)">Mexique</span>
+          <span class="tchip" data-t="bre" onclick="pickCcTerroir(this)">Brésil</span>
+          <span class="tchip" data-t="autre" onclick="pickCcTerroir(this)">Autre</span>
+        </div>
+      </div>
       <div class="field field-pair">
         <div><label>Longueur (mm)</label><input id="cc-length" type="number" min="0"></div>
         <div><label>Diamètre (RG)</label><input id="cc-ring" type="number" min="0" placeholder="Ex : 50 = 19,8 mm"></div>
@@ -1265,8 +1279,6 @@ body{touch-action:manipulation}
       <div class="field"><label>Force (1 à 5)</label><input id="cc-strength" type="number" min="1" max="5"></div>
     </div>
 
-    <div class="field"><label>Terroir</label><input id="c-country" placeholder="Ex : Cuba, Nicaragua, Honduras…"></div>
-    <div class="field"><label>Module</label><input id="c-detail" placeholder="Ex : Robusto"></div>
     <div class="field field-pair">
       <div><label>Quantité</label><input id="c-qty" type="number" value="5" min="1"></div>
       <div><label>Prix payé <span style="color:var(--ink-3);font-weight:400">— € l'unité</span></label><input id="c-price" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex : 24,50"></div>
@@ -3017,9 +3029,8 @@ function envieVersCave(){
   envieAConsommer=w.id;          // après caveAddMode, qui remet ce drapeau à zéro
   renderCaveSpec(ficheByName(w.name));
   document.getElementById('c-name').value=w.name;
-  document.getElementById('c-country').value=(countryMeta[w.terroir]||{}).label||'';
-  document.getElementById('c-detail').value=w.detail==='—'?'':(w.detail||'');
   caveSelectedTerroir=w.terroir||null;
+  caveSelectedCigar=ficheByName(w.name);
   closeCaveAc();
   document.getElementById('cave-overlay').classList.add('open');
 }
@@ -4124,12 +4135,12 @@ function caveAddMode(){
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function fmtPrix(v){return Number(v).toLocaleString('fr-FR',{style:'currency',currency:'EUR'});}
 function clearCaveFields(){
-  ['c-name','c-country','c-detail','c-price','c-bought'].forEach(id=>document.getElementById(id).value='');
+  ['c-name','c-price','c-bought'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('c-qty').value=5;
   document.getElementById('c-added').value=todayISO();
   caveSelectedTerroir=null; caveSelectedCigar=null;
   const err=document.getElementById('cave-err'); if(err)err.textContent='';
-  reinitFiche(FICHE_CAVE);
+  reinitFiche(FICHE_CAVE); setCcTerroir(null);
   closeCaveAc();
   renderCaveSpec(null);
 }
@@ -4179,11 +4190,17 @@ function caveAcPick(id){
   reinitFiche(FICHE_CAVE);
   document.getElementById('c-newcigar-toggle').style.display='none';
   document.getElementById('c-name').value=c.name;
-  document.getElementById('c-country').value=(c.country&&c.country!=='—')?c.country:(countryMeta[c.terroir]||{}).label||'';
-  const mod=(c.module&&c.module!=='—')?c.module:(c.vitola||'');
-  if(mod)document.getElementById('c-detail').value=mod;
-  renderCaveSpec(c);
+  renderCaveSpec(c);   // la fiche affichée dit le terroir et le module
   document.getElementById('cave-ac-list').classList.remove('open');
+}
+/* Le terroir d'une fiche qu'on crée depuis la cave. Le terroir et le module
+   d'une référence viennent désormais de sa fiche — ils lui appartiennent, et
+   les redemander au lot ouvrait la porte à deux vérités contradictoires. */
+let ccTerroir=null;
+function pickCcTerroir(el){ setCcTerroir(el.dataset.t); }
+function setCcTerroir(code){
+  ccTerroir=code||null;
+  document.querySelectorAll('#cc-terroir .tchip').forEach(ch=>ch.classList.toggle('on',ch.dataset.t===ccTerroir));
 }
 function caveTerroirFromText(s){
   s=(s||'').toLowerCase();
@@ -4216,8 +4233,6 @@ function openCaveSheetFromPost(id){
   const c=ficheOf(p);
   renderCaveSpec(c);
   document.getElementById('c-name').value=p.name||'';
-  document.getElementById('c-country').value=(countryMeta[(c&&c.terroir)||p.terroir]||{}).label||'';
-  document.getElementById('c-detail').value=(c&&c.module)||'';
   document.getElementById('c-qty').value=5;
   document.getElementById('c-added').value=todayISO();
   caveSelectedTerroir=(c&&c.terroir)||p.terroir||null;
@@ -4242,8 +4257,6 @@ function openEditCaveSheet(id){
   document.getElementById('cave-submit-btn').disabled=false;
   renderCaveSpec(ficheByName(it.name));
   document.getElementById('c-name').value=it.name||'';
-  document.getElementById('c-country').value=(countryMeta[it.terroir]||{}).label||'';
-  document.getElementById('c-detail').value=it.detail==='—'?'':(it.detail||'');
   document.getElementById('c-qty').value=it.qty||1;
   document.getElementById('c-price').value=(it.price===null||it.price===undefined)?'':it.price;
   document.getElementById('c-bought').value=it.boughtIn||'';
@@ -4587,13 +4600,10 @@ async function writeCaveItem(champs,itemId){
 async function saveCave(){
   if(!currentUser||!sb)return closeSheet('cave-overlay');
   const name=document.getElementById('c-name').value.trim();
-  // la casse saisie sert à la fiche créée ; la version basse, à deviner le terroir
-  const paysSaisi=document.getElementById('c-country').value.trim();
-  const country=paysSaisi.toLowerCase();
-  const detail=document.getElementById('c-detail').value.trim()||'—';
   const qty=+document.getElementById('c-qty').value||1;
-  // Terroir de la fiche choisie si la recherche a servi, sinon lecture du texte saisi
-  let k=caveSelectedTerroir&&cave[caveSelectedTerroir]?caveSelectedTerroir:caveTerroirFromText(country);
+  // le pays et le terroir ne servent qu'à une fiche qu'on créerait ici ;
+  // pour une fiche existante, c'est elle qui les porte
+  const paysSaisi=document.getElementById('cc-country').value.trim();
   const added=document.getElementById('c-added').value||todayISO();
   const saisiPrix=document.getElementById('c-price').value.trim();
   const price=saisiPrix===''?null:Math.round(parseFloat(saisiPrix.replace(',','.'))*100)/100;
@@ -4605,13 +4615,19 @@ async function saveCave(){
   // Même exigence que pour une dégustation : la référence doit désigner une
   // fiche. Sans elle, ni le prix partagé ni la note du cercle ne s'y rattachent.
   const err=document.getElementById('cave-err');
-  const fiche=await resoudreFiche(name,k,paysSaisi||(countryMeta[k]||{}).label||'',FICHE_CAVE);
+  const terroirNeuf=ccTerroir||caveTerroirFromText(paysSaisi.toLowerCase());
+  const fiche=await resoudreFiche(name,terroirNeuf,paysSaisi,FICHE_CAVE);
   if(fiche.erreur){
     if(err)err.textContent=fiche.erreur; else toast(fiche.erreur,'err');
     if(fiche.ouvrirPanneau)ouvrirPanneauFiche(FICHE_CAVE);
     btn.disabled=false; return;
   }
   if(err)err.textContent='';
+  // terroir et module viennent de la fiche résolue, jamais d'une saisie parallèle
+  const f=catalog.find(x=>x.id===fiche.id);
+  const k=(f&&cave[f.terroir])?f.terroir:terroirNeuf;
+  const mod=f?((f.module&&f.module!=='—')?f.module:(f.vitola||'')):'';
+  const detail=mod||'—';
   const champs={name:fiche.nom,detail,terroir:k,qty,added,
     price:(price!==null&&!isNaN(price))?price:null, bought_in:boughtIn||null};
   let lotId=null;
