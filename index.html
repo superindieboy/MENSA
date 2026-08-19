@@ -763,6 +763,10 @@ body{
 .spec-k{font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.05em}
 .spec-v{font-size:13px;font-weight:500}
 .spec-mm{display:block;font-size:10.5px;font-weight:400;color:var(--ink-3);margin-top:1px}
+/* Le prix se lit d'un coup d'œil dans une grille qui, sinon, se lit ligne à
+   ligne : c'est la seule valeur qu'on cherche sans lire l'intitulé. */
+.spec-prix{color:var(--cognac);font-size:15px;font-weight:600}
+.spec-unite{font-size:11px;font-weight:400;color:var(--ink-3)}
 .spec-strength{display:flex;gap:3px;align-items:center}
 .spec-pip{width:14px;height:6px;border-radius:3px;background:var(--line-2)}
 .spec-pip.on{background:var(--cognac)}
@@ -830,11 +834,6 @@ body{touch-action:manipulation}
 .prix-fr-val{font-family:var(--serif);font-size:21px;font-weight:600;color:var(--cognac);line-height:1;flex-shrink:0}
 .prix-fr-lbl{font-size:12.5px;color:var(--ink-2);line-height:1.35}
 .prix-fr-lbl small{display:block;font-size:11px;color:var(--ink-3);margin-top:2px;text-transform:capitalize}
-/* Le tarif officiel reprend la mise en page du prix payé par un membre : deux
-   repères de même nature se lisent de la même façon. Sa source, elle, n'est
-   pas un nom de mois et n'a pas à être capitalisée. */
-.prix-fr.tarif{background:var(--card)}
-.prix-fr-lbl small.brut{text-transform:none}
 .global-val span{font-size:13px;color:var(--ink-3)}
 .rate-pick{display:flex;gap:6px}
 .rate-pick .b{font-size:28px;color:var(--line-2);cursor:pointer;transition:.1s}
@@ -2075,15 +2074,18 @@ async function ecrireFiche(faire,row){
   }
   return {data,error};
 }
-function tarifHtml(c){
+/* Le prix appartient à la fiche, au même titre que le format ou la cape : il
+   tient donc dans la grille, et non dans un encadré posé dessous. La fiche
+   s'affiche sous une dégustation, dans la cave, dans la wishlist, à la
+   sélection d'une séance — le prix suit partout, sans qu'on ait à le répéter. */
+function ligneTarif(c){
   if(!c||!(c.tarif>0))return '';
   // un tarif corrigé dans l'app ne vient plus du relevé de référence : le
   // dire, plutôt que de dater une saisie d'une date qui n'est pas la sienne
   const source=(c.tarifSource==='cercle')?'Relevé par le cercle':TARIF_SOURCE;
-  return `<div class="prix-fr tarif">
-    <span class="prix-fr-val">${fmtPrix(c.tarif)}</span>
-    <span class="prix-fr-lbl">tarif en France, à l'unité<small class="brut">${source}</small></span>
-  </div>`;
+  return `<div class="spec-row"><span class="spec-k">Prix en France</span>
+    <span class="spec-v spec-prix">${fmtPrix(c.tarif)} <small class="spec-unite">l'unité</small>
+      <small class="spec-mm">${source}</small></span></div>`;
 }
 /* Dernier prix payé en France pour ce cigare, s'il date de moins de six mois.
    Au-delà, un tarif n'est plus un repère fiable. */
@@ -4048,6 +4050,7 @@ function specCardHtml(c,badge,modifiable){
       <div class="spec-name">${echapper(c.name)}</div>
       <div class="spec-brand">${c.brand?echapper(c.brand)+' · ':''}${echapper(c.country||'')}</div>
       <div class="spec-grid">
+        ${ligneTarif(c)}
         ${c.vitola?`<div class="spec-row"><span class="spec-k">Vitole</span><span class="spec-v">${echapper(c.vitola)}</span></div>`:''}
         ${c.module?`<div class="spec-row"><span class="spec-k">Module</span><span class="spec-v">${echapper(c.module)}</span></div>`:''}
         ${(c.length&&c.ring)?`<div class="spec-row"><span class="spec-k">Format</span><span class="spec-v">${c.length} mm · RG ${c.ring}<small class="spec-mm">${mmDuRing(c.ring)}</small></span></div>`:''}
@@ -4167,7 +4170,6 @@ function openCigarDetail(id){
     `<h3 class="serif" style="margin-bottom:14px">Fiche cigare</h3>`+
     specCardHtml(c,'Fiche catalogue')+
     (c.profile?`<p style="font-size:13px;color:var(--ink-2);margin:-4px 2px 4px;line-height:1.55">${echapper(c.profile)}</p>`:'')+
-    tarifHtml(c)+
     prixFrancaisHtml(c.name)+
     galerieBaguesHtml(c)+
     bloc;
