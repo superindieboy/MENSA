@@ -85,6 +85,32 @@ body{
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rech-reste{font-size:11.5px;color:var(--ink-3);padding:4px 11px 0}
 
+/* ===== FIL D'ACTIVITÉ =====
+   La cloche fait pendant à la loupe : le bandeau centre la marque, les deux
+   se posent aux bords sans la décaler. */
+.topbar-alerts{position:absolute;left:16px}
+.fil-compte{
+  position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;padding:0 4px;
+  border-radius:9px;background:var(--cognac);color:#fff;
+  font-size:10px;font-weight:700;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid var(--card);
+}
+.fil-item{display:flex;gap:11px;padding:10px 11px;border-radius:12px;cursor:pointer;align-items:flex-start}
+.fil-item:hover{background:var(--paper)}
+.fil-av{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;
+  justify-content:center;font-family:var(--serif);font-size:12px;font-weight:600}
+.fil-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.fil-quoi{font-size:13.5px;color:var(--ink-2);line-height:1.45}
+.fil-quoi b{color:var(--ink);font-weight:600}
+.fil-extrait{font-size:12.5px;color:var(--ink-3);line-height:1.45;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fil-quand{font-size:11px;color:var(--ink-3)}
+/* Le neuf se marque d'un point, jamais d'un fond : un fond survivrait mal au
+   thème sombre et se confondrait avec le survol. */
+.fil-point{width:7px;height:7px;border-radius:50%;background:var(--cognac);flex-shrink:0;margin-top:13px}
+.fil-item.est-neuf .fil-quoi{color:var(--ink)}
+
 /* ===== GALERIE DES BAGUES ===== */
 .bagues{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:9px}
 .bague-vue{position:relative;aspect-ratio:1;padding:0;overflow:hidden;cursor:pointer;
@@ -879,6 +905,7 @@ body{touch-action:manipulation}
       <div class="brand-mark">M</div>
       <div class="brand-name">MENSA<span class="dot">.</span></div>
     </div>
+    <button class="icon-btn topbar-alerts" onclick="openFil()" aria-label="Ce qui vous concerne">🔔<span class="fil-compte" id="fil-compte" style="display:none">0</span></button>
     <button class="icon-btn topbar-search" onclick="openRecherche()" aria-label="Chercher dans tout le cercle">🔍</button>
   </div>
 
@@ -937,7 +964,7 @@ body{touch-action:manipulation}
     <h1 class="screen-title serif">Découvrir</h1>
     <p class="screen-sub" id="disc-intro"></p>
 
-    <div class="sec-label" id="trending-label">🔥 Tendance cette semaine</div>
+    <div class="sec-label" id="trending-label">🔥 Tendance ce mois-ci</div>
     <div class="rank" id="trending" style="margin-bottom:26px"></div>
 
     <div class="search">
@@ -1327,6 +1354,19 @@ body{touch-action:manipulation}
   </div>
 </div>
 
+<!-- ===== CE QUI VOUS CONCERNE ===== -->
+<div class="overlay" id="fil-overlay">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <h3 class="serif">Ce qui vous concerne</h3>
+    <p class="badge-sub">Les retours du cercle sur vos dégustations, et les réponses aux conversations où vous avez pris la parole.</p>
+    <div id="fil-liste"></div>
+    <div class="sheet-actions">
+      <button class="btn-ghost" onclick="closeSheet('fil-overlay')">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== SÉANCE : CONFRONTATION DES LECTURES ===== -->
 <div class="overlay" id="seance-overlay">
   <div class="sheet">
@@ -1613,7 +1653,7 @@ async function loadAll(){
   await loadProfiles();
   await loadMemberCatalog();
   await Promise.all([loadPosts(), loadCave(), loadPrices(), loadComments(), loadBadges(), loadWishlist(), loadSessions()]);
-  renderRails();renderMembers();renderSessions();renderFeed();renderCave();renderWishlist();renderProfile();renderDiscover();
+  renderRails();renderMembers();renderSessions();renderFeed();renderCave();renderWishlist();renderProfile();renderDiscover();majFilCompte();
   lastLoad=Date.now();
 }
 /* Prix partagés par le cercle. Les caves restent privées : c'est une table
@@ -1671,11 +1711,15 @@ function badgesGagnes(uid){
 async function loadBadges(){
   badges={};
   if(!sb)return;
-  const {data,error}=await sb.from('member_badges').select('id,user_id,label,emoji').order('created_at');
+  // la date et l'auteur servent au fil d'activité : recevoir une distinction
+  // est précisément le genre de chose dont on veut être averti
+  const {data,error}=await sb.from('member_badges')
+    .select('id,user_id,label,emoji,awarded_by,created_at').order('created_at');
   if(error){ badgesActifs=false; console.warn('loadBadges',error.message); return; }
   badgesActifs=true;
   (data||[]).forEach(b=>{
-    (badges[b.user_id]=badges[b.user_id]||[]).push({id:b.id,label:b.label,emoji:b.emoji||''});
+    (badges[b.user_id]=badges[b.user_id]||[]).push(
+      {id:b.id,label:b.label,emoji:b.emoji||'',par:b.awarded_by,createdAt:b.created_at});
   });
 }
 function badgesAttribues(uid){ return badgesActifs?(badges[uid]||[]):[]; }
@@ -1795,7 +1839,7 @@ async function loadComments(){
   commentairesActifs=true;
   (data||[]).forEach(c=>{
     (commentaires[c.post_id]=commentaires[c.post_id]||[]).push(
-      {id:c.id,user_id:c.user_id,body:c.body,time:timeAgo(c.created_at)});
+      {id:c.id,user_id:c.user_id,body:c.body,time:timeAgo(c.created_at),createdAt:c.created_at});
   });
 }
 function nbCommentaires(postId){ return (commentaires[postId]||[]).length; }
@@ -1983,7 +2027,7 @@ async function refreshFeed(force){
     await loadProfiles();
     // les prix, commentaires et badges des autres membres doivent suivre, eux aussi
     await Promise.all([loadPosts(), loadPrices(), loadComments(), loadBadges(), loadSessions()]);
-    renderFeed();renderRails();renderMembers();renderSessions();renderProfile();renderDiscover();
+    renderFeed();renderRails();renderMembers();renderSessions();renderProfile();renderDiscover();majFilCompte();
     lastLoad=Date.now();
     return true;
   }catch(e){ return false; }
@@ -2016,11 +2060,15 @@ async function loadProfiles(){
   members.length=0;
   (data||[]).forEach(p=>members.push({id:p.id,name:p.name,init:initialsOf(p.name),av:avIndex(p.id),count:0,bio:p.bio}));
 }
+let jaimes=[];   // {post_id,user_id,created_at} — déclaré ici, où il est rempli
 async function loadPosts(){
   const {data,error}=await sb.from('posts').select('*').order('created_at',{ascending:false});
   if(error)signalerEchec('dégustations',error);
   const nameById={}; members.forEach(m=>nameById[m.id]=m.name);
-  let likes=[]; try{const r=await sb.from('post_likes').select('post_id,user_id'); likes=r.data||[];}catch(e){}
+  // la date des « j'aime » n'est lue que par le fil d'activité, qui doit
+  // pouvoir les ranger parmi les commentaires
+  let likes=[]; try{const r=await sb.from('post_likes').select('post_id,user_id,created_at'); likes=r.data||[];}catch(e){}
+  jaimes=likes;
   // on garde aussi QUI a aimé, pour l'indicateur du fil
   const likeCount={}, likedMine={}, likedBy={};
   likes.forEach(l=>{
@@ -2681,12 +2729,14 @@ function renderDiscover(){
 
   renderTrending();
 }
-/* Palmarès de la semaine, établi sur les dégustations des sept derniers jours.
+/* Palmarès du mois, établi sur les dégustations des trente derniers jours.
    Le classement portait jusqu'ici sur tout le catalogue, sans filtre de date :
-   il annonçait « cette semaine » un palmarès de tous les temps. Faute
-   d'activité récente, on bascule explicitement sur les mieux notés. */
+   il annonçait « cette semaine » un palmarès de tous les temps. La semaine
+   était par ailleurs trop courte pour un cercle qui fume posément — trois
+   dégustations en sept jours ne font pas une tendance. Faute d'activité
+   récente, on bascule explicitement sur les mieux notés. */
 function renderTrending(){
-  const depuis=Date.now()-7*24*60*60*1000;
+  const depuis=Date.now()-30*24*60*60*1000;
   const parFiche={};
   feed.forEach(p=>{
     const t=p.createdAt?new Date(p.createdAt).getTime():NaN;
@@ -2698,16 +2748,16 @@ function renderTrending(){
     const rs=parFiche[id];
     return {c:catalog.find(x=>x.id===id), n:rs.length, note:rs.reduce((a,b)=>a+b,0)/rs.length};
   }).filter(x=>x.c).sort((a,b)=>b.note-a.note||b.n-a.n).slice(0,3);
-  const hebdo=trend.length>0;
-  if(!hebdo){
+  const recent=trend.length>0;
+  if(!recent){
     trend=[...catalog].filter(c=>c.score>0).sort((a,b)=>b.score-a.score).slice(0,3)
       .map(c=>({c,n:c.votes,note:c.score}));
   }
-  document.getElementById('trending-label').textContent=hebdo?'🔥 Tendance cette semaine':'⭐ Les mieux notés';
+  document.getElementById('trending-label').textContent=recent?'🔥 Tendance ce mois-ci':'⭐ Les mieux notés';
   document.getElementById('trending').innerHTML=trend.length?trend.map((x,i)=>`
     <div class="rank-row" onclick="openCigarDetail('${x.c.id}')" style="cursor:pointer">
       <div class="rank-n">#${i+1}</div>
-      <div class="rank-info"><div class="rank-name">${echapper(x.c.name)}</div><div class="rank-sub">${echapper(x.c.country||'')}${hebdo?` · ${x.n} dégustation${x.n>1?'s':''}`:(x.c.profile?' · '+echapper(x.c.profile):'')}</div></div>
+      <div class="rank-info"><div class="rank-name">${echapper(x.c.name)}</div><div class="rank-sub">${echapper(x.c.country||'')}${recent?` · ${x.n} dégustation${x.n>1?'s':''}`:(x.c.profile?' · '+echapper(x.c.profile):'')}</div></div>
       <div class="rank-score">⭐ ${x.note.toFixed(1)}</div>
     </div>`).join('')
     :'<div class="rail-empty">Aucun cigare noté pour le moment.</div>';
@@ -3126,9 +3176,10 @@ function resultatsRecherche(q){
   return groupes;
 }
 /* Le panneau doit se refermer avant d'en ouvrir un autre, sinon les deux se
-   superposent et Échap ne ferme que celui du dessus. */
-function fermerEtOuvrir(fn,id){
-  closeSheet('rech-overlay');
+   superposent et Échap ne ferme que celui du dessus. La recherche est le cas
+   courant ; le fil d'activité passe le sien. */
+function fermerEtOuvrir(fn,id,panneau){
+  closeSheet(panneau||'rech-overlay');
   const f=window[fn];
   if(typeof f==='function')f(id);
 }
@@ -3173,6 +3224,119 @@ function openRecherche(){
   // la mise en page doit être faite avant de donner le focus, sinon iOS
   // ouvre le clavier sur un panneau encore en cours d'apparition
   requestAnimationFrame(()=>champ.focus());
+}
+
+/* ================= CE QUI VOUS CONCERNE =================
+   Les commentaires existaient sans que personne ne sache qu'on lui avait
+   répondu : une conversation qui ne prévient pas s'éteint toute seule.
+   Aucune table nouvelle — commentaires, « j'aime » et badges sont déjà
+   chargés. Il ne manquait qu'une date de dernière lecture, gardée sur
+   l'appareil : elle ne regarde personne d'autre, et une notification lue
+   sur le téléphone n'a pas à l'être sur l'ordinateur. */
+const FIL_MAX=40;              // au-delà, ce n'est plus une notification mais des archives
+const FIL_PREMIERE_FOIS=7*24*3600*1000;
+
+function cleFilVu(){ return currentUser?('mensa-fil-vu-'+currentUser.id):null; }
+/* Premier passage : rien n'est stocké. Tout marquer comme neuf ferait s'ouvrir
+   l'app sur « 9+ » d'histoire ancienne ; tout marquer comme lu ferait manquer
+   le commentaire d'hier. On retient donc la dernière semaine. */
+function filVuLe(){
+  const k=cleFilVu(); if(!k)return 0;
+  let brut=null;
+  try{ brut=localStorage.getItem(k); }catch(e){}
+  return brut ? (Date.parse(brut)||0) : Date.now()-FIL_PREMIERE_FOIS;
+}
+function marquerFilLu(){
+  const k=cleFilVu(); if(!k)return;
+  try{ localStorage.setItem(k,new Date().toISOString()); }catch(e){}
+}
+
+/* Ce qui vous concerne, et rien d'autre : on ne signale ni ses propres gestes,
+   ni l'activité d'un fil où l'on n'a pas pris la parole. */
+function evenementsDuFil(){
+  if(!currentUser||!feed.length)return [];
+  const moi=currentUser.id;
+  const parId={}; feed.forEach(p=>parId[p.id]=p);
+  const mesFils=new Set(Object.keys(commentaires).filter(pid=>
+    (commentaires[pid]||[]).some(c=>c.user_id===moi)));
+  const ev=[];
+
+  Object.keys(commentaires).forEach(pid=>{
+    const p=parId[pid]; if(!p)return;
+    const chezMoi = p.user_id===moi;
+    if(!chezMoi && !mesFils.has(pid))return;
+    (commentaires[pid]||[]).forEach(c=>{
+      if(c.user_id===moi)return;
+      ev.push({quand:c.createdAt, qui:c.user_id, extrait:c.body,
+        quoi: chezMoi ? `a commenté votre <b>${echapper(p.name)}</b>`
+                      : `a répondu sous <b>${echapper(p.name)}</b>`,
+        action:`fermerEtOuvrir('openPostDetail','${p.id}','fil-overlay')`});
+    });
+  });
+
+  jaimes.forEach(l=>{
+    const p=parId[l.post_id];
+    if(!p||p.user_id!==moi||l.user_id===moi)return;
+    ev.push({quand:l.created_at, qui:l.user_id,
+      quoi:`a aimé votre <b>${echapper(p.name)}</b>`,
+      action:`fermerEtOuvrir('openPostDetail','${p.id}','fil-overlay')`});
+  });
+
+  (badges[moi]||[]).forEach(b=>{
+    if(!b.createdAt||b.par===moi)return;
+    ev.push({quand:b.createdAt, qui:b.par,
+      quoi:`vous a décerné ${b.emoji?echapper(b.emoji)+' ':''}<b>${echapper(b.label)}</b>`,
+      action:`fermerEtOuvrir('openMemberProfile','${moi}','fil-overlay')`});
+  });
+
+  return ev.filter(e=>e.quand)
+           .sort((a,b)=>Date.parse(b.quand)-Date.parse(a.quand))
+           .slice(0,FIL_MAX);
+}
+
+function nbFilNeuf(){
+  const vu=filVuLe();
+  return evenementsDuFil().filter(e=>Date.parse(e.quand)>vu).length;
+}
+function majFilCompte(){
+  const pastille=document.getElementById('fil-compte');
+  if(!pastille)return;
+  const n=currentUser?nbFilNeuf():0;
+  pastille.textContent=n>9?'9+':String(n);
+  pastille.style.display=n?'flex':'none';
+}
+
+function renderFil(){
+  const box=document.getElementById('fil-liste');
+  if(!box)return;
+  const vu=filVuLe(), ev=evenementsDuFil();
+  if(!ev.length){
+    box.innerHTML=`<p class="rech-vide">Rien pour l'instant. C'est ici qu'on vous préviendra qu'un membre a commenté ou aimé l'une de vos dégustations.</p>`;
+    return;
+  }
+  box.innerHTML=ev.map(e=>{
+    const nom=nomDuMembre(e.qui), c=avColors[avIndex(e.qui)]||avColors[0];
+    const neuf=Date.parse(e.quand)>vu;
+    return `<div class="fil-item${neuf?' est-neuf':''}" onclick="${e.action}">
+      <span class="fil-av" style="background:${c[0]};color:${c[1]}">${echapper(initialsOf(nom))}</span>
+      <span class="fil-txt">
+        <span class="fil-quoi"><b>${echapper(nom)}</b> ${e.quoi}</span>
+        ${e.extrait?`<span class="fil-extrait">« ${echapper(e.extrait)} »</span>`:''}
+        <span class="fil-quand">${timeAgo(e.quand)}</span>
+      </span>
+      ${neuf?'<span class="fil-point"></span>':''}
+    </div>`;
+  }).join('');
+}
+
+/* On dessine avant de marquer comme lu : sans quoi le panneau s'ouvrirait sur
+   des nouvelles déjà éteintes. */
+function openFil(){
+  if(!currentUser)return;
+  renderFil();
+  document.getElementById('fil-overlay').classList.add('open');
+  marquerFilLu();
+  majFilCompte();
 }
 
 /* ================= LES SÉANCES =================
