@@ -36,8 +36,10 @@ mensa-0070	Fonseca Cosacos	9.20	Fonseca Cosacos, en 25 cigares
 mensa-0071	Fonseca N° 1	12.40	Fonseca n°1, en 25 cigares
 mensa-0072	H. Upmann Half Corona	9.20	H.Upmann Half Coronas, en 25 cigares
 mensa-0073	H. Upmann Epicures	8.00	H.Upmann Epicures, en 25 cigares
+mensa-0074	H. Upmann Coronas Junior	10.00	H.Upmann Coronas Junior (tube), en 25 cigares
 mensa-0075	H. Upmann Magnum 54	23.60	H.Upmann Magnum 54, en 25 cigares
 mensa-0076	H. Upmann Connoisseur N° 1	19.80	H.Upmann Connoisseur n°1, en 25 cigares
+mensa-0077	H. Upmann Coronas Major	12.40	H.Upmann Coronas Major (tube), en 25 cigares
 mensa-0078	H. Upmann Connossieur N° 2	22.60	H.Upmann Connossieur N°2, en 25 cigares
 mensa-0079	H. Upmann Connossieur A	28.80	H.Upmann Connossieur A (CDH + HS), en 25 cigares
 mensa-0080	H. Upmann Majestics	8.90	H.Upmann Majestic, en 25 cigares
@@ -50,6 +52,7 @@ mensa-0087	H.upmann Sir Winston	39.20	H.Upmann Sir Winston, en 25 cigares
 mensa-0089	Hoyo de Monterrey Petit Robustos	17.80	Hoyo de Monterrey Petit Robustos, en 25 cigares
 mensa-0091	Hoyo de Monterrey Epicure No. 2	22.00	Hoyo de Monterrey Epicure n°2, en 50 cigares
 mensa-0092	Hoyo de Monterrey Epicure N°3	25.50	Hoyo de Monterrey Epicure N°3, en 25 cigares
+mensa-0093	Hoyo de Monterrey Coronations	11.80	Hoyo de Monterrey Coronation (tube), en 25 cigares
 mensa-0094	Hoyo de Monterrey Palmas Extra	9.10	Hoyo de Monterrey Palmas Extra, en 25 cigares
 mensa-0096	Hoyo de Monterrey Epicure Especial	24.10	Hoyo de Monterrey Epicure Especial, en 25 cigares
 mensa-0097	Hoyo de Monterrey Epicure N° 1	23.00	Hoyo de Monterrey Epicure n°1, en 25 cigares
@@ -74,6 +77,7 @@ mensa-0121	Montecristo Petit N° 2	22.50	Montecristo Petit n°2, en 25 cigares
 mensa-0122	Montecristo Master	24.50	Montecristo Master, en 20 cigares
 mensa-0123	Montecristo Wide Edmundo	31.50	Montecristo Wide Edmundo , en 25 cigares
 mensa-0124	Montecristo No. 4	17.30	Montecristo n°4, en 25 cigares
+mensa-0125	Montecristo Petit Tubos	20.70	Montecristo Petit Tubos, en 25 cigares
 mensa-0126	Montecristo Dumas	54.00	Montecristo Dumas, en 20 cigares
 mensa-0127	Montecristo Edmundo	30.40	Montecristo Edmundo, en 25 cigares
 mensa-0128	Montecristo Regata	21.00	Montecristo Regata, en 20 cigares
@@ -90,10 +94,13 @@ mensa-0138	Montecristo Especial	32.40	Montecristo Especial, en 25 cigares
 mensa-0140	Partagás Serie D N° 6	17.30	Partagas Serie D n°6, en 20 cigares
 mensa-0141	Partagás Shorts	11.40	Partagas Shorts, en 50 cigares
 mensa-0142	Partagás Serie D N° 5	21.20	Partagas Serie D n°5, en 25 cigares
+mensa-0143	Partagás Coronas Junior	11.10	Partagas Coronas Junior (tube), en 25 cigares
 mensa-0145	Partagás Serie D No. 4	23.80	Partagas Serie D n°4, en 25 cigares
 mensa-0146	Partagás Habaneros	8.20	Partagas Habaneros, en 25 cigares
 mensa-0147	Partagás Aristocrats	9.10	Partagas Aristocrats, en 25 cigares
 mensa-0148	Partagás Mille Fleurs	8.90	Partagas Mille Fleurs, en 25 cigares
+mensa-0150	Partagás Coronas Senior	12.30	Partagas Coronas Senior (tube), en 25 cigares
+mensa-0153	Partagás Partagás de Luxe	13.10	Partagas de Luxe  (tube), en 25 cigares
 mensa-0154	Partagás Super Partagás	8.90	Partagas Super Partagas, en 25 cigares
 mensa-0155	Partagás Serie e N° 2	29.60	Partagas Serie E n°2, en 25 cigares
 mensa-0157	Partagás Origen	67.00	Partagas Origen, en 20 cigares
@@ -103,8 +110,10 @@ mensa-0161	Partagás Rito	82.00	Partagas Rito, en 20 cigares
 mensa-0164	Partagás Lusitania	35.60	Partagas Lusitanias, en 50 cigares
 mensa-0165	Por Larrañaga Galanes	14.20	Por Larranaga Galanes, en 10 cigares
 mensa-0167	Por Larrañaga Montecarlos	8.20	Por Larrañaga Montecarlo, en 25 cigares
+mensa-0168	Punch Petit Coronation	11.00	Punch Petit Coronations (tube), en 25 cigares
 mensa-0169	Punch Short de Punch	17.60	Punch Short de Punch, en 10 cigares
 mensa-0170	Punch Triunfos	16.20	Punch Triunfos (10 étuis alu de 5), en 5 cigares
+mensa-0171	Punch Coronation	11.40	Punch Coronation (tube), en 25 cigares
 mensa-0172	Punch Punch	21.20	Punch Punch, en 25 cigares
 mensa-0173	Punch Double Coronas	31.00	Punch Double Coronas, en 25 cigares
 mensa-0174	Quai Dorsay N° 50	16.00	Quai D'Orsay N°50, en 25 cigares
@@ -125,7 +134,9 @@ mensa-0189	Ramón Allones Allones N° 3	23.00	Ramon Allones Allones N°3, en 10 
 mensa-0191	Ramón Allones Gigantes	29.70	Ramon Allones Gigantes, en 25 cigares
 mensa-0192	Romeo y Julieta Petit Royales	13.90	Romeo y Julieta Petit Royales, en 25 cigares
 mensa-0193	Romeo y Julieta Petit Julietas	8.50	Romeo y Julieta Petit Julietas, en 25 cigares
+mensa-0194	Romeo y Julieta Petit Churchills	23.60	Romeo y Julieta Petit Churchills (tube - 5 étuis de 3), en 3 cigares
 mensa-0195	Romeo y Julieta Regalias de Londres	8.60	Romeo y Julieta Regalias de Londres, en 25 cigares
+mensa-0196	Romeo y Julieta Romeo N° 3	11.10	Romeo y Julieta Romeo n°3 (tube), en 25 cigares
 mensa-0197	Romeo y Julieta Sport Largos	7.80	Romeo y Julieta Sport Largos, en 25 cigares
 mensa-0198	Romeo y Julieta Short Churchills	23.50	Romeo y Julieta Short Churchills, en 25 cigares
 mensa-0199	Romeo y Julieta Belvederes	7.70	Romeo y Julieta Belvederes, en 25 cigares
@@ -133,10 +144,12 @@ mensa-0200	Romeo y Julieta Hidalgos	67.00	Romeo y Julieta Hidalgos, en 20 cigare
 mensa-0202	Romeo y Julieta Cedros de Luxe N° 3	16.50	Romeo y Julieta Cedros de Luxe n°3, en 25 cigares
 mensa-0203	Romeo y Julieta Mille Fleurs	8.90	Romeo y Julieta Mille Fleurs, en 25 cigares
 mensa-0204	Romeo y Julieta Petit Coronas	14.60	Romeo y Julieta Petit Coronas, en 25 cigares
+mensa-0205	Romeo y Julieta Romeo N° 2	11.90	Romeo y Julieta Romeo n°2 (tube), en 25 cigares
 mensa-0206	Romeo y Julieta Coronitas en Cedro	8.90	Romeo y Julieta Coronitas en Cedro, en 25 cigares
 mensa-0207	Romeo y Julieta Wide Churchill	25.90	Romeo y Julieta Wide Churchills, en 25 cigares
 mensa-0208	Romeo y Julieta Nobles	61.00	Romeo y Julieta Nobles, en 20 cigares
 mensa-0209	Romeo y Julieta Belicosos	24.10	Romeo y Julieta Belicosos, en 25 cigares
+mensa-0210	Romeo y Julieta Romeo N° 1	12.50	Romeo y Julieta Romeo n°1 (tube), en 25 cigares
 mensa-0211	Romeo y Julieta Cedros de Luxe N° 2	17.90	Romeo y Julieta Cedros de Luxe n°2, en 25 cigares
 mensa-0212	Romeo y Julieta Dianas	70.00	Romeo y Julieta Dianas, en 20 cigares
 mensa-0213	Romeo y Julieta Cupidos	77.00	Romeo y Julieta Cupidos (CDH+HS), en 20
@@ -180,6 +193,7 @@ mensa-0296	Cumpay Churchill	15.30	Cumpay Churchill (boîte à plat), en 25 cigar
 mensa-0297	Cumpay Lancero	19.00	Cumpay Lancero, en 20 cigares
 mensa-0310	Don Tomás Brazil Robusto	7.00	Don Tomas Brazil Robusto, en 25 cigares
 mensa-0321	Flor de Copán Short Robusto	8.50	Flor de Copan Short Robusto, en 20 cigares
+mensa-0322	Flor de Copán Monarcas	13.00	Flor de Copan Monarcas (tube), en 14 cigares
 mensa-0323	Flor de Selva Egoísta	12.50	Flor de Selva Egoísta, en 20 cigares
 mensa-0325	Flor de Selva Robusto	13.90	Flor de Selva Robusto (boîte cabinet), en 50 cigares
 mensa-0328	Flor de Selva Corona	14.00	Flor de Selva Corona (boîte cabinet), en 50 cigares
@@ -222,6 +236,7 @@ mensa-0460	Final 8 78	17.90	Final 8, 78 (boite), en 20 cigares
 mensa-0466	Horacio Jacques Chancel	19.30	Horacio, Jacques Chancel (boîte), en 15 cigares
 mensa-0470	Horacio Sled	20.30	Horacio, Sled (boite), en 15 cigares
 mensa-0471	Horacio Colosso	19.90	Horacio, Colosso (boîte), en 15 cigares
+mensa-0473	Horacio	22.25	Horacio, (coffret en 4 cigares), en 1 cigare
 mensa-0481	Horacio Heritage 1	17.60	Horacio Héritage, 1 (boite), en 15 cigares
 mensa-0482	Horacio Heritage 6	16.50	Horacio Héritage, 6 (boite), en 15 cigares
 mensa-0483	Horacio Heritage 0	19.50	Horacio Héritage, 0 (boite), en 15 cigares
