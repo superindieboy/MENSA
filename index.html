@@ -2734,7 +2734,12 @@ function renderDiscover(){
    il annonçait « cette semaine » un palmarès de tous les temps. La semaine
    était par ailleurs trop courte pour un cercle qui fume posément — trois
    dégustations en sept jours ne font pas une tendance. Faute d'activité
-   récente, on bascule explicitement sur les mieux notés. */
+   récente, on bascule explicitement sur les mieux notés.
+
+   Une tendance se compte, elle ne se note pas : on classe donc sur le nombre
+   de dégustations du mois, la moyenne ne servant qu'à départager. Trier sur
+   la note revenait à publier deux fois le même palmarès, celui des mieux
+   notés, sous deux titres différents. */
 function renderTrending(){
   const depuis=Date.now()-30*24*60*60*1000;
   const parFiche={};
@@ -2747,7 +2752,7 @@ function renderTrending(){
   let trend=Object.keys(parFiche).map(id=>{
     const rs=parFiche[id];
     return {c:catalog.find(x=>x.id===id), n:rs.length, note:rs.reduce((a,b)=>a+b,0)/rs.length};
-  }).filter(x=>x.c).sort((a,b)=>b.note-a.note||b.n-a.n).slice(0,3);
+  }).filter(x=>x.c).sort((a,b)=>b.n-a.n||b.note-a.note).slice(0,3);
   const recent=trend.length>0;
   if(!recent){
     trend=[...catalog].filter(c=>c.score>0).sort((a,b)=>b.score-a.score).slice(0,3)
