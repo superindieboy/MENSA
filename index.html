@@ -2261,12 +2261,21 @@ const PAYS_DRAPEAU={
   'saint domingue':'rep', nicaragua:'nica', honduras:'hon', 'costa rica':'cr',
   mexique:'mex', bresil:'bre'
 };
-function drapeauAchat(pays){
+function dessinDrapeau(pays){
   const cle=PAYS_DRAPEAU[normCigar(pays)];
-  if(!cle)return '📍';
-  const dessin=DRAPEAUX_ACHAT[cle]||DRAPEAUX[cle];
-  if(!dessin)return '📍';
-  return `<svg class="flag flag-mini" viewBox="0 0 30 20" role="img" aria-hidden="true">${dessin}</svg>`;
+  if(!cle)return null;
+  return DRAPEAUX_ACHAT[cle]||DRAPEAUX[cle]||null;
+}
+function drapeauAchat(pays){
+  const dessin=dessinDrapeau(pays);
+  return dessin?`<svg class="flag flag-mini" viewBox="0 0 30 20" role="img" aria-hidden="true">${dessin}</svg>`:'📍';
+}
+/* Même dessin, à la taille des en-têtes d'étagère. Faute de drapeau connu on
+   met le fanion neutre, mais le nom du pays, lui, reste écrit en toutes
+   lettres : c'est lui qui porte l'information. */
+function drapeauPays(pays){
+  const dessin=dessinDrapeau(pays);
+  return dessin?`<svg class="flag" viewBox="0 0 30 20" role="img" aria-hidden="true">${dessin}</svg>`:flagHtml('autre');
 }
 
 /* ================= FEED ================= */
@@ -2947,6 +2956,23 @@ function terroirDuNom(nom,repli){
   return (repli&&cave[repli])?repli:'autre';
 }
 function terroirDeLEnvie(w){ return terroirDuNom(w.name,w.terroir); }
+/* Le code terroir ne connaît que sept origines et verse tout le reste dans
+   « Autre » : un cigare français s'y perdait, alors que sa fiche nomme son
+   pays. On range donc sur ce pays dès qu'il sort des sept, avec son drapeau.
+   Les terroirs historiques gardent leur ordre ; les autres pays suivent par
+   ordre alphabétique, et l'étagère fourre-tout ne subsiste que pour un cigare
+   dont on ignore vraiment la provenance — auquel cas elle le dit. */
+const RANG_AUTRES_PAYS=50, RANG_INCONNU=99;
+function etagereDeLEnvie(w){
+  const k=terroirDeLEnvie(w);
+  if(k!=='autre')
+    return {cle:k, rang:Object.keys(cave).indexOf(k), label:countryMeta[k].label, drapeau:flagHtml(k)};
+  const c=ficheByName(w.name);
+  const pays=(c&&c.country&&c.country!=='—')?c.country.trim():'';
+  return pays
+    ? {cle:'pays:'+normCigar(pays), rang:RANG_AUTRES_PAYS, label:pays, drapeau:drapeauPays(pays)}
+    : {cle:'inconnu', rang:RANG_INCONNU, label:'Origine à préciser', drapeau:flagHtml('autre')};
+}
 function ligneEnvie(w){
   const c=ficheByName(w.name);
   const bouts=[];
@@ -2966,24 +2992,27 @@ function ligneEnvie(w){
 }
 function renderWishlist(){
   const notes=wishlist.filter(w=>{const c=ficheByName(w.name);return c&&c.votes;}).length;
-  const terroirs=new Set(wishlist.map(terroirDeLEnvie)).size;
+  // « origines » et non « terroirs » : on compte désormais des pays réels
+  const origines=new Set(wishlist.map(w=>etagereDeLEnvie(w).cle)).size;
   document.getElementById('wl-stats').innerHTML=`
     <div class="cstat"><div class="cstat-n">${wishlist.length}</div><div class="cstat-l">envie${wishlist.length>1?'s':''}</div></div>
-    <div class="cstat"><div class="cstat-n">${terroirs}</div><div class="cstat-l">terroir${terroirs>1?'s':''}</div></div>
+    <div class="cstat"><div class="cstat-n">${origines}</div><div class="cstat-l">origine${origines>1?'s':''}</div></div>
     <div class="cstat"><div class="cstat-n">${notes}</div><div class="cstat-l">notés par le cercle</div></div>`;
 
   const q=normCigar(document.getElementById('wl-search').value);
   document.getElementById('wl-search-wrap').style.display=wishlist.length>3?'flex':'none';
   const vus=q?wishlist.filter(w=>normCigar([w.name,w.detail,w.note].join(' ')).includes(q)):wishlist;
-  let h='';
-  Object.keys(cave).forEach(k=>{
-    const items=vus.filter(w=>terroirDeLEnvie(w)===k);
-    if(!items.length)return;
-    const m=countryMeta[k];
-    h+=`<div class="shelf"><div class="shelf-head"><div class="shelf-title">${flagHtml(k)} ${m.label}</div>
-      <span class="shelf-count">${items.length} envie${items.length>1?'s':''}</span></div>
-      ${items.map(ligneEnvie).join('')}</div>`;
+  const etageres=new Map();
+  vus.forEach(w=>{
+    const e=etagereDeLEnvie(w);
+    if(!etageres.has(e.cle))etageres.set(e.cle,{cle:e.cle,rang:e.rang,label:e.label,drapeau:e.drapeau,items:[]});
+    etageres.get(e.cle).items.push(w);
   });
+  const h=[...etageres.values()]
+    .sort((a,b)=>a.rang-b.rang||a.label.localeCompare(b.label,'fr'))
+    .map(g=>`<div class="shelf"><div class="shelf-head"><div class="shelf-title">${g.drapeau} ${echapper(g.label)}</div>
+      <span class="shelf-count">${g.items.length} envie${g.items.length>1?'s':''}</span></div>
+      ${g.items.map(ligneEnvie).join('')}</div>`).join('');
   document.getElementById('wl-shelves').innerHTML = h ? h
     : (q ? `<div class="rail-empty" style="padding:32px 0">Aucune envie ne correspond à « ${echapper(document.getElementById('wl-search').value.trim())} ».</div>`
          : messageVide("Votre wishlist est vide.<br>Appuyez sur ✚, ou sur « Wishlist » sous une dégustation."));
