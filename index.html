@@ -1415,7 +1415,6 @@ body{touch-action:manipulation}
         <div class="ac-list" id="wl-ac-list"></div>
       </div>
     </div>
-    <div class="field"><label>Terroir</label><input id="w-country" placeholder="Ex : Cuba, Nicaragua, Honduras…"></div>
     <div class="field"><label>Module</label><input id="w-detail" placeholder="Ex : Robusto"></div>
     <div class="field">
       <label>Pourquoi <span style="color:var(--ink-3);font-weight:400">— facultatif</span></label>
@@ -2937,6 +2936,17 @@ async function loadWishlist(){
     detail:w.detail||'—',terroir:cave[w.terroir]?w.terroir:'autre',
     note:w.note||'',added:w.added?fmtDate(w.added):'',addedRaw:w.added||''}));
 }
+/* Le pays d'une envie appartient à la fiche, jamais à la ligne : c'est la
+   règle déjà appliquée à la cave. On le résout à l'affichage plutôt qu'une
+   fois pour toutes, si bien qu'une envie notée avant la création de la fiche
+   rejoint son étagère dès que celle-ci existe, sans rien migrer. Le terroir
+   enregistré ne sert que de repli, pour un cigare hors catalogue. */
+function terroirDuNom(nom,repli){
+  const c=ficheByName(nom);
+  if(c&&cave[c.terroir])return c.terroir;
+  return (repli&&cave[repli])?repli:'autre';
+}
+function terroirDeLEnvie(w){ return terroirDuNom(w.name,w.terroir); }
 function ligneEnvie(w){
   const c=ficheByName(w.name);
   const bouts=[];
@@ -2944,7 +2954,7 @@ function ligneEnvie(w){
   else bouts.push('Personne ne l\'a encore noté');
   if(w.added)bouts.push(`🗓️ ajouté le ${w.added}`);
   return `<div class="cave-item" onclick="openEditWlSheet('${w.id}')">
-    <div class="cave-bar" style="background:${(palette[w.terroir]||palette.autre).band}"></div>
+    <div class="cave-bar" style="background:${(palette[terroirDeLEnvie(w)]||palette.autre).band}"></div>
     <div class="cave-info">
       <div class="cave-name">${echapper(w.name)}</div>
       <div class="cave-detail">${echapper(w.detail)}</div>
@@ -2956,7 +2966,7 @@ function ligneEnvie(w){
 }
 function renderWishlist(){
   const notes=wishlist.filter(w=>{const c=ficheByName(w.name);return c&&c.votes;}).length;
-  const terroirs=new Set(wishlist.map(w=>w.terroir)).size;
+  const terroirs=new Set(wishlist.map(terroirDeLEnvie)).size;
   document.getElementById('wl-stats').innerHTML=`
     <div class="cstat"><div class="cstat-n">${wishlist.length}</div><div class="cstat-l">envie${wishlist.length>1?'s':''}</div></div>
     <div class="cstat"><div class="cstat-n">${terroirs}</div><div class="cstat-l">terroir${terroirs>1?'s':''}</div></div>
@@ -2967,7 +2977,7 @@ function renderWishlist(){
   const vus=q?wishlist.filter(w=>normCigar([w.name,w.detail,w.note].join(' ')).includes(q)):wishlist;
   let h='';
   Object.keys(cave).forEach(k=>{
-    const items=vus.filter(w=>w.terroir===k);
+    const items=vus.filter(w=>terroirDeLEnvie(w)===k);
     if(!items.length)return;
     const m=countryMeta[k];
     h+=`<div class="shelf"><div class="shelf-head"><div class="shelf-title">${flagHtml(k)} ${m.label}</div>
@@ -3000,7 +3010,6 @@ function wlAcPick(id){
   const c=catalog.find(x=>x.id===id);if(!c)return;
   wlSelectedTerroir=c.terroir||null;
   document.getElementById('w-name').value=c.name;
-  document.getElementById('w-country').value=(c.country&&c.country!=='—')?c.country:(countryMeta[c.terroir]||{}).label||'';
   const mod=(c.module&&c.module!=='—')?c.module:(c.vitola||'');
   if(mod)document.getElementById('w-detail').value=mod;
   renderWlSpec(c);
@@ -3017,7 +3026,7 @@ function wlAddMode(){
   ['wl-cave-btn','wl-delete-btn'].forEach(id=>{const e=document.getElementById(id);if(e)e.remove();});
 }
 function clearWlFields(){
-  ['w-name','w-country','w-detail','w-note'].forEach(id=>document.getElementById(id).value='');
+  ['w-name','w-detail','w-note'].forEach(id=>document.getElementById(id).value='');
   wlSelectedTerroir=null;
   document.getElementById('wl-err').textContent='';
   document.getElementById('wl-ac-list').classList.remove('open');
@@ -3035,7 +3044,6 @@ function openWlSheetFromPost(id){
   const c=ficheOf(p);
   renderWlSpec(c);
   document.getElementById('w-name').value=p.name||'';
-  document.getElementById('w-country').value=(countryMeta[(c&&c.terroir)||p.terroir]||{}).label||'';
   document.getElementById('w-detail').value=(c&&c.module&&c.module!=='—')?c.module:'';
   document.getElementById('w-note').value=`Repéré chez ${p.user}.`;
   wlSelectedTerroir=(c&&c.terroir)||p.terroir||null;
@@ -3049,7 +3057,6 @@ function openWlSheetFromCigar(id){
   wlAddMode(); clearWlFields();
   renderWlSpec(c);
   document.getElementById('w-name').value=c.name||'';
-  document.getElementById('w-country').value=(c.country&&c.country!=='—')?c.country:(countryMeta[c.terroir]||{}).label||'';
   const mod=(c.module&&c.module!=='—')?c.module:(c.vitola||'');
   document.getElementById('w-detail').value=mod||'';
   wlSelectedTerroir=c.terroir||null;
@@ -3059,13 +3066,14 @@ function openEditWlSheet(id){
   const w=wishlist.find(x=>x.id===id);if(!w)return;
   wlAddMode();
   editingWlId=id;
-  wlSelectedTerroir=w.terroir||null;
+  // le terroir résolu, et non celui stocké : réenregistrer une vieille envie
+  // corrige alors sa ligne en base au lieu d'y réécrire l'ancienne valeur
+  wlSelectedTerroir=terroirDeLEnvie(w);
   document.getElementById('wl-title').textContent='Modifier cette envie';
   document.getElementById('wl-submit-btn').textContent='Enregistrer';
   document.getElementById('wl-err').textContent='';
   renderWlSpec(ficheByName(w.name));
   document.getElementById('w-name').value=w.name||'';
-  document.getElementById('w-country').value=(countryMeta[w.terroir]||{}).label||'';
   document.getElementById('w-detail').value=w.detail==='—'?'':(w.detail||'');
   document.getElementById('w-note').value=w.note||'';
   const actions=document.getElementById('wl-actions');
@@ -3080,8 +3088,7 @@ async function saveWishlist(){
   const err=document.getElementById('wl-err'); err.textContent='';
   const name=document.getElementById('w-name').value.trim();
   if(!name){err.textContent='Nommez le cigare avant d\'enregistrer.';return;}
-  const country=document.getElementById('w-country').value.trim().toLowerCase();
-  const terroir=(wlSelectedTerroir&&cave[wlSelectedTerroir])?wlSelectedTerroir:caveTerroirFromText(country);
+  const terroir=terroirDuNom(name,wlSelectedTerroir);
   const champs={user_id:currentUser.id,name,detail:document.getElementById('w-detail').value.trim()||'—',
     terroir,note:document.getElementById('w-note').value.trim()||null};
   // un double appui, courant sur mobile, insérerait deux fois la même envie
@@ -3121,7 +3128,7 @@ function envieVersCave(){
   envieAConsommer=w.id;          // après caveAddMode, qui remet ce drapeau à zéro
   renderCaveSpec(ficheByName(w.name));
   document.getElementById('c-name').value=w.name;
-  caveSelectedTerroir=w.terroir||null;
+  caveSelectedTerroir=terroirDeLEnvie(w);
   caveSelectedCigar=ficheByName(w.name);
   closeCaveAc();
   document.getElementById('cave-overlay').classList.add('open');
@@ -3173,7 +3180,7 @@ function resultatsRecherche(q){
   ajouter('Ma wishlist',
     wishlist.filter(w=>filtre([w.name,w.detail,w.note].join(' '))),
     w=>({titre:w.name, sous:w.note||w.detail||'Envie',
-         terroir:w.terroir, action:`fermerEtOuvrir('openEditWlSheet','${w.id}')`}));
+         terroir:terroirDeLEnvie(w), action:`fermerEtOuvrir('openEditWlSheet','${w.id}')`}));
   ajouter('Membres',
     members.filter(m=>filtre([m.name,m.bio].join(' '))),
     m=>({titre:m.name, sous:`${m.count} cigare${m.count>1?'s':''}`,
