@@ -1121,6 +1121,7 @@ body{touch-action:manipulation}
       <div class="field"><label>Sous-cape</label><input id="nc-binder" placeholder="Ex : Nicaragua"></div>
       <div class="field"><label>Tripe</label><input id="nc-filler" placeholder="Ex : Nicaragua, Honduras"></div>
       <div class="field"><label>Force (1 à 5)</label><input id="nc-strength" type="number" min="1" max="5"></div>
+      <div class="field"><label>Tarif France <span style="color:var(--ink-3);font-weight:400">— € l'unité, facultatif</span></label><input id="nc-tarif" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex : 82,00"></div>
     </div>
 
     <div class="field">
@@ -1237,6 +1238,7 @@ body{touch-action:manipulation}
     <div class="field"><label>Sous-cape</label><input id="ec-binder" placeholder="Ex : Nicaragua"></div>
     <div class="field"><label>Tripe</label><input id="ec-filler" placeholder="Ex : Nicaragua, Honduras"></div>
     <div class="field"><label>Force (1 à 5)</label><input id="ec-strength" type="number" min="1" max="5"></div>
+    <div class="field"><label>Tarif France <span style="color:var(--ink-3);font-weight:400">— € l'unité, tarif homologué</span></label><input id="ec-tarif" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex : 82,00"></div>
     <div class="f-err" id="ec-err"></div>
     <div class="sheet-actions">
       <button class="btn-ghost" onclick="closeSheet('cigar-edit-overlay')">Annuler</button>
@@ -1311,6 +1313,7 @@ body{touch-action:manipulation}
       <div class="field"><label>Sous-cape</label><input id="cc-binder" placeholder="Ex : Nicaragua"></div>
       <div class="field"><label>Tripe</label><input id="cc-filler" placeholder="Ex : Nicaragua, Honduras"></div>
       <div class="field"><label>Force (1 à 5)</label><input id="cc-strength" type="number" min="1" max="5"></div>
+      <div class="field"><label>Tarif France <span style="color:var(--ink-3);font-weight:400">— € l'unité, facultatif</span></label><input id="cc-tarif" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex : 82,00"></div>
     </div>
 
     <div class="field field-pair">
@@ -2003,11 +2006,38 @@ async function publierPrix(caveItemId,champs){
    les deux est précisément ce qui intéresse.
    Les fiches créées par les membres n'ont pas de tarif : le bloc disparaît. */
 const TARIF_SOURCE='Journal officiel du 1er juin 2026';
+/* Un tarif se saisit comme il s'écrit en France, à la virgule, et se stocke au
+   centime. Une saisie qui n'est pas un montant renvoie null : l'appelant sait
+   alors distinguer « rien saisi » de « saisi de travers », et le dit. */
+function lireTarif(v){
+  const t=String(v==null?'':v).replace(/[\s€]/g,'').replace(',','.');
+  if(!t)return null;
+  const n=Number(t);
+  return (isFinite(n)&&n>0)?Math.round(n*100)/100:null;
+}
+function ecrireTarif(v){ return (v>0)?String(v).replace('.',','):''; }
+/* Écrire une fiche sans que la colonne tarif soit une condition de survie :
+   entre la mise en ligne et l'exécution d'ajout-tarif-catalogue.sql, la base
+   ne la connaît pas encore, et un membre ne doit pas se retrouver dans
+   l'impossibilité de publier une dégustation pour autant. Même repli que
+   writeCaveItem pour les colonnes de prix de la cave. */
+async function ecrireFiche(faire,row){
+  let {data,error}=await faire(row);
+  if(error&&/tarif/i.test(error.message||'')){
+    const sans=Object.assign({},row); delete sans.tarif;
+    ({data,error}=await faire(sans));
+    if(!error)console.warn('Colonne tarif absente : exécutez ajout-tarif-catalogue.sql dans Supabase.');
+  }
+  return {data,error};
+}
 function tarifHtml(c){
   if(!c||!(c.tarif>0))return '';
+  // un tarif corrigé dans l'app ne vient plus du barème : le dire, sinon la
+  // mention du Journal officiel couvrirait une saisie qu'il n'a jamais publiée
+  const source=(c.tarifSource==='cercle')?'Relevé par le cercle':TARIF_SOURCE;
   return `<div class="prix-fr tarif">
     <span class="prix-fr-val">${fmtPrix(c.tarif)}</span>
-    <span class="prix-fr-lbl">tarif homologué en France, à l'unité<small class="brut">${TARIF_SOURCE}</small></span>
+    <span class="prix-fr-lbl">tarif en France, à l'unité<small class="brut">${source}</small></span>
   </div>`;
 }
 /* Dernier prix payé en France pour ce cigare, s'il date de moins de six mois.
@@ -2062,13 +2092,19 @@ async function loadMemberCatalog(){
     const entry={id:'m-'+r.id,name:r.name,brand:r.brand||'—',country:r.country||'—',terroir:r.terroir||'autre',
       vitola:r.vitola||'',module:r.module||'',length:r.length||null,ring:r.ring||null,wrapper:r.wrapper||'',
       binder:r.binder||'',filler:r.filler||'',strength:r.strength||null,force:r.strength?forceLabel(r.strength):'',
+      tarif:(r.tarif!=null&&r.tarif!=='')?Number(r.tarif):null,tarifSource:'cercle',
       score:0,votes:0,flavors:[],profile:'Fiche ajoutée par un membre'};
     // une fiche en base prend le pas sur celle qu'elle corrige : par identifiant
     // d'origine si elle en garde la trace (cas d'un renommage), sinon par nom
     let i = r.replaces ? catalog.findIndex(c=>c.id===r.replaces) : -1;
     if(i<0) i = catalog.findIndex(c=>(c.name||'').trim().toLowerCase()===key);
     if(i<0){ catalog.push(entry); return; }
-    if(catalog[i].id.startsWith('mensa-')){ entry.flavors=catalog[i].flavors; entry.profile=catalog[i].profile; }
+    if(catalog[i].id.startsWith('mensa-')){
+      entry.flavors=catalog[i].flavors; entry.profile=catalog[i].profile;
+      // corriger une fiche embarquée ne doit pas effacer son tarif du barème :
+      // la correction ne l'emporte que si elle en propose un
+      if(entry.tarif==null){ entry.tarif=catalog[i].tarif||null; entry.tarifSource='jo'; }
+    }
     entry.score=catalog[i].score; entry.votes=catalog[i].votes;
     catalog[i]=entry;
   });
@@ -4126,6 +4162,8 @@ function openEditCigarSheet(id){
   document.getElementById('ec-err').textContent='';
   const dash=v=>(v==='—'?'':(v==null?'':v));
   Object.entries(EC_FIELDS).forEach(([k,elId])=>{document.getElementById(elId).value=dash(c[k]);});
+  // le tarif est un montant, pas du texte : il se relit à la virgule
+  document.getElementById('ec-tarif').value=ecrireTarif(c.tarif);
   setEcTerroir(c.terroir||null);
   document.getElementById('cigar-edit-overlay').classList.add('open');
 }
@@ -4135,9 +4173,16 @@ async function saveCigarCard(){
   const val=id=>document.getElementById(id).value.trim();
   const name=val('ec-name');
   if(!name){err.textContent='Le nom du cigare est requis.';return;}
+  // vider le champ efface le tarif ; le remplir de travers doit se dire, sans
+  // quoi une faute de frappe passerait pour un effacement volontaire
+  const tarifSaisi=val('ec-tarif'), tarif=lireTarif(tarifSaisi);
+  if(tarifSaisi && tarif===null){
+    err.textContent='Le tarif doit être un montant en euros, par exemple 82,00.';return;
+  }
   const row={name,brand:val('ec-brand'),vitola:val('ec-vitola'),module:val('ec-module'),country:val('ec-country'),
     terroir:ecTerroir||'autre',length:+val('ec-length')||null,ring:+val('ec-ring')||null,
-    wrapper:val('ec-wrapper'),binder:val('ec-binder'),filler:val('ec-filler'),strength:+val('ec-strength')||null};
+    wrapper:val('ec-wrapper'),binder:val('ec-binder'),filler:val('ec-filler'),strength:+val('ec-strength')||null,
+    tarif};
   // Le lien entre une fiche et les dégustations / la cave se fait par le nom :
   // un renommage doit être répercuté sur l'existant, sinon l'historique est orphelin.
   const previous=catalog.find(x=>x.id===editingCigarId);
@@ -4149,9 +4194,9 @@ async function saveCigarCard(){
      Sans .select() pour compter ce qui a été écrit, une modification rejetée
      faute de policy administrateur s'annonçait « Fiche enregistrée ». */
   const ecrire = editingCigarId.startsWith('m-')
-    ? sb.from('catalog_items').update(row).eq('id',editingCigarId.slice(2)).select()
-    : sb.from('catalog_items').insert({user_id:currentUser.id,replaces:editingCigarId,...row}).select();
-  const {data,error}=await ecrire;
+    ? r=>sb.from('catalog_items').update(r).eq('id',editingCigarId.slice(2)).select()
+    : r=>sb.from('catalog_items').insert({user_id:currentUser.id,replaces:editingCigarId,...r}).select();
+  const {data,error}=await ecrireFiche(ecrire,row);
   if(error)return echec("Échec de l'enregistrement : "+(error.message||'erreur inconnue'));
   if(!(data&&data.length))
     return echec("Modification refusée : exécutez ajout-admin-catalogue.sql dans Supabase.");
@@ -4342,7 +4387,7 @@ function openFumeeSheet(){
   resetThirds();
   document.getElementById('fumee-overlay').classList.add('open');
 }
-const CHAMPS_FICHE=['brand','vitola','module','length','ring','wrapper','binder','filler','strength'];
+const CHAMPS_FICHE=['brand','vitola','module','length','ring','wrapper','binder','filler','strength','tarif'];
 const LIBELLE_FICHE_FERMEE="+ Ce cigare n'est pas dans le catalogue ? Ajouter sa fiche";
 function reinitFiche(cfg){
   cfg=cfg||FICHE_DEGUSTATION;
@@ -4842,11 +4887,12 @@ async function resoudreFiche(nom,terroir,country,cfg){
   if(document.getElementById(cfg.panneau).style.display==='none')
     return {erreur:`Ce cigare n'est pas au catalogue. Renseignez sa fiche pour pouvoir ${cfg.verbe}.`,ouvrirPanneau:true};
   const val=id=>document.getElementById(cfg.prefixe+id).value.trim();
-  const {data,error}=await sb.from('catalog_items').insert({
-    user_id:currentUser.id,name:nom,brand:val('brand'),vitola:val('vitola'),
-    module:val('module'),country,terroir,length:+val('length')||null,ring:+val('ring')||null,
-    wrapper:val('wrapper'),binder:val('binder'),filler:val('filler'),
-    strength:+val('strength')||null}).select();
+  const {data,error}=await ecrireFiche(
+    r=>sb.from('catalog_items').insert(r).select(),
+    {user_id:currentUser.id,name:nom,brand:val('brand'),vitola:val('vitola'),
+     module:val('module'),country,terroir,length:+val('length')||null,ring:+val('ring')||null,
+     wrapper:val('wrapper'),binder:val('binder'),filler:val('filler'),
+     strength:+val('strength')||null,tarif:lireTarif(val('tarif'))});
   if(error)return {erreur:"La fiche n'a pas pu être créée : "+(error.message||'réessayez.')};
   const creee=(data||[])[0];
   if(!creee)return {erreur:"La fiche n'a pas pu être créée. Réessayez."};
