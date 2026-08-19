@@ -1,0 +1,244 @@
+# Tarif JORF du 1er juin 2026, rapproché du catalogue embarqué.
+# fiche	nom de la fiche	prix unitaire (EUR)	mode	ligne du Journal officiel
+mensa-0001	Corrida Brazil Robusto +	14,50	exact	Corrida Brazil Robusto, en 20 cigares
+mensa-0005	El Septimo Paris	21,00	exact	El Septimo PARIS, en 15 cigares
+mensa-0008	El Septimo Michelangelo	22,00	exact	El Septimo MICHELANGELO, en 20 cigare
+mensa-0010	El Septimo , Bomba Orange	65,00	exact	El Septimo BOMBA ORANGE, en 10 cigares
+mensa-0014	El Septimo Raphael	25,00	exact	El Septimo RAPHAEL, en 20 cigare
+mensa-0017	El Septimo Rembrandt	32,00	exact	El Septimo REMBRANDT, en 20 cigare
+mensa-0032	Bolívar Coronas Junior	11,50	exact	Bolivar Coronas Junior, en 25 cigares
+mensa-0033	Bolívar Royal Coronas	19,20	exact	Bolivar Royal Coronas, en 25 cigares
+mensa-0034	Bolívar Petit Coronas	13,50	exact	Bolivar Petit Coronas, en 25 cigares
+mensa-0036	Bolívar Belicosos Finos	22,30	exact	Bolivar Belicosos Finos, en 25 cigares
+mensa-0038	Cohiba Medio Siglo	71,00	exact	Cohiba Medio Siglo, en 25 cigares
+mensa-0039	Cohiba Siglo I	36,00	exact	Cohiba Siglo I, en 25 cigares
+mensa-0040	Cohiba Panetelas	33,00	exact	Cohiba Panetelas, en 25 cigares
+mensa-0042	Cohiba Robustos	82,00	exact	Cohiba Robustos, en 25 cigares
+mensa-0043	Cohiba Exquisitos	41,00	exact	Cohiba Exquisitos, en 25 cigares
+mensa-0044	Cohiba Siglo Ii	43,00	exact	Cohiba Siglo II, en 25 cigares
+mensa-0045	Cohiba Ambar	100,00	exact	Cohiba Ambar, en 10 cigares
+mensa-0046	Cohiba Siglo Iv	67,00	exact	Cohiba Siglo IV, en 25 cigares
+mensa-0047	Cohiba Siglo VI	110,00	exact	Cohiba Siglo VI, en 25 cigares
+mensa-0048	Cohiba Coronas Especiales	61,50	exact	Cohiba Coronas Especiales, en 25 cigares
+mensa-0049	Cohiba Siglo Iii	60,00	exact	Cohiba Siglo III, en 25 cigares
+mensa-0050	Cohiba Pirámides Extra	129,00	exact	Cohiba Piramides Extra, en 10 cigares
+mensa-0051	Cohiba Siglo V	84,50	exact	Cohiba Siglo V, en 25 cigares
+mensa-0052	Cohiba Espléndidos	127,50	exact	Cohiba Esplendidos, en 25 cigares
+mensa-0053	Cohiba Lanceros	97,00	exact	Cohiba Lanceros, en 25 cigares
+mensa-0061	Cuaba Divinos	11,50	exact	Cuaba Divinos, en 25 cigares
+mensa-0062	Cuaba Tradicionales	13,80	exact	Cuaba Tradicionales, en 25 cigares
+mensa-0063	Cuaba Exclusivos	17,80	exact	Cuaba Exclusivos, en 25 cigares
+mensa-0064	Cuaba Distinguidos	23,00	exact	Cuaba Distinguidos, en 10 cigares
+mensa-0065	Cuaba Salomón	30,40	exact	Cuaba Salomon, en 10 cigares
+mensa-0066	Diplomáticos N° 2	18,40	exact	Diplomaticos n°2, en 25 cigares
+mensa-0069	Fonseca Delicias	6,00	exact	Fonseca Delicias, en 25 cigares
+mensa-0070	Fonseca Cosacos	9,20	exact	Fonseca Cosacos, en 25 cigares
+mensa-0071	Fonseca N° 1	12,40	exact	Fonseca n°1, en 25 cigares
+mensa-0072	H. Upmann Half Corona	9,20	approche	H.Upmann Half Coronas, en 25 cigares
+mensa-0073	H. Upmann Epicures	8,00	exact	H.Upmann Epicures, en 25 cigares
+mensa-0075	H. Upmann Magnum 54	23,60	exact	H.Upmann Magnum 54, en 25 cigares
+mensa-0076	H. Upmann Connoisseur N° 1	19,80	exact	H.Upmann Connoisseur n°1, en 25 cigares
+mensa-0078	H. Upmann Connossieur N° 2	22,60	exact	H.Upmann Connossieur N°2, en 25 cigares
+mensa-0079	H. Upmann Connossieur A	28,80	exact	H.Upmann Connossieur A (CDH + HS), en 25 cigares
+mensa-0080	H. Upmann Majestics	8,90	approche	H.Upmann Majestic, en 25 cigares
+mensa-0081	H. Upmann Magnum 46	23,00	exact	H.Upmann Magnum 46, en 25 cigares
+mensa-0082	H. Upmann Connossieur B	35,10	exact	H.Upmann Connossieur B (CDH + HS), en 25 cigares
+mensa-0083	H. Upmann Magnum 50	27,20	exact	H.Upmann Magnum 50, en 25 cigares
+mensa-0085	H.upmann Regalias	9,00	exact	H.Upmann Regalias, en 25 cigares
+mensa-0087	H.upmann Sir Winston	39,20	exact	H.Upmann Sir Winston, en 25 cigares
+mensa-0089	Hoyo de Monterrey Petit Robustos	17,80	exact	Hoyo de Monterrey Petit Robustos, en 25 cigares
+mensa-0091	Hoyo de Monterrey Epicure No. 2	22,00	exact	Hoyo de Monterrey Epicure n°2, en 50 cigares
+mensa-0092	Hoyo de Monterrey Epicure N°3	25,50	exact	Hoyo de Monterrey Epicure N°3, en 25 cigares
+mensa-0094	Hoyo de Monterrey Palmas Extra	9,10	exact	Hoyo de Monterrey Palmas Extra, en 25 cigares
+mensa-0096	Hoyo de Monterrey Epicure Especial	24,10	exact	Hoyo de Monterrey Epicure Especial, en 25 cigares
+mensa-0097	Hoyo de Monterrey Epicure N° 1	23,00	exact	Hoyo de Monterrey Epicure n°1, en 25 cigares
+mensa-0099	Hoyo de Monterrey Le Hoyo de San Juan	29,10	exact	Hoyo de Monterrey Le Hoyo de San Juan, en 25 cigares
+mensa-0101	Hoyo de Monterrey Double Coronas	35,10	exact	Hoyo de Monterrey Double Coronas, en 50 cigares
+mensa-0102	José L. Piedra Petit Cazadores	3,10	exact	Jose L. Piedra Petit Cazadores (fagot), en 25 cigares
+mensa-0103	José L. Piedra Petit Caballeros	4,10	exact	Jose L. Piedra Petit Caballeros (fagot), en 12 cigares
+mensa-0104	José L. Piedra Brevas	4,10	exact	Jose L. Piedra Brevas (fagot), en 25 cigares
+mensa-0105	José L. Piedra Conservas	4,20	exact	Jose L. Piedra Conservas, en 12 cigares
+mensa-0106	José L. Piedra Cazadores	3,90	exact	Jose L. Piedra Cazadores (fagot), en 25 cigares
+mensa-0107	Juan López Selección N° 2	17,30	exact	Juan Lopez Seleccion n°2, en 25 cigares
+mensa-0110	La Flor de Cano Petit Coronas	5,50	exact	La flor de Cano Petit Coronas, en 25 cigares
+mensa-0111	La Flor de Cano Elegidos	6,80	exact	La Flor de Cano Elegidos, en 10 cigares
+mensa-0112	La Gloria Cubana Turquinos	20,20	exact	La Gloria Cubana Turquinos, en 10 cigares
+mensa-0113	La Gloria Cubana Médaille D’or N° 4	12,10	exact	La gloria cubana Médaille d'Or n°4, en 25 cigares
+mensa-0116	Montecristo Media Corona	12,30	exact	Montecristo Media Corona, en 25 cigares
+mensa-0117	Montecristo N° 5	14,60	exact	Montecristo n°5, en 25 cigares
+mensa-0118	Montecristo Petit Edmundo	22,50	exact	Montecristo Petit Edmundo, en 25 cigares
+mensa-0119	Montecristo Junior	14,50	exact	Montecristo Junior, en 20 cigares
+mensa-0120	Montecristo Joyitas	12,50	exact	Montecristo Joyitas, en 25 cigares
+mensa-0121	Montecristo Petit N° 2	22,50	exact	Montecristo Petit n°2, en 25 cigares
+mensa-0122	Montecristo Master	24,50	exact	Montecristo Master, en 20 cigares
+mensa-0123	Montecristo Wide Edmundo	31,50	exact	Montecristo Wide Edmundo , en 25 cigares
+mensa-0124	Montecristo No. 4	17,30	exact	Montecristo n°4, en 25 cigares
+mensa-0126	Montecristo Dumas	54,00	exact	Montecristo Dumas, en 20 cigares
+mensa-0127	Montecristo Edmundo	30,40	exact	Montecristo Edmundo, en 25 cigares
+mensa-0128	Montecristo Regata	21,00	exact	Montecristo Regata, en 20 cigares
+mensa-0129	Montecristo N° 3	22,00	exact	Montecristo n°3, en 25 cigares
+mensa-0130	Montecristo Slam	31,40	exact	Montecristo Slam, en 20 cigares
+mensa-0131	Montecristo Eagle	32,00	exact	Montecristo Eagle, en 20 cigares
+mensa-0132	Montecristo Especial N° 2	24,60	exact	Montecristo Especial n°2, en 25 cigares
+mensa-0133	Montecristo Maltés	68,00	exact	Montecristo Maltes, en 20 cigares
+mensa-0134	Montecristo Double Edmundo	33,50	exact	Montecristo Double Edmundo, en 25 cigares
+mensa-0135	Montecristo No. 2	29,80	exact	Montecristo n°2, en 25 cigares
+mensa-0136	Montecristo N° 1	25,10	exact	Montecristo n°1, en 25 cigares
+mensa-0137	Montecristo Leyenda	78,00	exact	Montecristo  Leyenda, en 20 cigares
+mensa-0138	Montecristo Especial	32,40	exact	Montecristo Especial, en 25 cigares
+mensa-0140	Partagás Serie D N° 6	17,30	exact	Partagas Serie D n°6, en 20 cigares
+mensa-0141	Partagás Shorts	11,40	exact	Partagas Shorts, en 50 cigares
+mensa-0142	Partagás Serie D N° 5	21,20	exact	Partagas Serie D n°5, en 25 cigares
+mensa-0145	Partagás Serie D No. 4	23,80	exact	Partagas Serie D n°4, en 25 cigares
+mensa-0146	Partagás Habaneros	8,20	exact	Partagas Habaneros, en 25 cigares
+mensa-0147	Partagás Aristocrats	9,10	exact	Partagas Aristocrats, en 25 cigares
+mensa-0148	Partagás Mille Fleurs	8,90	exact	Partagas Mille Fleurs, en 25 cigares
+mensa-0154	Partagás Super Partagás	8,90	exact	Partagas Super Partagas, en 25 cigares
+mensa-0155	Partagás Serie e N° 2	29,60	exact	Partagas Serie E n°2, en 25 cigares
+mensa-0157	Partagás Origen	67,00	exact	Partagas Origen, en 20 cigares
+mensa-0158	Partagás Serie P N° 2	29,20	exact	Partagas Serie P n°2, en 25 cigares
+mensa-0159	Partagás Presidentes	20,00	exact	Partagas Presidentes, en 25 cigares
+mensa-0161	Partagás Rito	82,00	exact	Partagas Rito, en 20 cigares
+mensa-0164	Partagás Lusitania	35,60	approche	Partagas Lusitanias, en 50 cigares
+mensa-0165	Por Larrañaga Galanes	14,20	exact	Por Larranaga Galanes, en 10 cigares
+mensa-0167	Por Larrañaga Montecarlos	8,20	approche	Por Larrañaga Montecarlo, en 25 cigares
+mensa-0169	Punch Short de Punch	17,60	exact	Punch Short de Punch, en 10 cigares
+mensa-0170	Punch Triunfos	16,20	exact	Punch Triunfos (10 étuis alu de 5), en 5 cigares
+mensa-0172	Punch Punch	21,20	exact	Punch Punch, en 25 cigares
+mensa-0173	Punch Double Coronas	31,00	exact	Punch Double Coronas, en 25 cigares
+mensa-0174	Quai Dorsay N° 50	16,00	exact	Quai D'Orsay N°50, en 25 cigares
+mensa-0175	Quai Dorsay N° 54	22,00	exact	Quai D'Orsay N°54, en 25 cigares
+mensa-0176	Quai Dorsay Coronas Claro	16,80	approche	Quai D'Orsay Corona Claro, en 25 cigares
+mensa-0177	Quai Dorsay N° 52	24,00	exact	Quai d'Orsay N°52, en 25 cigares
+mensa-0178	Quintero Petit Quinteros	4,00	exact	Quintero Petit Quinteros, en 25 cigares
+mensa-0179	Quintero Favoritos	6,10	exact	Quintero Favoritos, en 25 cigares
+mensa-0180	Quintero Londres Extra	5,50	exact	Quintero Londres Extra, en 25 cigares
+mensa-0181	Quintero Panetelas	4,60	exact	Quintero Panetelas, en 25 cigares
+mensa-0183	Rafael González Perlas	7,30	exact	Rafael Gonzalez Perlas, en 25 cigares
+mensa-0184	Rafael González Coronas de Lonsdales	13,00	exact	Rafael Gonzalez Coronas de Lonsdales, en 10 cigares
+mensa-0185	Rafael González Panetelas Extra	5,30	exact	Rafael Gonzalez Panetelas Extra, en 25 cigares
+mensa-0186	Rafael González Petit Coronas	10,80	exact	Rafael Gonzalez Petit Coronas, en 25 cigares
+mensa-0187	Ramón Allones Small Club Coronas	11,00	exact	Ramon Allones Small Club Coronas, en 25 cigares
+mensa-0188	Ramón Allones Specially Selected	19,00	dedoublé	Ramon Allones Allones Specially Selected, en 50 cigares
+mensa-0189	Ramón Allones Allones N° 3	23,00	exact	Ramon Allones Allones N°3, en 10 cigares
+mensa-0191	Ramón Allones Gigantes	29,70	exact	Ramon Allones Gigantes, en 25 cigares
+mensa-0192	Romeo y Julieta Petit Royales	13,90	exact	Romeo y Julieta Petit Royales, en 25 cigares
+mensa-0193	Romeo y Julieta Petit Julietas	8,50	exact	Romeo y Julieta Petit Julietas, en 25 cigares
+mensa-0195	Romeo y Julieta Regalias de Londres	8,60	exact	Romeo y Julieta Regalias de Londres, en 25 cigares
+mensa-0197	Romeo y Julieta Sport Largos	7,80	exact	Romeo y Julieta Sport Largos, en 25 cigares
+mensa-0198	Romeo y Julieta Short Churchills	23,50	exact	Romeo y Julieta Short Churchills, en 25 cigares
+mensa-0199	Romeo y Julieta Belvederes	7,70	exact	Romeo y Julieta Belvederes, en 25 cigares
+mensa-0200	Romeo y Julieta Hidalgos	67,00	exact	Romeo y Julieta Hidalgos, en 20 cigares
+mensa-0202	Romeo y Julieta Cedros de Luxe N° 3	16,50	exact	Romeo y Julieta Cedros de Luxe n°3, en 25 cigares
+mensa-0203	Romeo y Julieta Mille Fleurs	8,90	exact	Romeo y Julieta Mille Fleurs, en 25 cigares
+mensa-0204	Romeo y Julieta Petit Coronas	14,60	exact	Romeo y Julieta Petit Coronas, en 25 cigares
+mensa-0206	Romeo y Julieta Coronitas en Cedro	8,90	exact	Romeo y Julieta Coronitas en Cedro, en 25 cigares
+mensa-0207	Romeo y Julieta Wide Churchill	25,90	approche	Romeo y Julieta Wide Churchills, en 25 cigares
+mensa-0208	Romeo y Julieta Nobles	61,00	exact	Romeo y Julieta Nobles, en 20 cigares
+mensa-0209	Romeo y Julieta Belicosos	24,10	exact	Romeo y Julieta Belicosos, en 25 cigares
+mensa-0211	Romeo y Julieta Cedros de Luxe N° 2	17,90	exact	Romeo y Julieta Cedros de Luxe n°2, en 25 cigares
+mensa-0212	Romeo y Julieta Dianas	70,00	exact	Romeo y Julieta Dianas, en 20 cigares
+mensa-0213	Romeo y Julieta Cupidos	77,00	exact	Romeo y Julieta Cupidos (CDH+HS), en 20
+mensa-0214	Romeo y Julieta Cazadores	18,50	exact	Romeo y Julieta Cazadores, en 25 cigares
+mensa-0215	Romeo y Julieta Churchill	34,50	approche	Romeo y Julieta Churchills, en 25 cigares
+mensa-0216	Saint Luis Rey Regios	15,70	exact	Saint Luis Rey Regios, en 25 cigares
+mensa-0217	San Cristóbal de la Habana El Príncipe	11,10	exact	San Cristobal de la Habana El Principe, en 25 cigares
+mensa-0218	San Cristóbal de la Habana La Punta	21,70	exact	San Cristobal de la Habana La Punta, en 25 cigares
+mensa-0219	San Cristóbal de la Habana La Fuerza	22,00	exact	San Cristobal de la Habana La Fuerza, en 25 cigares
+mensa-0222	Sancho Panza Non Plus	12,00	exact	Sancho Panza Non Plus, en 25 cigares
+mensa-0223	Sancho Panza Belicosos	20,70	exact	Sancho Panza Belicosos, en 25 cigares
+mensa-0224	Trinidad Reyes	37,00	exact	Trinidad Reyes , en 24 cigares
+mensa-0225	Trinidad Vigia	56,00	exact	Trinidad Vigia, en 12 cigares
+mensa-0226	Trinidad Media Luna	48,00	exact	Trinidad Media Luna, en 12 cigares
+mensa-0227	Trinidad Topes	69,00	exact	Trinidad Topes, en 12 cigares
+mensa-0228	Trinidad Coloniales	51,00	exact	Trinidad Coloniales, en 24 cigares
+mensa-0229	Trinidad Robustos Extra	83,00	approche	Trinidad Robusto Extra, en 12 cigares
+mensa-0232	Trinidad Fundadores	68,00	exact	Trinidad Fundadores, en 24 cigares
+mensa-0233	Vegas Robaina Famosos	18,90	exact	Vegas Robaina Famosos, en 25 cigares
+mensa-0234	Vegas Robaina Únicos	25,50	exact	Vegas Robaina Unicos, en 25 cigares
+mensa-0235	Vegueros Centrogordos	12,30	exact	Vegueros Centrogordos, en 16 cigares
+mensa-0236	Vegueros Mañanitas	9,20	exact	Vegueros Mañanitas, en 16 cigares
+mensa-0237	Vegueros Entretiempos	12,00	exact	Vegueros Entretiempos, en 16 cigares
+mensa-0238	Vegueros Tapados	11,50	exact	Vegueros Tapados, en 16 cigares
+mensa-0239	Vegueros Centrofinos	13,40	exact	Vegueros Centrofinos, en 16 cigares
+mensa-0271	Camacho Ecuador Robusto	14,00	exact	Camacho Ecuador Robusto (coffret), en 20 cigares
+mensa-0272	Cao Osa Lot T	11,80	exact	Cao Osa Lot T, en 25 cigares
+mensa-0281	Cle Bleu Robusto 50 × 5	14,50	exact	CLE Bleu  Robusto 50 x 5, en 25 cigares
+mensa-0292	Corrida Honduras Robusto +	11,50	exact	Corrida Honduras Robusto, en 20 cigares
+mensa-0293	Cumpay Robusto	12,60	exact	Cumpay Robusto (boîte à plat), en 25 cigares
+mensa-0294	Cumpay Volcán	15,90	exact	Cumpay Volcán (boîte), en 20 cigares
+mensa-0295	Cumpay N° 15	13,80	exact	Cumpay N°15, en 20 cigares
+mensa-0296	Cumpay Churchill	15,30	exact	Cumpay Churchill (boîte à plat), en 25 cigares
+mensa-0310	Don Tomás Brazil Robusto	7,00	exact	Don Tomas Brazil Robusto, en 25 cigares
+mensa-0321	Flor de Copán Short Robusto	8,50	exact	Flor de Copan Short Robusto, en 20 cigares
+mensa-0347	Gold Edition Pequeño	9,90	exact	Gold Edition, Pequeno (boite), en 20 cigares
+mensa-0348	Gold Edition Petit Robusto	12,70	exact	Gold Edition, Petit Robusto (boite), en 15 cigares
+mensa-0349	Gold Edition Double Robusto	14,90	exact	Gold Edition, Double Robusto (boite), en 15 cigares
+mensa-0357	La Estancia 60	34,00	exact	La Estancia #60, en 10 ciagres
+mensa-0358	La Estancia 56	33,00	exact	La Estancia #56, en 10 ciagres
+mensa-0359	La Estrella Polar Robusto	6,00	exact	La Estrella Polar Robusto, en 20 cigares
+mensa-0360	La Estrella Polar Gigante	7,00	exact	La Estrella Polar Gigante, en 20 cigares
+mensa-0363	Maestranza Conde	11,00	exact	Maestranza Conde, en 10 cigares
+mensa-0405	Cao Amazon Basin Rothschild	17,00	exact	CAO Amazon Basin Rothschild, en 50 cigares
+mensa-0406	Cao Amazon Basin Toro	20,00	exact	CAO Amazon Basin Toro, en 18 cigares
+mensa-0408	Cao Bx3 Toro	11,50	exact	CAO BX3 Toro, en 20 cigares
+mensa-0409	Cao Cameroon Perfecto	10,50	exact	CAO Cameroon Perfecto, en 20 cigares
+mensa-0410	Cao Gold Robusto	9,50	exact	CAO Gold Robusto, en 20 cigares
+mensa-0411	Cao Gold Maduro Robusto	10,00	exact	CAO Gold Maduro Robusto, en 20 cigares
+mensa-0412	Cao Pilón Robusto Extra	11,00	exact	Cao Pilon Robusto extra, en 20 cigares
+mensa-0415	Capitol Jack	10,90	exact	Capitol Jack, en 10 cigares
+mensa-0416	Capitol Casino	12,90	exact	Capitol Casino, en 10 cigares
+mensa-0417	Capitol Gala	14,90	exact	Capitol Gala, en 10 cigares
+mensa-0430	Corrida Nicaragua Robusto +	11,50	exact	Corrida Nicaragua Robusto, en 20 cigares
+mensa-0458	Final 8 58	15,40	exact	Final 8, 58 (boite), en 20 cigares
+mensa-0460	Final 8 78	17,90	exact	Final 8, 78 (boite), en 20 cigares
+mensa-0466	Horacio Jacques Chancel	19,30	exact	Horacio, Jacques Chancel (boîte), en 15 cigares
+mensa-0470	Horacio Sled	20,30	exact	Horacio, Sled (boite), en 15 cigares
+mensa-0471	Horacio Colosso	19,90	exact	Horacio, Colosso (boîte), en 15 cigares
+mensa-0481	Horacio Heritage 1	17,60	exact	Horacio Héritage, 1 (boite), en 15 cigares
+mensa-0482	Horacio Heritage 6	16,50	exact	Horacio Héritage, 6 (boite), en 15 cigares
+mensa-0483	Horacio Heritage 0	19,50	exact	Horacio Héritage, 0 (boite), en 15 cigares
+mensa-0487	Horacio Maduro 0	21,50	exact	Horacio Maduro, 0 (boîte), en 15 cigares
+mensa-0488	Horacio Pasión 48 Orange	16,20	exact	Horacio Pasion, 48 Orange (boîte), en 16 cigares
+mensa-0490	Horacio Pasión 38 Ivoire	14,50	exact	Horacio Pasion, 38 Ivoire (boîte), en 16 cigares 
+mensa-0511	Kingdom Lord	16,50	exact	Kingdom, Lord (boite), en 12 cigares
+mensa-0512	Kingdom Marquis	17,20	exact	Kingdom, Marquis (boite), en 12 cigares
+mensa-0540	New World Dorado Toro	22,00	exact	New World Dorado Toro, (coffret), en 10 cigares
+mensa-0578	Osok Cabroncito	12,00	exact	OSOK Cabroncito, en 25 cigares
+mensa-0579	Ox Purple Rain	29,00	exact	OX, Purple Rain (boite), en 12 cigares
+mensa-0580	Ox Blue Velvet	33,00	exact	OX, Blue Velvet (boite), en 12 cigares
+mensa-0581	Ox Red Rock	37,00	exact	OX, Red Rock (boite), en 12 cigares
+mensa-0582	Ox Black Angel	44,00	exact	OX, Black Angel (boite), en 12 cigares
+mensa-0605	Paradiso Papagayo Xxl	16,80	exact	Paradiso Papagayo xxl (coffret), en 24 cigares
+mensa-0653	Arturo Fuente Chateau Fuente	16,00	exact	Arturo Fuente Château Fuente , en 10 cigares
+mensa-0658	Arturo Fuente Chateau Fuente	16,00	exact	Arturo Fuente Château Fuente , en 10 cigares
+mensa-0661	Ashton Symetry Sublime	26,00	exact	Ashton Symetry Sublime (coffret), en 25 cigares
+mensa-0673	Balmoral Añejo Xo Rothschild Masivo	17,00	exact	Balmoral Añejo XO Rothschild Masivo, en 20 cigares
+mensa-0674	Balmoral Añejo Xo Rothschild Masivo	17,00	exact	Balmoral Añejo XO Rothschild Masivo, en 20 cigares
+mensa-0675	Balmoral Añejo Xo Gran Toro	17,50	exact	Balmoral Añejo XO Gran Toro, en 20 cigares
+mensa-0676	Balmoral Añejo Xo Torpedo Mk52	18,00	exact	Balmoral Añejo XO Torpedo MK52, en 20 cigares
+mensa-0678	Behind the Scenes Ii	14,40	exact	Behind The Scenes II, en 25 cigares
+mensa-0679	Behind the Scenes Vi	16,40	exact	Behind The Scenes VI, en 25 cigares
+mensa-0685	Cao Medio Tiempo Robusto	13,00	exact	CAO Medio Tiempo Robusto, en 20 cigares
+mensa-0686	Cao Medio Tiempo Magnifico	14,50	exact	CAO Medio Tiempo Magnifico, en 20 cigares
+mensa-0707	Davidoff Signature 2000	18,00	exact	Davidoff Signature 2000, en 25 cigares
+mensa-0746	Davidoff Escurio Petit Robusto	16,50	exact	Davidoff Escurio Petit Robusto, en 14 cigares
+mensa-0747	Davidoff Escurio Robusto	23,50	exact	Davidoff Escurio Robusto (coffret), en 12 cigares
+mensa-0748	Davidoff Escurio Gran Toro	27,50	exact	Davidoff Escurio Gran Toro, en 12 cigares
+mensa-0751	Davidoff Maduro Toro	60,00	exact	Davidoff Maduro Toro, en 20 cigares
+mensa-0757	Davidoff Yamasá Toro	30,00	exact	Davidoff Yamasa Toro, en 12 cigares 
+mensa-0758	Davidoff Yamasá Pirámides	32,00	exact	Davidoff Yamasa Piramides, en 12 cigares 
+mensa-0767	El Criollito Robusto	8,00	exact	El Criollito Robusto (Coffret), en 24 cigares
+mensa-0808	Montosa Robusto	7,50	exact	Montosa Robusto, en 20 cigares
+mensa-0809	Montosa Gigante	9,40	exact	Montosa Gigante, en 20 cigares
+mensa-0810	Montosa Churchill	7,90	exact	Montosa Churchill, en 20 cigares
+mensa-0811	Montosa Maduro Robusto	7,50	exact	Montosa Maduro Robusto, en 20 cigares
+mensa-0813	Patoro Brasil Gordito	17,00	exact	Patoro Brasil Gordito, en 20 cigares
+mensa-0814	Patoro Brasil Gordo	20,00	exact	Patoro Brasil Gordo, en 20 cigares
+mensa-0822	Silencio Black Robusto	16,40	exact	Silencio Black Robusto, en 25 cigares
+mensa-0824	Silencio Black Supremo	16,90	exact	Silencio Black Supremo, en 25 cigares
+mensa-0825	Silencio Blue Toro	17,00	exact	Silencio Blue Toro, en 20 cigares
+mensa-0826	Silencio Red Dot Churchill	16,40	exact	Silencio Red Dot Churchill, en 25 cigares
+mensa-0840	Vegafina Terra	9,30	exact	Vegafina Terra, en 25 cigares
+mensa-0856	Villiger 1888 Robusto	11,50	exact	Villiger 1888 Robusto, en 20 cigares
+mensa-0857	Villiger 1888 Corona	11,00	exact	Villiger 1888 Corona, en 20 cigares
