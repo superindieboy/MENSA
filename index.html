@@ -1238,7 +1238,7 @@ body{touch-action:manipulation}
     <div class="field"><label>Sous-cape</label><input id="ec-binder" placeholder="Ex : Nicaragua"></div>
     <div class="field"><label>Tripe</label><input id="ec-filler" placeholder="Ex : Nicaragua, Honduras"></div>
     <div class="field"><label>Force (1 à 5)</label><input id="ec-strength" type="number" min="1" max="5"></div>
-    <div class="field"><label>Tarif France <span style="color:var(--ink-3);font-weight:400">— € l'unité, tarif homologué</span></label><input id="ec-tarif" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex : 82,00"></div>
+    <div class="field"><label>Tarif France <span style="color:var(--ink-3);font-weight:400">— € l'unité</span></label><input id="ec-tarif" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex : 82,00"></div>
     <div class="f-err" id="ec-err"></div>
     <div class="sheet-actions">
       <button class="btn-ghost" onclick="closeSheet('cigar-edit-overlay')">Annuler</button>
@@ -1998,14 +1998,13 @@ async function publierPrix(caveItemId,champs){
     if(error)console.warn('publierPrix',error.message);
   }catch(e){ console.warn('publierPrix',e&&e.message); }
 }
-/* Tarif homologué : le prix auquel ce cigare se vend chez un buraliste
-   français, publié au Journal officiel. Il vient du barème et non des membres,
-   donc il existe même quand personne du cercle n'a encore acheté le cigare —
-   c'est ce qui manquait aux fiches. Il ne remplace pas le dernier prix payé
-   juste en dessous : un membre peut avoir acheté ailleurs, et l'écart entre
-   les deux est précisément ce qui intéresse.
-   Les fiches créées par les membres n'ont pas de tarif : le bloc disparaît. */
-const TARIF_SOURCE='Journal officiel du 1er juin 2026';
+/* Le prix auquel ce cigare se vend chez un buraliste français. Il ne vient
+   pas des membres, donc il existe même quand personne du cercle n'a encore
+   acheté le cigare — c'est ce qui manquait aux fiches. Il ne remplace pas le
+   dernier prix payé juste en dessous : un membre peut avoir acheté ailleurs,
+   et l'écart entre les deux est précisément ce qui intéresse.
+   Les fiches sans tarif ne montrent aucun bloc. */
+const TARIF_SOURCE='Au 1er juin 2026';
 /* Un tarif se saisit comme il s'écrit en France, à la virgule, et se stocke au
    centime. Une saisie qui n'est pas un montant renvoie null : l'appelant sait
    alors distinguer « rien saisi » de « saisi de travers », et le dit. */
@@ -2032,8 +2031,8 @@ async function ecrireFiche(faire,row){
 }
 function tarifHtml(c){
   if(!c||!(c.tarif>0))return '';
-  // un tarif corrigé dans l'app ne vient plus du barème : le dire, sinon la
-  // mention du Journal officiel couvrirait une saisie qu'il n'a jamais publiée
+  // un tarif corrigé dans l'app ne vient plus du relevé de référence : le
+  // dire, plutôt que de dater une saisie d'une date qui n'est pas la sienne
   const source=(c.tarifSource==='cercle')?'Relevé par le cercle':TARIF_SOURCE;
   return `<div class="prix-fr tarif">
     <span class="prix-fr-val">${fmtPrix(c.tarif)}</span>

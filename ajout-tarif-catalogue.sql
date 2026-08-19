@@ -1,12 +1,12 @@
 -- À exécuter dans Supabase → SQL Editor.
 -- Réexécutable sans risque.
 --
--- Le tarif homologué d'une fiche, corrigeable dans l'app.
+-- Le tarif France d'une fiche, corrigeable dans l'app.
 --
--- Les 242 tarifs repris du Journal officiel du 1er juin 2026 vivent dans le
--- catalogue embarqué de index.html : ils sont figés jusqu'au prochain barème.
--- Cette colonne sert à ce que l'app ne pouvait pas faire jusqu'ici — corriger
--- un tarif, ou en donner un aux 616 fiches qui n'en ont pas.
+-- Les 242 tarifs relevés au 1er juin 2026 vivent dans le catalogue embarqué de
+-- index.html : ils y sont figés jusqu'au prochain relevé. Cette colonne sert à
+-- ce que l'app ne pouvait pas faire jusqu'ici — corriger un tarif, ou en
+-- donner un aux 616 fiches qui n'en ont pas.
 --
 -- Une fiche membre qui corrige une fiche embarquée porte « replaces » : son
 -- tarif l'emporte alors sur celui du catalogue, et son absence laisse le tarif
