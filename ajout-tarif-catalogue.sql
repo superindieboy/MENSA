@@ -15,6 +15,13 @@
 alter table public.catalog_items
   add column if not exists tarif numeric(10,2);
 
+-- La date du changement. Un prix corrigé dans l'app ne peut pas s'annoncer
+-- « au 1er juin 2026 » : le relevé de cette date ne l'a jamais publié. La
+-- colonne reste nulle tant que le tarif est celui du relevé — l'app ne la
+-- remplit que lorsque la saisie s'en écarte.
+alter table public.catalog_items
+  add column if not exists tarif_le date;
+
 -- Un tarif nul ou négatif n'est pas une correction, c'est une faute de saisie.
 alter table public.catalog_items
   drop constraint if exists catalog_items_tarif_positif;
@@ -29,4 +36,6 @@ alter table public.catalog_items
 select
   (select count(*) from information_schema.columns
     where table_schema='public' and table_name='catalog_items' and column_name='tarif') as colonne_tarif,
+  (select count(*) from information_schema.columns
+    where table_schema='public' and table_name='catalog_items' and column_name='tarif_le') as colonne_date,
   (select count(*) from public.catalog_items where tarif is not null) as fiches_chiffrees;

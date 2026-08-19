@@ -2033,6 +2033,21 @@ function lireTarif(v){
   return (isFinite(n)&&n>0)?Math.round(n*100)/100:null;
 }
 function ecrireTarif(v){ return (v>0)?String(v).replace('.',','):''; }
+/* « Au 3 septembre 2026 », et « 1er » plutôt que « 1 » : la date se lit dans
+   la même forme que celle du relevé, juste au-dessus. */
+function dateEnToutesLettres(iso){
+  const d=new Date(iso);
+  if(isNaN(d))return '';
+  const j=d.getDate();
+  return `${j===1?'1er':j} ${d.toLocaleDateString('fr-FR',{month:'long'})} ${d.getFullYear()}`;
+}
+/* Ce qu'on inscrit dans tarif_le. Un prix identique à celui du relevé n'est
+   pas une correction et ne se date pas : la fiche continue d'afficher la date
+   du relevé. Tout écart, lui, appartient à qui l'a saisi, et au jour dit. */
+function dateDuTarif(nom,tarif){
+  if(!(tarif>0))return null;
+  return (tarifDuNom(nom)===tarif)?null:todayISO();
+}
 /* La clé du relevé. Elle ramène à une même forme ce que deux sources écrivent
    différemment : « Bolívar » et « Bolivar », « N° 2 », « No. 2 » et « n°2 »,
    le singulier et le pluriel, et le mot de marque que le relevé répète parfois
@@ -2085,9 +2100,9 @@ function proposerTarif(cfg){
 async function ecrireFiche(faire,row){
   let {data,error}=await faire(row);
   if(error&&/tarif/i.test(error.message||'')){
-    const sans=Object.assign({},row); delete sans.tarif;
+    const sans=Object.assign({},row); delete sans.tarif; delete sans.tarif_le;
     ({data,error}=await faire(sans));
-    if(!error)console.warn('Colonne tarif absente : exécutez ajout-tarif-catalogue.sql dans Supabase.');
+    if(!error)console.warn('Colonnes tarif absentes : exécutez ajout-tarif-catalogue.sql dans Supabase.');
   }
   return {data,error};
 }
@@ -2097,12 +2112,15 @@ async function ecrireFiche(faire,row){
    sélection d'une séance — le prix suit partout, sans qu'on ait à le répéter. */
 function ligneTarif(c){
   if(!c||!(c.tarif>0))return '';
-  // un tarif corrigé dans l'app ne vient plus du relevé de référence : le
-  // dire, plutôt que de dater une saisie d'une date qui n'est pas la sienne
-  const source=(c.tarifSource==='cercle')?'Relevé par le cercle':TARIF_SOURCE;
+  // Un tarif corrigé dans l'app porte la date de sa correction : le relevé du
+  // 1er juin ne peut pas répondre d'un prix qu'il n'a jamais publié. On
+  // reconnaît une correction à ce qu'elle s'écarte du relevé, plutôt qu'à un
+  // marqueur — ainsi une fiche revenue au prix du relevé cesse d'être datée.
+  const duReleve=tarifDuNom(c.name)===c.tarif;
+  const source=duReleve?TARIF_SOURCE:(c.tarifLe?'Au '+dateEnToutesLettres(c.tarifLe):'');
   return `<div class="spec-row"><span class="spec-k">Prix en France</span>
     <span class="spec-v spec-prix">${fmtPrix(c.tarif)} <small class="spec-unite">l'unité</small>
-      <small class="spec-mm">${source}</small></span></div>`;
+      ${source?`<small class="spec-mm">${source}</small>`:''}</span></div>`;
 }
 /* Dernier prix payé en France pour ce cigare, s'il date de moins de six mois.
    Au-delà, un tarif n'est plus un repère fiable. */
@@ -2156,7 +2174,10 @@ async function loadMemberCatalog(){
     const entry={id:'m-'+r.id,name:r.name,brand:r.brand||'—',country:r.country||'—',terroir:r.terroir||'autre',
       vitola:r.vitola||'',module:r.module||'',length:r.length||null,ring:r.ring||null,wrapper:r.wrapper||'',
       binder:r.binder||'',filler:r.filler||'',strength:r.strength||null,force:r.strength?forceLabel(r.strength):'',
-      tarif:(r.tarif!=null&&r.tarif!=='')?Number(r.tarif):null,tarifSource:'cercle',
+      tarif:(r.tarif!=null&&r.tarif!=='')?Number(r.tarif):null,
+      // une fiche chiffrée avant l'ajout de la colonne n'a pas de date propre :
+      // celle de sa création est le meilleur repère qu'on ait
+      tarifLe:r.tarif_le||((r.tarif!=null&&r.tarif!=='')?r.created_at:null),
       score:0,votes:0,flavors:[],profile:'Fiche ajoutée par un membre'};
     // une fiche en base prend le pas sur celle qu'elle corrige : par identifiant
     // d'origine si elle en garde la trace (cas d'un renommage), sinon par nom
@@ -2167,7 +2188,7 @@ async function loadMemberCatalog(){
       entry.flavors=catalog[i].flavors; entry.profile=catalog[i].profile;
       // corriger une fiche embarquée ne doit pas effacer son tarif du barème :
       // la correction ne l'emporte que si elle en propose un
-      if(entry.tarif==null){ entry.tarif=catalog[i].tarif||null; entry.tarifSource='jo'; }
+      if(entry.tarif==null){ entry.tarif=catalog[i].tarif||null; entry.tarifLe=null; }
     }
     entry.score=catalog[i].score; entry.votes=catalog[i].votes;
     catalog[i]=entry;
@@ -4247,7 +4268,7 @@ async function saveCigarCard(){
   const row={name,brand:val('ec-brand'),vitola:val('ec-vitola'),module:val('ec-module'),country:val('ec-country'),
     terroir:ecTerroir||'autre',length:+val('ec-length')||null,ring:+val('ec-ring')||null,
     wrapper:val('ec-wrapper'),binder:val('ec-binder'),filler:val('ec-filler'),strength:+val('ec-strength')||null,
-    tarif};
+    tarif, tarif_le:dateDuTarif(name,tarif)};
   // Le lien entre une fiche et les dégustations / la cave se fait par le nom :
   // un renommage doit être répercuté sur l'existant, sinon l'historique est orphelin.
   const previous=catalog.find(x=>x.id===editingCigarId);
@@ -4961,7 +4982,8 @@ async function resoudreFiche(nom,terroir,country,cfg){
     {user_id:currentUser.id,name:nom,brand:val('brand'),vitola:val('vitola'),
      module:val('module'),country,terroir,length:+val('length')||null,ring:+val('ring')||null,
      wrapper:val('wrapper'),binder:val('binder'),filler:val('filler'),
-     strength:+val('strength')||null,tarif:lireTarif(val('tarif'))});
+     strength:+val('strength')||null,tarif:lireTarif(val('tarif')),
+     tarif_le:dateDuTarif(nom,lireTarif(val('tarif')))});
   if(error)return {erreur:"La fiche n'a pas pu être créée : "+(error.message||'réessayez.')};
   const creee=(data||[])[0];
   if(!creee)return {erreur:"La fiche n'a pas pu être créée. Réessayez."};
