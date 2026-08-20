@@ -533,8 +533,8 @@ body{
 
 /* ===== CAVE ===== */
 .cave-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:24px}
-/* La wishlist en compte quatre : deux par deux plutôt qu'un orphelin sous trois */
-#wl-stats{grid-template-columns:repeat(2,1fr)}
+/* Quatre chiffres : deux par deux, plutôt qu'un orphelin sous une rangée de trois */
+#wl-stats,#cave-stats{grid-template-columns:repeat(2,1fr)}
 .cstat{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 12px;text-align:center}
 .cstat-n{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--cognac);line-height:1}
 .cstat-l{font-size:11px;color:var(--ink-3);margin-top:5px}
@@ -3068,12 +3068,23 @@ function ligneLot(l,k,seul){
    pose tout acheteur au retour d'un voyage. */
 function bilanCave(){
   const lots=[], estimes=[], aveugles=[];
+  // Ce que la même cave coûterait en France, quel qu'ait été le prix payé :
+  // c'est la valeur de remplacement, et elle se compte sur tous les lots, y
+  // compris ceux dont on connaît déjà le prix d'achat.
+  let france=0, nbFrance=0, franceChiffres=0, payeChiffres=0, nbChiffres=0;
   Object.values(cave).forEach(arr=>arr.forEach(l=>{
     if(!l.qty||l.qty<=0)return;
-    if(l.price!==null&&l.price!==undefined){ lots.push(l); return; }
+    const ref=tarifDeReference(l.name);
+    if(ref>0){ france+=ref*l.qty; nbFrance+=l.qty; }
+    if(l.price!==null&&l.price!==undefined){
+      lots.push(l);
+      // le même panier des deux côtés : sans quoi l'écart mêlerait des cigares
+      // que l'un des deux prix ignore, et ne comparerait plus rien
+      if(ref>0){ franceChiffres+=ref*l.qty; payeChiffres+=l.price*l.qty; nbChiffres+=l.qty; }
+      return;
+    }
     // faute de prix saisi, le tarif France fait un repère honnête : mieux vaut
     // une valeur estimée et annoncée comme telle qu'un lot passé sous silence
-    const ref=tarifDeReference(l.name);
     if(ref>0)estimes.push({qty:l.qty,price:ref}); else aveugles.push(l);
   }));
   if(!lots.length&&!estimes.length)return null;
@@ -3091,6 +3102,8 @@ function bilanCave(){
     estime:somme(estimes), nbEstimes:cigares(estimes),
     totalTout:somme(tout), moyenneTout:moyenne(tout),
     sansRepere:cigares(aveugles),
+    tarifFrance:france, nbTarifFrance:nbFrance,
+    franceChiffres, payeChiffres, nbChiffres,
     moyFr:moyenne(fr), nbFr:cigares(fr),
     moyAilleurs:moyenne(ailleurs), nbAilleurs:cigares(ailleurs)
   };
@@ -3112,6 +3125,18 @@ function valeurCaveHtml(b){
         <p class="vc-note">${pct<3
           ? 'Vos achats reviennent au même prix des deux côtés de la frontière.'
           : `En moyenne, vos cigares achetés en France reviennent ${pct} % ${ecart>0?'plus':'moins'} cher que ceux achetés ailleurs.`}</p>`;
+  }
+  /* Ce que le même panier coûterait en France. C'est la question du voyageur
+     au retour : non pas « ai-je payé moins cher que la moyenne » mais « ces
+     cigares-là, combien valent-ils ici ». On ne compare que les lots dont on
+     connaît à la fois le prix payé et le tarif. */
+  if(b.nbChiffres&&b.payeChiffres>0&&b.franceChiffres>0){
+    const ecart=b.franceChiffres-b.payeChiffres;
+    const pct=Math.round(Math.abs(ecart)/b.franceChiffres*100);
+    h+=`<div class="vc-row"><span>Ces ${b.nbChiffres} cigares, au tarif France</span><b>${fmtPrix(b.franceChiffres)}</b></div>
+        <p class="vc-note">${pct<2
+          ? 'Vous les avez payés le prix français.'
+          : `Vous les avez payés ${fmtPrix(b.payeChiffres)}, soit ${pct} % ${ecart>0?'de moins':'de plus'} qu'en France${ecart>0?` — ${fmtPrix(ecart)} d'économie`:''}.`}</p>`;
   }
   // ce qui est estimé doit se dire, et se chiffrer : un total qui mêle sans
   // le dire des prix payés et des tarifs relevés ne vaut rien
@@ -3137,7 +3162,8 @@ function renderCave(){
   document.getElementById('cave-stats').innerHTML=`
     <div class="cstat"><div class="cstat-n">${total}</div><div class="cstat-l">cigares</div></div>
     <div class="cstat"><div class="cstat-n">${refs}</div><div class="cstat-l">références</div></div>
-    <div class="cstat"><div class="cstat-n">${valeur>0?fmtPrix(valeur):'—'}</div><div class="cstat-l">valeur${(valeur>0&&estimee)?' estimée':''}</div></div>`;
+    <div class="cstat"><div class="cstat-n">${valeur>0?fmtPrix(valeur):'—'}</div><div class="cstat-l">valeur${(valeur>0&&estimee)?' estimée':''}</div></div>
+    <div class="cstat"><div class="cstat-n">${(b&&b.tarifFrance>0)?fmtPrix(b.tarifFrance):'—'}</div><div class="cstat-l">au tarif France${(b&&b.nbTarifFrance&&b.nbTarifFrance<total)?` · ${b.nbTarifFrance} sur ${total}`:''}</div></div>`;
   document.getElementById('cave-valeur').innerHTML=valeurCaveHtml(b);
 
   // recherche insensible aux accents dans le nom et le module
