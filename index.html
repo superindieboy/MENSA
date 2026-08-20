@@ -5547,18 +5547,55 @@ async function saveCave(){
 /* ---- Fermeture accidentelle ----
    Un panneau de saisie se fermait au moindre clic hors de la feuille, et à la
    touche Échap. Sur un téléphone, un doigt qui glisse à côté effaçait la note,
-   les tiers et la photo sans un mot. Ces deux gestes demandent désormais
-   confirmation dès que quelque chose a été saisi ; les panneaux de lecture,
-   eux, se ferment toujours aussitôt. */
+   les tiers et la photo sans un mot. Ces deux gestes demandent donc
+   confirmation ; les panneaux de lecture, eux, se ferment toujours aussitôt.
+
+   Restait à savoir ce qu'est un panneau « en cours de saisie ». On regardait
+   si un champ était rempli — ce qui condamnait la fiche catalogue, qui s'ouvre
+   pleine de ce qu'elle contient déjà : la consulter puis cliquer à côté valait
+   avertissement, alors qu'il n'y avait rien à perdre. Ce n'est pas d'être
+   rempli qui compte, c'est d'avoir changé. On relève donc l'état à l'ouverture
+   et l'on s'y compare à la fermeture. */
 const PANNEAUX_DE_SAISIE=['fumee-overlay','cave-overlay','wl-overlay',
   'seance-edit-overlay','cigar-edit-overlay','bio-overlay'];
+const empreintes={};
+function empreinteDuPanneau(id){
+  const o=document.getElementById(id);
+  if(!o)return '';
+  const champs=[...o.querySelectorAll('input,textarea,select')]
+    .filter(el=>el.type!=='file')
+    .map(el=>(el.type==='checkbox'||el.type==='radio')?(el.checked?'1':'0'):(el.value||''));
+  // une pastille choisie ne passe par aucun champ : sa sélection se lit à la classe
+  const choisies=[...o.querySelectorAll('.on')].map(el=>el.dataset.t||el.textContent.trim());
+  // le formulaire de dégustation retient plus encore : la note, les tiers, la photo
+  const aPart = id==='fumee-overlay'
+    ? [fRating,thirds.t1,thirds.t2,thirds.t3,thirds.g,photoEnCours?'photo':'',photoUrl||''].join(',')
+    : '';
+  return JSON.stringify([champs,choisies,aPart]);
+}
+/* Les panneaux s'ouvrent depuis une quinzaine d'endroits ; plutôt que de
+   marquer chacun d'eux, on observe la classe qui les ouvre. L'observateur est
+   appelé à la fin de la tâche en cours : ce que le code de l'ouverture écrit
+   dans les champs juste après est donc déjà là quand on relève l'empreinte. */
+document.querySelectorAll('.overlay').forEach(o=>{
+  new MutationObserver(()=>{
+    if(o.classList.contains('open')){ if(!(o.id in empreintes))empreintes[o.id]=empreinteDuPanneau(o.id); }
+    else delete empreintes[o.id];
+  }).observe(o,{attributes:true,attributeFilter:['class']});
+});
 function panneauModifie(id){
   const o=document.getElementById(id);
   if(!o||!o.classList.contains('open'))return false;
+  if(id in empreintes)return empreinteDuPanneau(id)!==empreintes[id];
+  /* Pas d'empreinte : l'observateur n'est appelé qu'à la fin de la tâche qui
+     ouvre le panneau, si bien qu'un panneau ouvert et refermé dans le même
+     souffle n'en a pas. Le doigt d'un membre est toujours plus lent que cela,
+     mais on ne fait pas reposer la sauvegarde de sa saisie sur une question de
+     rythme : à défaut d'empreinte, on retombe sur la règle d'avant — un champ
+     rempli vaut travail en cours. Trop prudent plutôt que trop leste. */
   const rempli=[...o.querySelectorAll('input,textarea')].some(el=>
     el.type!=='file'&&el.type!=='checkbox'&&el.type!=='date'&&(el.value||'').trim()!=='');
   if(rempli)return true;
-  // le formulaire de dégustation retient aussi ce qui ne passe par aucun champ
   if(id==='fumee-overlay')
     return fRating>0||!!selectedTerroir||!!photoEnCours
       ||thirds.t1>0||thirds.t2>0||thirds.t3>0;
