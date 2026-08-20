@@ -2109,29 +2109,49 @@ function tarifDeReference(nom){
    n'avait rien de rare : les fiches créées par les membres n'ont jamais reçu
    les tarifs versés au catalogue embarqué. Un tarif effectif résolu ici, et
    tout ce qui vit dessous — vignette, tri par prix, tranches — s'accorde. */
-/* Une fiche née du relevé s'efface devant celle d'un membre qui décrit le même
-   cigare. Le dédoublonnage fait à la génération ne pouvait pas voir ces
-   dernières : elles vivent en base, pas dans le catalogue embarqué. On compare
-   les mots du nom, de la vitole et du module réunis — le catalogue range
-   parfois « Double » au module et non au nom.
+/* Fusion des fiches qui décrivent le même cigare.
+   « PDR Criollito Half Corona », créée par un membre, et « El Criollito Half
+   Corona », née du relevé, sont le même cigare : la première le décrit, la
+   seconde sait ce qu'il coûte. Les réunir, plutôt qu'effacer l'une des deux,
+   est la seule façon de ne rien perdre.
 
-   Ne s'effacent que les fiches issues du relevé, jamais celles d'origine : on
-   les reconnaît à ce qu'elles n'ont ni vitole, ni module, ni cape — les 858
-   fiches d'origine en ont toutes au moins une — et à ce qu'aucune dégustation
-   ne s'y rattache. */
+   Le rapprochement porte sur les mots du nom, de la vitole et du module
+   réunis — le catalogue range parfois « Double » au module et non au nom, et
+   « El » ne distingue rien. Une fiche maigre dont tous les mots sont couverts
+   par une fiche détaillée désigne forcément le même cigare : la couverture
+   garantit que la vitole concorde, un « Robusto » ne pouvant se fondre dans
+   une fiche qui n'en parle pas.
+
+   Ne disparaissent que les fiches issues du relevé, jamais les autres : on les
+   reconnaît à ce qu'elles n'ont ni vitole, ni module, ni cape — les 858 fiches
+   d'origine en ont toutes au moins une — et à ce qu'aucune dégustation ne s'y
+   rattache. Ce que le cercle a fumé ne disparaît jamais. */
 function motsDeFiche(c){
   const k=cleTarif([c.name,c.vitola,c.module].filter(Boolean).join(' '));
   return k?k.split(' '):[];
 }
-function effacerDoublonsDuReleve(){
-  const membres=catalog.filter(c=>String(c.id).startsWith('m-')).map(c=>new Set(motsDeFiche(c)));
-  if(!membres.length)return;
+function fusionnerFichesJumelles(){
+  const detaillees=catalog
+    .filter(c=>c.vitola||c.module||c.wrapper)
+    .map(c=>({fiche:c,mots:new Set(motsDeFiche(c))}));
+  if(!detaillees.length)return;
   for(let i=catalog.length-1;i>=0;i--){
-    const c=catalog[i];
-    if(!String(c.id).startsWith('mensa-'))continue;
-    if(c.vitola||c.module||c.wrapper||c.votes>0)continue;
-    const m=motsDeFiche(c);
-    if(m.length&&membres.some(r=>m.every(x=>r.has(x))))catalog.splice(i,1);
+    const maigre=catalog[i];
+    if(!String(maigre.id).startsWith('mensa-'))continue;
+    if(maigre.vitola||maigre.module||maigre.wrapper||maigre.votes>0)continue;
+    const m=motsDeFiche(maigre);
+    if(!m.length)continue;
+    const hote=detaillees.find(d=>m.every(x=>d.mots.has(x)));
+    if(!hote)continue;
+    // Chacune apporte ce qui manque à l'autre, et rien ne s'écrase. Le drapeau
+    // dit que le prix vient du relevé même quand le nom de l'hôte ne s'y
+    // retrouve pas : sans lui, la fiche afficherait un tarif sans le dater.
+    if(!(hote.fiche.tarif>0)&&maigre.tarif>0){
+      hote.fiche.tarif=maigre.tarif; hote.fiche.tarifLe=null; hote.fiche.tarifDuReleve=true;
+    }
+    if(!hote.fiche.length&&maigre.length){ hote.fiche.length=maigre.length; hote.fiche.ring=maigre.ring; }
+    if(!hote.fiche.country&&maigre.country)hote.fiche.country=maigre.country;
+    catalog.splice(i,1);
   }
 }
 function completerTarifs(){
@@ -2178,7 +2198,7 @@ function ligneTarif(c){
   // 1er juin ne peut pas répondre d'un prix qu'il n'a jamais publié. On
   // reconnaît une correction à ce qu'elle s'écarte du relevé, plutôt qu'à un
   // marqueur — ainsi une fiche revenue au prix du relevé cesse d'être datée.
-  const duReleve=tarifDuNom(c.name)===c.tarif;
+  const duReleve=c.tarifDuReleve||tarifDuNom(c.name)===c.tarif;
   const source=duReleve?TARIF_SOURCE:(c.tarifLe?'Au '+dateEnToutesLettres(c.tarifLe):'');
   return `<div class="spec-row"><span class="spec-k">Prix en France</span>
     <span class="spec-v spec-prix">${fmtPrix(c.tarif)} <small class="spec-unite">l'unité</small>
@@ -2256,7 +2276,7 @@ async function loadMemberCatalog(){
     entry.score=catalog[i].score; entry.votes=catalog[i].votes;
     catalog[i]=entry;
   });
-  effacerDoublonsDuReleve();
+  fusionnerFichesJumelles();
   completerTarifs();
 }
 async function loadProfiles(){
