@@ -1150,11 +1150,10 @@ body{touch-action:manipulation}
       <div class="field"><label>Tripe</label><input id="nc-filler" placeholder="Ex : Nicaragua, Honduras"></div>
       <div class="field"><label>Force (1 à 5)</label><input id="nc-strength" type="number" min="1" max="5"></div>
       <div class="field">
-        <label>Exclusivité</label>
         <div class="terroir-pick">
-          <span class="tchip" id="nc-excl" onclick="basculerExclusivite('nc-')">Ne se vend pas en France</span>
+          <span class="tchip" id="nc-excl" onclick="basculerExclusivite('nc-')">Exclusivité</span>
         </div>
-        <input id="nc-exclusivite" class="excl-champ" style="display:none" placeholder="Où ? BELUX, Asie-Pacifique, Dominique London…">
+        <input id="nc-exclusivite" class="excl-champ" style="display:none" placeholder="Laquelle ? France, BELUX, Dominique London…">
       </div>
       <div class="field"><label id="nc-tarif-lbl">Tarif France <span style="color:var(--ink-3);font-weight:400">— € l'unité, facultatif</span></label><input id="nc-tarif" type="text" inputmode="decimal" autocomplete="off" oninput="this.dataset.propose=''" placeholder="Ex : 82,00"></div>
     </div>
@@ -1274,11 +1273,10 @@ body{touch-action:manipulation}
     <div class="field"><label>Tripe</label><input id="ec-filler" placeholder="Ex : Nicaragua, Honduras"></div>
     <div class="field"><label>Force (1 à 5)</label><input id="ec-strength" type="number" min="1" max="5"></div>
     <div class="field">
-      <label>Exclusivité</label>
       <div class="terroir-pick">
-        <span class="tchip" id="ec-excl" onclick="basculerExclusivite('ec-')">Ne se vend pas en France</span>
+        <span class="tchip" id="ec-excl" onclick="basculerExclusivite('ec-')">Exclusivité</span>
       </div>
-      <input id="ec-exclusivite" class="excl-champ" style="display:none" placeholder="Où ? BELUX, Asie-Pacifique, Dominique London…">
+      <input id="ec-exclusivite" class="excl-champ" style="display:none" placeholder="Laquelle ? France, BELUX, Dominique London…">
     </div>
     <div class="field"><label id="ec-tarif-lbl">Tarif France <span style="color:var(--ink-3);font-weight:400">— € l'unité</span></label><input id="ec-tarif" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex : 82,00"></div>
     <div class="f-err" id="ec-err"></div>
@@ -1356,11 +1354,10 @@ body{touch-action:manipulation}
       <div class="field"><label>Tripe</label><input id="cc-filler" placeholder="Ex : Nicaragua, Honduras"></div>
       <div class="field"><label>Force (1 à 5)</label><input id="cc-strength" type="number" min="1" max="5"></div>
       <div class="field">
-        <label>Exclusivité</label>
         <div class="terroir-pick">
-          <span class="tchip" id="cc-excl" onclick="basculerExclusivite('cc-')">Ne se vend pas en France</span>
+          <span class="tchip" id="cc-excl" onclick="basculerExclusivite('cc-')">Exclusivité</span>
         </div>
-        <input id="cc-exclusivite" class="excl-champ" style="display:none" placeholder="Où ? BELUX, Asie-Pacifique, Dominique London…">
+        <input id="cc-exclusivite" class="excl-champ" style="display:none" placeholder="Laquelle ? France, BELUX, Dominique London…">
       </div>
       <div class="field"><label id="cc-tarif-lbl">Tarif France <span style="color:var(--ink-3);font-weight:400">— € l'unité, facultatif</span></label><input id="cc-tarif" type="text" inputmode="decimal" autocomplete="off" oninput="this.dataset.propose=''" placeholder="Ex : 82,00"></div>
     </div>
@@ -2404,7 +2401,9 @@ function tarifParCouverture(c){
 function completerTarifs(){
   catalog.forEach(c=>{
     if(c.tarif>0)return;
-    if(c.exclusivite)return;    // hors de France : le relevé français ne le désigne pas
+    // le relevé ne publie pas les exclusivités sous ce nom : ce qu'on y
+    // trouverait serait la ligne ordinaire de la marque, donc un autre prix
+    if(c.exclusivite)return;
     let p=tarifDuNom(c.name);
     // à défaut d'un nom identique, l'entrée du relevé que la fiche recouvre
     // entièrement — mais jamais pour une fiche homonyme d'une autre, où rien
@@ -2520,8 +2519,9 @@ function signalerColonnesAbsentes(ampute){
    sélection d'une séance — le prix suit partout, sans qu'on ait à le répéter. */
 function ligneTarif(c){
   if(!c||!(c.tarif>0))return '';
-  // Un cigare qui ne se vend pas en France n'a pas de tarif français : son prix
-  // est celui de son exclusivité, et la ligne du dessous dit laquelle.
+  // Une exclusivité — France comprise — porte un prix qui lui est propre, et
+  // que le relevé national ne publie pas sous ce nom-là. On annonce donc « un
+  // prix », sans le rattacher à un pays ; la ligne du dessous dit laquelle.
   if(c.exclusivite){
     const quand=c.tarifLe?'Au '+dateEnToutesLettres(c.tarifLe):'';
     return `<div class="spec-row"><span class="spec-k">Prix</span>
@@ -3319,10 +3319,11 @@ function trierCatalogue(list){
       return enQueue(a,b,ra,rb,(rb-ra)||0);
     });
   }
-  /* Exclusivités d'abord. Ce tri-là ne hiérarchise rien : il rassemble. Les
-     cigares qu'on ne trouve pas en France sont dispersés dans le catalogue et
-     rien ne les désigne de loin ; ce choix les amène en tête, groupés par zone
-     ou par enseigne, le reste du catalogue derrière, inchangé. */
+  /* Exclusivités d'abord. Ce tri-là ne hiérarchise rien : il rassemble. Une
+     exclusivité — régionale, française, ou réservée à une enseigne — est
+     perdue dans trois mille références et rien ne la désigne de loin ; ce
+     choix les amène en tête, groupées par zone ou par enseigne, le reste du
+     catalogue derrière, inchangé. */
   if(critere==='exclusivite'){
     return copie.sort((a,b)=>{
       const ea=(a.exclusivite||''), eb=(b.exclusivite||'');
@@ -3635,10 +3636,13 @@ function valeurCaveHtml(b){
   if(b.nbChiffres&&b.payeChiffres>0&&b.franceChiffres>0){
     const ecart=b.franceChiffres-b.payeChiffres;
     const pct=Math.round(Math.abs(ecart)/b.franceChiffres*100);
+    // dès qu'une exclusivité entre dans le panier, « qu'en France » n'est plus
+    // vrai du tout : le repère devient le prix de référence, France ou non
+    const repere=b.exclusifs?'que leur prix de référence':"qu'en France";
     h+=`<div class="vc-row"><span>Ces ${b.nbChiffres} cigares, ${libelleTarifCave(b)}</span><b>${fmtPrix(b.franceChiffres)}</b></div>
         <p class="vc-note">${pct<2
-          ? 'Vous les avez payés le prix français.'
-          : `Vous les avez payés ${fmtPrix(b.payeChiffres)}, soit ${pct} % ${ecart>0?'de moins':'de plus'} qu'en France${ecart>0?` — ${fmtPrix(ecart)} d'économie`:''}.`}</p>`;
+          ? (b.exclusifs?'Vous les avez payés leur prix de référence.':'Vous les avez payés le prix français.')
+          : `Vous les avez payés ${fmtPrix(b.payeChiffres)}, soit ${pct} % ${ecart>0?'de moins':'de plus'} ${repere}${ecart>0?` — ${fmtPrix(ecart)} d'économie`:''}.`}</p>`;
   }
   // ce qui est estimé doit se dire, et se chiffrer : un total qui mêle sans
   // le dire des prix payés et des tarifs relevés ne vaut rien
@@ -3649,7 +3653,7 @@ function valeurCaveHtml(b){
   // dire lesquels ne relèvent pas du tarif français, et pour combien : c'est
   // la part du total qu'aucun relevé ne peut confirmer
   if(b.exclusifs)
-    h+=`<p class="vc-note">Dont ${fmtPrix(b.valeurExclusifs)} pour ${b.exclusifs} cigare${b.exclusifs>1?'s':''} qui ne se vend${b.exclusifs>1?'ent':''} pas en France, compté${b.exclusifs>1?'s':''} à leur prix local.</p>`;
+    h+=`<p class="vc-note">Dont ${fmtPrix(b.valeurExclusifs)} pour ${b.exclusifs} exclusivité${b.exclusifs>1?'s':''}, compté${b.exclusifs>1?'es':'e'} au prix de leur fiche plutôt qu'au relevé.</p>`;
   return h+'</div>';
 }
 function renderCave(){
@@ -3762,8 +3766,8 @@ function renderWishlist(){
   // ce que la liste représente, au tarif France : une envie chiffrée se décide
   const chiffrees=wishlist.map(w=>tarifDeReference(w.name)).filter(p=>p>0);
   const somme=chiffrees.reduce((s,p)=>s+p,0);
-  // une envie qui ne se vend pas en France compte à son prix local : même
-  // règle que la cave, et même devoir de le dire
+  // une envie exclusive compte au prix de sa fiche : même règle que la cave,
+  // et même devoir de le dire
   const exclusifs=wishlist.filter(w=>{
     const c=ficheByName(w.name);
     return c&&c.exclusivite&&tarifDeReference(w.name)>0;
