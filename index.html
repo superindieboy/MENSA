@@ -985,7 +985,8 @@ body{touch-action:manipulation}
         <select id="disc-sort" onchange="resetDiscoverPaging();renderDiscover()">
           <option value="note">note</option>
           <option value="qualite-prix">rapport qualité-prix</option>
-          <option value="prix">prix</option>
+          <option value="prix">prix croissant</option>
+          <option value="prix-desc">prix décroissant</option>
           <option value="nom">nom</option>
           <option value="format">format</option>
         </select>
@@ -2841,8 +2842,12 @@ function trierCatalogue(list){
     if(vb==null)return -1;
     return ordre;
   };
-  if(critere==='prix'){
-    return copie.sort((a,b)=>enQueue(a,b,a.tarif||null,b.tarif||null,(a.tarif-b.tarif)||0));
+  // Dans les deux sens : on cherche parfois ce qu'on peut s'offrir, parfois ce
+  // qui se fait de plus cher. Les fiches sans tarif restent en queue des deux
+  // côtés — les remonter en tête d'un tri décroissant n'aurait aucun sens.
+  if(critere==='prix'||critere==='prix-desc'){
+    const sens=(critere==='prix-desc')?-1:1;
+    return copie.sort((a,b)=>enQueue(a,b,a.tarif||null,b.tarif||null,sens*((a.tarif-b.tarif)||0)));
   }
   /* Rapport qualité-prix : la note du cercle rapportée au prix. La question
      que se pose vraiment celui qui remplit sa cave n'est pas « quel est le
