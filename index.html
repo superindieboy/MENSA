@@ -1008,6 +1008,7 @@ body{touch-action:manipulation}
           <option value="prix-desc">prix décroissant</option>
           <option value="nom">nom</option>
           <option value="format">format</option>
+          <option value="exclusivite">exclusivité</option>
         </select>
       </label>
     </div>
@@ -3293,6 +3294,20 @@ function trierCatalogue(list){
       return enQueue(a,b,ra,rb,(rb-ra)||0);
     });
   }
+  /* Exclusivités d'abord. Ce tri-là ne hiérarchise rien : il rassemble. Les
+     cigares qu'on ne trouve pas en France sont dispersés dans le catalogue et
+     rien ne les désigne de loin ; ce choix les amène en tête, groupés par zone
+     ou par enseigne, le reste du catalogue derrière, inchangé. */
+  if(critere==='exclusivite'){
+    return copie.sort((a,b)=>{
+      const ea=(a.exclusivite||''), eb=(b.exclusivite||'');
+      if(!ea&&!eb)return (b.score||0)-(a.score||0)
+        ||normCigar(a.name).localeCompare(normCigar(b.name),'fr');
+      if(!ea)return 1;
+      if(!eb)return -1;
+      return ea.localeCompare(eb,'fr')||normCigar(a.name).localeCompare(normCigar(b.name),'fr');
+    });
+  }
   if(critere==='format'){
     const taille=c=>(c.length&&c.ring)?(c.length*c.ring):-1;
     return copie.sort((a,b)=>{
@@ -3329,7 +3344,12 @@ function renderDiscover(){
   list=trierCatalogue(list);
   const shown=list.slice(0,discShown);
   const vierges=catalog.filter(c=>!(c.votes>0)).length;
+  // le tri par exclusivité n'a d'intérêt que si l'on sait combien il en a
+  // trouvé : sans ce compte, une liste inchangée laisserait croire à une panne
+  const triExcl=((document.getElementById('disc-sort')||{}).value==='exclusivite');
+  const nbExcl=triExcl?list.filter(c=>c.exclusivite).length:0;
   document.getElementById('disc-count').textContent=`${list.length} référence${list.length>1?'s':''} · ${catalog.length} au catalogue`
+    +(triExcl?` · ${nbExcl||'aucune'} exclusivité${nbExcl>1?'s':''} en tête`:'')
     +(activeFilter==='Tous'&&vierges?` · ${vierges.toLocaleString('fr-FR')} jamais fumées`:'')
     +(list.length>shown.length?` · ${shown.length} affichées`:'');
   document.getElementById('disc-grid').innerHTML = shown.length? shown.map(c=>{
