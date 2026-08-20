@@ -3545,6 +3545,14 @@ function ligneLot(l,k,seul){
     <span class="cave-edit">✎</span>
   </div>`;
 }
+/* Sur quoi repose le total. « Au tarif France » serait un abus dès qu'une
+   exclusivité s'y trouve : elle y entre à son prix local, et l'étiquette doit
+   le dire plutôt que de laisser croire à un relevé qui ne l'a jamais publiée.
+   La mention n'apparaît que si la cave en contient : sans exclusivité, elle
+   n'expliquerait rien. */
+function libelleTarifCave(b){
+  return (b&&b.exclusifs)?'au tarif France (et local pour les exclusivités)':'au tarif France';
+}
 /* Ce que vaut la cave. Les prix se saisissent lot par lot : on ne totalise que
    les lots chiffrés, et on dit lesquels manquent plutôt que de laisser croire
    à un inventaire complet. L'écart France / étranger est la question que se
@@ -3555,10 +3563,20 @@ function bilanCave(){
   // c'est la valeur de remplacement, et elle se compte sur tous les lots, y
   // compris ceux dont on connaît déjà le prix d'achat.
   let france=0, nbFrance=0, franceChiffres=0, payeChiffres=0, nbChiffres=0;
+  // Les exclusivités entrent dans ce total comme les autres : leur prix local
+  // est le seul qu'elles aient. On les compte à part pour pouvoir le dire —
+  // un total dont on ignore la base ne vaut pas mieux qu'un total faux.
+  let exclusifs=0, valeurExclusifs=0;
   Object.values(cave).forEach(arr=>arr.forEach(l=>{
     if(!l.qty||l.qty<=0)return;
     const ref=tarifDeReference(l.name);
-    if(ref>0){ france+=ref*l.qty; nbFrance+=l.qty; }
+    if(ref>0){
+      france+=ref*l.qty; nbFrance+=l.qty;
+      // même fiche que celle qui a donné le prix : un homonyme retombe sur le
+      // relevé français, et ne doit donc pas se compter comme exclusivité
+      const fiche=ficheByName(l.name);
+      if(fiche&&fiche.exclusivite){ exclusifs+=l.qty; valeurExclusifs+=ref*l.qty; }
+    }
     if(l.price!==null&&l.price!==undefined){
       lots.push(l);
       // le même panier des deux côtés : sans quoi l'écart mêlerait des cigares
@@ -3586,6 +3604,7 @@ function bilanCave(){
     totalTout:somme(tout), moyenneTout:moyenne(tout),
     sansRepere:cigares(aveugles),
     tarifFrance:france, nbTarifFrance:nbFrance,
+    exclusifs, valeurExclusifs,
     franceChiffres, payeChiffres, nbChiffres,
     moyFr:moyenne(fr), nbFr:cigares(fr),
     moyAilleurs:moyenne(ailleurs), nbAilleurs:cigares(ailleurs)
@@ -3616,7 +3635,7 @@ function valeurCaveHtml(b){
   if(b.nbChiffres&&b.payeChiffres>0&&b.franceChiffres>0){
     const ecart=b.franceChiffres-b.payeChiffres;
     const pct=Math.round(Math.abs(ecart)/b.franceChiffres*100);
-    h+=`<div class="vc-row"><span>Ces ${b.nbChiffres} cigares, au tarif France</span><b>${fmtPrix(b.franceChiffres)}</b></div>
+    h+=`<div class="vc-row"><span>Ces ${b.nbChiffres} cigares, ${libelleTarifCave(b)}</span><b>${fmtPrix(b.franceChiffres)}</b></div>
         <p class="vc-note">${pct<2
           ? 'Vous les avez payés le prix français.'
           : `Vous les avez payés ${fmtPrix(b.payeChiffres)}, soit ${pct} % ${ecart>0?'de moins':'de plus'} qu'en France${ecart>0?` — ${fmtPrix(ecart)} d'économie`:''}.`}</p>`;
@@ -3627,6 +3646,10 @@ function valeurCaveHtml(b){
     h+=`<p class="vc-note">Dont ${fmtPrix(b.estime)} estimés au tarif France, pour ${b.nbEstimes} cigare${b.nbEstimes>1?'s':''} dont vous n'avez pas noté le prix.</p>`;
   if(b.sansRepere)
     h+=`<p class="vc-note">${b.sansRepere} cigare${b.sansRepere>1?'s ne figurent':' ne figure'} ni avec un prix ni au relevé : ${b.sansRepere>1?'ils restent':'il reste'} hors du total.</p>`;
+  // dire lesquels ne relèvent pas du tarif français, et pour combien : c'est
+  // la part du total qu'aucun relevé ne peut confirmer
+  if(b.exclusifs)
+    h+=`<p class="vc-note">Dont ${fmtPrix(b.valeurExclusifs)} pour ${b.exclusifs} cigare${b.exclusifs>1?'s':''} qui ne se vend${b.exclusifs>1?'ent':''} pas en France, compté${b.exclusifs>1?'s':''} à leur prix local.</p>`;
   return h+'</div>';
 }
 function renderCave(){
@@ -3646,7 +3669,7 @@ function renderCave(){
     <div class="cstat"><div class="cstat-n">${total}</div><div class="cstat-l">cigares</div></div>
     <div class="cstat"><div class="cstat-n">${refs}</div><div class="cstat-l">références</div></div>
     <div class="cstat"><div class="cstat-n">${valeur>0?fmtPrix(valeur):'—'}</div><div class="cstat-l">valeur${(valeur>0&&estimee)?' estimée':''}</div></div>
-    <div class="cstat"><div class="cstat-n">${(b&&b.tarifFrance>0)?fmtPrix(b.tarifFrance):'—'}</div><div class="cstat-l">au tarif France${(b&&b.nbTarifFrance&&b.nbTarifFrance<total)?` · ${b.nbTarifFrance} sur ${total}`:''}</div></div>`;
+    <div class="cstat"><div class="cstat-n">${(b&&b.tarifFrance>0)?fmtPrix(b.tarifFrance):'—'}</div><div class="cstat-l">${libelleTarifCave(b)}${(b&&b.nbTarifFrance&&b.nbTarifFrance<total)?` · ${b.nbTarifFrance} sur ${total}`:''}</div></div>`;
   document.getElementById('cave-valeur').innerHTML=valeurCaveHtml(b);
 
   // recherche insensible aux accents dans le nom et le module
@@ -3739,11 +3762,17 @@ function renderWishlist(){
   // ce que la liste représente, au tarif France : une envie chiffrée se décide
   const chiffrees=wishlist.map(w=>tarifDeReference(w.name)).filter(p=>p>0);
   const somme=chiffrees.reduce((s,p)=>s+p,0);
+  // une envie qui ne se vend pas en France compte à son prix local : même
+  // règle que la cave, et même devoir de le dire
+  const exclusifs=wishlist.filter(w=>{
+    const c=ficheByName(w.name);
+    return c&&c.exclusivite&&tarifDeReference(w.name)>0;
+  }).length;
   document.getElementById('wl-stats').innerHTML=`
     <div class="cstat"><div class="cstat-n">${wishlist.length}</div><div class="cstat-l">envie${wishlist.length>1?'s':''}</div></div>
     <div class="cstat"><div class="cstat-n">${origines}</div><div class="cstat-l">origine${origines>1?'s':''}</div></div>
     <div class="cstat"><div class="cstat-n">${somme>0?fmtPrix(somme):'—'}</div><div class="cstat-l">${
-      chiffrees.length&&chiffrees.length<wishlist.length?`pour ${chiffrees.length} sur ${wishlist.length}`:'au tarif France'}</div></div>
+      chiffrees.length&&chiffrees.length<wishlist.length?`pour ${chiffrees.length} sur ${wishlist.length}`:libelleTarifCave({exclusifs})}</div></div>
     <div class="cstat"><div class="cstat-n">${notes}</div><div class="cstat-l">notés par le cercle</div></div>`;
 
   const q=normCigar(document.getElementById('wl-search').value);
