@@ -1153,7 +1153,10 @@ body{touch-action:manipulation}
         <div class="terroir-pick">
           <span class="tchip" id="nc-excl" onclick="basculerExclusivite('nc-')">Exclusivité</span>
         </div>
-        <input id="nc-exclusivite" class="excl-champ" style="display:none" placeholder="Laquelle ? France, Belux, Civette…">
+        <div class="excl-champ" id="nc-excl-box" style="display:none">
+          <label>Laquelle ?</label>
+          <input id="nc-exclusivite" placeholder="Francia, Phoenicia, Civette particulière…">
+        </div>
       </div>
       <div class="field"><label id="nc-tarif-lbl">Tarif France <span style="color:var(--ink-3);font-weight:400">— € l'unité, facultatif</span></label><input id="nc-tarif" type="text" inputmode="decimal" autocomplete="off" oninput="this.dataset.propose=''" placeholder="Ex : 82,00"></div>
     </div>
@@ -1276,7 +1279,10 @@ body{touch-action:manipulation}
       <div class="terroir-pick">
         <span class="tchip" id="ec-excl" onclick="basculerExclusivite('ec-')">Exclusivité</span>
       </div>
-      <input id="ec-exclusivite" class="excl-champ" style="display:none" placeholder="Laquelle ? France, Belux, Civette…">
+      <div class="excl-champ" id="ec-excl-box" style="display:none">
+        <label>Laquelle ?</label>
+        <input id="ec-exclusivite" placeholder="Francia, Phoenicia, Civette particulière…">
+      </div>
     </div>
     <div class="field"><label id="ec-tarif-lbl">Tarif France <span style="color:var(--ink-3);font-weight:400">— € l'unité</span></label><input id="ec-tarif" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex : 82,00"></div>
     <div class="f-err" id="ec-err"></div>
@@ -1357,7 +1363,10 @@ body{touch-action:manipulation}
         <div class="terroir-pick">
           <span class="tchip" id="cc-excl" onclick="basculerExclusivite('cc-')">Exclusivité</span>
         </div>
-        <input id="cc-exclusivite" class="excl-champ" style="display:none" placeholder="Laquelle ? France, Belux, Civette…">
+        <div class="excl-champ" id="cc-excl-box" style="display:none">
+          <label>Laquelle ?</label>
+          <input id="cc-exclusivite" placeholder="Francia, Phoenicia, Civette particulière…">
+        </div>
       </div>
       <div class="field"><label id="cc-tarif-lbl">Tarif France <span style="color:var(--ink-3);font-weight:400">— € l'unité, facultatif</span></label><input id="cc-tarif" type="text" inputmode="decimal" autocomplete="off" oninput="this.dataset.propose=''" placeholder="Ex : 82,00"></div>
     </div>
@@ -2429,10 +2438,14 @@ function exclusiviteActive(prefixe){
 function basculerExclusivite(prefixe){
   const p=document.getElementById(prefixe+'excl');
   const champ=document.getElementById(prefixe+'exclusivite');
-  if(!p||!champ)return;
+  const boite=document.getElementById(prefixe+'excl-box');
+  if(!p||!champ||!boite)return;
   const actif=!p.classList.contains('on');
   p.classList.toggle('on',actif);
-  champ.style.display=actif?'block':'none';
+  // la question et le champ vont ensemble : « Laquelle ? » au-dessus laisse à
+  // l'invite la place de citer ses trois exemples en entier, même sur un
+  // téléphone — dans le champ, la phrase entière débordait de 78 pixels
+  boite.style.display=actif?'block':'none';
   if(actif)champ.focus(); else champ.value='';
   majLibelleTarif(prefixe);
   // un tarif que le relevé avait proposé n'a plus lieu d'être : ce cigare
@@ -2452,10 +2465,11 @@ function lireExclusivite(prefixe){
 function poserExclusivite(prefixe,valeur){
   const p=document.getElementById(prefixe+'excl');
   const champ=document.getElementById(prefixe+'exclusivite');
-  if(!p||!champ)return;
+  const boite=document.getElementById(prefixe+'excl-box');
+  if(!p||!champ||!boite)return;
   p.classList.toggle('on',!!valeur);
   champ.value=valeur||'';
-  champ.style.display=valeur?'block':'none';
+  boite.style.display=valeur?'block':'none';
   majLibelleTarif(prefixe);
 }
 /* Une exclusivité sans nom ne dit rien : ni au membre qui lit la fiche, ni au
