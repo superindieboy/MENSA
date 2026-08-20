@@ -321,11 +321,10 @@ body{
 .auth-btn:hover{filter:brightness(1.08)}
 .auth-err{color:#E08A7A;font-size:12.5px;min-height:16px;text-align:left;margin:2px 0 6px}
 .auth-info{color:var(--amber);font-size:12.5px;text-align:left;margin:2px 0 6px;line-height:1.4}
-/* Exclusivité régionale ou d'enseigne. La case ouvre le champ : tant qu'elle
-   est décochée, le cigare est réputé se vendre en France, et rien n'encombre
-   le formulaire. */
-.excl{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--ink-2);cursor:pointer;user-select:none;margin-bottom:9px}
-.excl input{width:17px;height:17px;flex:none;accent-color:var(--cognac);cursor:pointer}
+/* Exclusivité : le même geste que le terroir, deux champs plus haut — une
+   pastille qu'on allume. Le champ n'apparaît qu'une fois allumée : tant que le
+   cigare se vend en France, il n'y a rien à préciser. */
+.excl-champ{margin-top:10px}
 .auth-links{display:flex;justify-content:space-between;margin-top:16px}
 .auth-link{font-size:12.5px;color:var(--ink-3);cursor:pointer}
 .auth-link:hover{color:var(--cognac)}
@@ -1151,8 +1150,11 @@ body{touch-action:manipulation}
       <div class="field"><label>Tripe</label><input id="nc-filler" placeholder="Ex : Nicaragua, Honduras"></div>
       <div class="field"><label>Force (1 à 5)</label><input id="nc-strength" type="number" min="1" max="5"></div>
       <div class="field">
-        <label class="excl"><input type="checkbox" id="nc-excl" onchange="basculerExclusivite('nc-')"> Exclusivité régionale ou d'enseigne</label>
-        <input id="nc-exclusivite" style="display:none" placeholder="Ex : BELUX, Asie-Pacifique, Dominique London">
+        <label>Exclusivité</label>
+        <div class="terroir-pick">
+          <span class="tchip" id="nc-excl" onclick="basculerExclusivite('nc-')">Ne se vend pas en France</span>
+        </div>
+        <input id="nc-exclusivite" class="excl-champ" style="display:none" placeholder="Où ? BELUX, Asie-Pacifique, Dominique London…">
       </div>
       <div class="field"><label id="nc-tarif-lbl">Tarif France <span style="color:var(--ink-3);font-weight:400">— € l'unité, facultatif</span></label><input id="nc-tarif" type="text" inputmode="decimal" autocomplete="off" oninput="this.dataset.propose=''" placeholder="Ex : 82,00"></div>
     </div>
@@ -1272,8 +1274,11 @@ body{touch-action:manipulation}
     <div class="field"><label>Tripe</label><input id="ec-filler" placeholder="Ex : Nicaragua, Honduras"></div>
     <div class="field"><label>Force (1 à 5)</label><input id="ec-strength" type="number" min="1" max="5"></div>
     <div class="field">
-      <label class="excl"><input type="checkbox" id="ec-excl" onchange="basculerExclusivite('ec-')"> Exclusivité régionale ou d'enseigne</label>
-      <input id="ec-exclusivite" style="display:none" placeholder="Ex : BELUX, Asie-Pacifique, Dominique London">
+      <label>Exclusivité</label>
+      <div class="terroir-pick">
+        <span class="tchip" id="ec-excl" onclick="basculerExclusivite('ec-')">Ne se vend pas en France</span>
+      </div>
+      <input id="ec-exclusivite" class="excl-champ" style="display:none" placeholder="Où ? BELUX, Asie-Pacifique, Dominique London…">
     </div>
     <div class="field"><label id="ec-tarif-lbl">Tarif France <span style="color:var(--ink-3);font-weight:400">— € l'unité</span></label><input id="ec-tarif" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex : 82,00"></div>
     <div class="f-err" id="ec-err"></div>
@@ -1351,8 +1356,11 @@ body{touch-action:manipulation}
       <div class="field"><label>Tripe</label><input id="cc-filler" placeholder="Ex : Nicaragua, Honduras"></div>
       <div class="field"><label>Force (1 à 5)</label><input id="cc-strength" type="number" min="1" max="5"></div>
       <div class="field">
-        <label class="excl"><input type="checkbox" id="cc-excl" onchange="basculerExclusivite('cc-')"> Exclusivité régionale ou d'enseigne</label>
-        <input id="cc-exclusivite" style="display:none" placeholder="Ex : BELUX, Asie-Pacifique, Dominique London">
+        <label>Exclusivité</label>
+        <div class="terroir-pick">
+          <span class="tchip" id="cc-excl" onclick="basculerExclusivite('cc-')">Ne se vend pas en France</span>
+        </div>
+        <input id="cc-exclusivite" class="excl-champ" style="display:none" placeholder="Où ? BELUX, Asie-Pacifique, Dominique London…">
       </div>
       <div class="field"><label id="cc-tarif-lbl">Tarif France <span style="color:var(--ink-3);font-weight:400">— € l'unité, facultatif</span></label><input id="cc-tarif" type="text" inputmode="decimal" autocomplete="off" oninput="this.dataset.propose=''" placeholder="Ex : 82,00"></div>
     </div>
@@ -2415,34 +2423,38 @@ function completerTarifs(){
    Il compte en revanche dans la valeur de la cave exactement comme les
    autres. C'est le seul prix qu'il ait ; l'écarter du total ne le rendrait pas
    plus juste, seulement plus court. */
+function exclusiviteActive(prefixe){
+  const p=document.getElementById(prefixe+'excl');
+  return !!(p&&p.classList.contains('on'));
+}
 function basculerExclusivite(prefixe){
-  const coche=document.getElementById(prefixe+'excl');
+  const p=document.getElementById(prefixe+'excl');
   const champ=document.getElementById(prefixe+'exclusivite');
-  if(!coche||!champ)return;
-  champ.style.display=coche.checked?'block':'none';
-  if(coche.checked)champ.focus(); else champ.value='';
+  if(!p||!champ)return;
+  const actif=!p.classList.contains('on');
+  p.classList.toggle('on',actif);
+  champ.style.display=actif?'block':'none';
+  if(actif)champ.focus(); else champ.value='';
   majLibelleTarif(prefixe);
   // un tarif que le relevé avait proposé n'a plus lieu d'être : ce cigare
   // n'est pas celui que le relevé désignait
   const t=document.getElementById(prefixe+'tarif');
-  if(coche.checked&&t&&t.dataset.propose==='1'){ t.value=''; t.dataset.propose=''; }
+  if(actif&&t&&t.dataset.propose==='1'){ t.value=''; t.dataset.propose=''; }
 }
 function majLibelleTarif(prefixe){
   const lbl=document.getElementById(prefixe+'tarif-lbl');
-  const coche=document.getElementById(prefixe+'excl');
-  if(!lbl||!coche||!lbl.firstChild)return;
-  lbl.firstChild.nodeValue=coche.checked?'Prix ':'Tarif France ';
+  if(!lbl||!lbl.firstChild)return;
+  lbl.firstChild.nodeValue=exclusiviteActive(prefixe)?'Prix ':'Tarif France ';
 }
 function lireExclusivite(prefixe){
-  const coche=document.getElementById(prefixe+'excl');
   const champ=document.getElementById(prefixe+'exclusivite');
-  return (coche&&coche.checked&&champ)?champ.value.trim():'';
+  return (exclusiviteActive(prefixe)&&champ)?champ.value.trim():'';
 }
 function poserExclusivite(prefixe,valeur){
-  const coche=document.getElementById(prefixe+'excl');
+  const p=document.getElementById(prefixe+'excl');
   const champ=document.getElementById(prefixe+'exclusivite');
-  if(!coche||!champ)return;
-  coche.checked=!!valeur;
+  if(!p||!champ)return;
+  p.classList.toggle('on',!!valeur);
   champ.value=valeur||'';
   champ.style.display=valeur?'block':'none';
   majLibelleTarif(prefixe);
@@ -2450,9 +2462,8 @@ function poserExclusivite(prefixe,valeur){
 /* Une exclusivité sans nom ne dit rien : ni au membre qui lit la fiche, ni au
    compte de la cave. On demande donc où elle s'exerce. */
 function exclusiviteIncomplete(prefixe){
-  const coche=document.getElementById(prefixe+'excl');
   const champ=document.getElementById(prefixe+'exclusivite');
-  return !!(coche&&coche.checked&&champ&&!champ.value.trim());
+  return !!(exclusiviteActive(prefixe)&&champ&&!champ.value.trim());
 }
 const ERREUR_EXCLUSIVITE="Précisez l'exclusivité : un pays, une région ou une enseigne.";
 
@@ -2477,17 +2488,31 @@ function proposerTarif(cfg){
    writeCaveItem pour les colonnes de prix de la cave. */
 async function ecrireFiche(faire,row){
   let {data,error}=await faire(row);
+  // ce que la base n'a pas pu prendre : la fiche part quand même, mais amputée,
+  // et l'appelant doit pouvoir le dire au membre plutôt que de fêter un succès
+  const ampute=[];
+  let corps=row;
   if(error&&/tarif/i.test(error.message||'')){
-    const sans=Object.assign({},row); delete sans.tarif; delete sans.tarif_le;
-    ({data,error}=await faire(sans));
-    if(!error)console.warn('Colonnes tarif absentes : exécutez ajout-tarif-catalogue.sql dans Supabase.');
+    corps=Object.assign({},corps); delete corps.tarif; delete corps.tarif_le;
+    ({data,error}=await faire(corps));
+    if(!error)ampute.push('tarif');
   }
   if(error&&/exclusivite/i.test(error.message||'')){
-    const sans=Object.assign({},row); delete sans.exclusivite;
-    ({data,error}=await faire(sans));
-    if(!error)console.warn("Colonne exclusivite absente : exécutez le script d'ajout dans Supabase.");
+    corps=Object.assign({},corps); delete corps.exclusivite;
+    ({data,error}=await faire(corps));
+    if(!error)ampute.push('exclusivite');
   }
-  return {data,error};
+  return {data,error,ampute};
+}
+/* Une colonne absente en base n'est pas une faute du membre, mais il doit
+   l'apprendre de l'écran et non de la console : sans cela il coche, enregistre,
+   rouvre la fiche et trouve sa saisie disparue sans un mot. */
+const NOM_DE_COLONNE={tarif:'le prix',exclusivite:"l'exclusivité"};
+function signalerColonnesAbsentes(ampute){
+  if(!ampute||!ampute.length)return false;
+  const quoi=ampute.map(c=>NOM_DE_COLONNE[c]||c).join(' ni ');
+  toast(`Fiche enregistrée, mais sans ${quoi} : la base ne connaît pas encore cette colonne. Exécutez le script SQL correspondant.`,'err');
+  return true;
 }
 /* Le prix appartient à la fiche, au même titre que le format ou la cape : il
    tient donc dans la grille, et non dans un encadré posé dessous. La fiche
@@ -4858,10 +4883,10 @@ async function saveCigarCard(){
   const ecrire = editingCigarId.startsWith('m-')
     ? r=>sb.from('catalog_items').update(r).eq('id',editingCigarId.slice(2)).select()
     : r=>sb.from('catalog_items').insert({user_id:currentUser.id,replaces:editingCigarId,...r}).select();
-  const {data,error}=await ecrireFiche(ecrire,row);
+  const {data,error,ampute}=await ecrireFiche(ecrire,row);
   if(error)return echec("Échec de l'enregistrement : "+(error.message||'erreur inconnue'));
   if(!(data&&data.length))
-    return echec("Modification refusée : exécutez ajout-admin-catalogue.sql dans Supabase.");
+    return echec("Modification refusée : exécutez le script des droits du modérateur dans Supabase.");
   if(oldName && oldName!==name){
     // Le nom relie la fiche aux dégustations : sans report, l'historique
     // des membres devient orphelin. Un échec ici ne perd pas la fiche.
@@ -4876,7 +4901,7 @@ async function saveCigarCard(){
   await loadMemberCatalog();
   await Promise.all([loadPosts(), loadCave()]);
   renderDiscover(); renderRails(); renderFeed(); renderCave(); renderProfile();
-  toast('Fiche enregistrée.');
+  if(!signalerColonnesAbsentes(ampute))toast('Fiche enregistrée.');
 }
 
 function openPostDetail(id){
@@ -5574,7 +5599,7 @@ async function resoudreFiche(nom,terroir,country,cfg){
   const val=id=>document.getElementById(cfg.prefixe+id).value.trim();
   const excl=lireExclusivite(cfg.prefixe);
   const prix=lireTarif(val('tarif'));
-  const {data,error}=await ecrireFiche(
+  const {data,error,ampute}=await ecrireFiche(
     r=>sb.from('catalog_items').insert(r).select(),
     {user_id:currentUser.id,name:nom,brand:val('brand'),vitola:val('vitola'),
      module:val('module'),country,terroir,length:+val('length')||null,ring:+val('ring')||null,
@@ -5585,6 +5610,7 @@ async function resoudreFiche(nom,terroir,country,cfg){
   if(error)return {erreur:"La fiche n'a pas pu être créée : "+(error.message||'réessayez.')};
   const creee=(data||[])[0];
   if(!creee)return {erreur:"La fiche n'a pas pu être créée. Réessayez."};
+  signalerColonnesAbsentes(ampute);
   await loadMemberCatalog();
   return {id:'m-'+creee.id,nom,terroir,module:val('module')||val('vitola')};
 }
