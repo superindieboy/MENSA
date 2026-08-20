@@ -8,6 +8,26 @@ function charger(chemin) {
   const objets = new Map();
   for (const m of brut.matchAll(/(\d+)\s+(\d+)\s+obj([\s\S]*?)endobj/g))
     if (!objets.has(m[1])) objets.set(m[1], m[3]);
+
+  /* Les PDF récents empaquettent leurs petits objets — polices, ressources —
+     dans des flux comprimés. Sans les déballer, les pages semblent n'avoir
+     aucune police, et le texte ne se décode plus : c'est le cas du Journal
+     officiel, dont on ne lisait que des codes bruts. */
+  for (const [, corps] of [...objets]) {
+    if (!/\/Type\s*\/ObjStm/.test(corps)) continue;
+    const clair = inflate(corps);
+    if (!clair) continue;
+    const n = +(corps.match(/\/N\s+(\d+)/) || [])[1];
+    const premier = +(corps.match(/\/First\s+(\d+)/) || [])[1];
+    if (!n || !premier) continue;
+    const entete = clair.slice(0, premier).trim().split(/\s+/).map(Number);
+    for (let i = 0; i < n; i++) {
+      const num = String(entete[i * 2]), decalage = entete[i * 2 + 1];
+      if (!num || !isFinite(decalage) || objets.has(num)) continue;
+      const fin = (i + 1 < n) ? premier + entete[i * 2 + 3] : clair.length;
+      objets.set(num, clair.slice(premier + decalage, fin));
+    }
+  }
   return { brut, objets };
 }
 
@@ -32,10 +52,15 @@ function tableDePolice(doc, refObjet) {
   const corps = doc.objets.get(refObjet);
   if (!corps) return null;
   const table = {};
+  let octets = 1;
   const tu = corps.match(/\/ToUnicode\s+(\d+)\s+\d+\s+R/);
   if (tu) {
     const cmap = inflate(doc.objets.get(tu[1]) || '');
     if (cmap) {
+      // largeur des codes : le Journal officiel écrit « <01> », d'autres
+      // documents « <0001> ». La plage de codes le dit.
+      const plage = cmap.match(/begincodespacerange\s*<([0-9A-Fa-f]+)>/);
+      if (plage) octets = Math.max(1, Math.round(plage[1].length / 2));
       for (const b of cmap.matchAll(/beginbfchar([\s\S]*?)endbfchar/g))
         for (const p of b[1].matchAll(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g))
           table[parseInt(p[1], 16)] = String.fromCharCode(parseInt(p[2].slice(0, 4), 16));
@@ -60,7 +85,9 @@ function tableDePolice(doc, refObjet) {
       }
     }
   }
-  return Object.keys(table).length ? table : null;
+  if (!Object.keys(table).length) return null;
+  Object.defineProperty(table, 'octets', { value: octets, enumerable: false });
+  return table;
 }
 
 const ACCENTS = {
@@ -110,7 +137,8 @@ function runs(doc, clair, polices) {
     '(q|Q|BT)',                                                                    // 15
     '\\[((?:[^\\[\\]\\\\]|\\\\.)*)\\]\\s*TJ',                                      // 16
     '\\(((?:\\\\.|[^)\\\\])*)\\)\\s*(Tj|\')',                                      // 17,18
-    `((?:${N}\\s+){1,5})(rg|g|k|scn)\\b`                                           // 19,20,21
+    `((?:${N}\\s+){1,5})(rg|g|k|scn)\\b`,                                          // 19,20,21
+    '<([0-9A-Fa-f\\s]*)>\\s*(Tj|\')'                                               // 22,23
   ].join('|'), 'g');
 
   for (const m of clair.matchAll(re)) {
@@ -147,14 +175,24 @@ function runs(doc, clair, polices) {
       rouge = (r > 0.55 && g < 0.42 && b < 0.42);
       continue;
     }
-    let cru;
-    if (m[16] !== undefined) cru = m[16].replace(/\)\s*-?[\d.]+\s*\(/g, '').replace(/^\s*\(|\)\s*$/g, '');
-    else if (m[17] !== undefined) {
-      cru = m[17];
+    /* Trois façons d'écrire du texte : la chaîne littérale « (Robusto) », le
+       tableau crénelé « [(Rob)-20(usto)] », et la chaîne hexadécimale
+       « <0102> » — celle du Journal officiel, qui ne s'y lit que par la table
+       de la police. Les trois cohabitent dans un même tableau TJ. */
+    let t;
+    if (m[16] !== undefined) {
+      t = '';
+      for (const el of m[16].matchAll(/\(((?:\\.|[^)\\])*)\)|<([0-9A-Fa-f\s]*)>/g))
+        t += el[1] !== undefined
+          ? decoder(el[1], polices[police])
+          : decoderHexa(el[2], polices[police]);
+    } else if (m[17] !== undefined) {
       if (m[18] === "'") { tlm = { ...tlm, f: tlm.f - tl * tlm.d }; tm = { ...tlm }; }
-    }
-    if (cru === undefined) continue;
-    const t = decoder(cru, polices[police]);
+      t = decoder(m[17], polices[police]);
+    } else if (m[22] !== undefined) {
+      if (m[23] === "'") { tlm = { ...tlm, f: tlm.f - tl * tlm.d }; tm = { ...tlm }; }
+      t = decoderHexa(m[22], polices[police]);
+    } else continue;
     const x = ctm.a * tm.e + ctm.e, y = ctm.d * tm.f + ctm.f;
     /* La taille visible n'est pas celle de « Tf » : la matrice du texte et
        celle de la page la multiplient. « L'amateur de cigare » compose tout en
@@ -164,6 +202,20 @@ function runs(doc, clair, polices) {
     if (t.trim()) sortie.push({ police, x, y, taille: Math.round(vue * 10) / 10, t, rouge });
   }
   return sortie;
+}
+
+function decoderHexa(hexa, table) {
+  const h = (hexa || '').replace(/\s+/g, '');
+  if (!h) return '';
+  const pas = (table && table.octets === 2) ? 4 : 2;
+  let out = '';
+  for (let i = 0; i < h.length; i += pas) {
+    const code = parseInt(h.slice(i, i + pas).padEnd(pas, '0'), 16);
+    if (isNaN(code)) continue;
+    const v = table ? table[code] : undefined;
+    out += (v !== undefined ? v : (code >= 32 && code < 127 ? String.fromCharCode(code) : ''));
+  }
+  return out;
 }
 
 function decoder(cru, table) {
@@ -179,4 +231,24 @@ function decoder(cru, table) {
   return out;
 }
 
-module.exports = { charger, inflate, tableDePolice, runs };
+/* Les polices du document, par nom de ressource. On balaie les corps d'objets
+   autant que le fichier brut : depuis que les ressources voyagent dans des
+   flux comprimés, le second ne suffit plus. */
+function policesDuDocument(doc) {
+  const tables = {}, familles = {};
+  const corpsTous = [doc.brut, ...doc.objets.values()];
+  for (const [num, corps] of doc.objets) {
+    if (!/\/Type\s*\/Font/.test(corps)) continue;
+    const bf = corps.match(/\/BaseFont\s*\/([A-Za-z0-9+\-_]+)/);
+    const t = tableDePolice(doc, num);
+    const re = new RegExp('\\/([A-Za-z][\\w.]*)\\s+' + num + '\\s+\\d+\\s+R', 'g');
+    for (const source of corpsTous)
+      for (const m of source.matchAll(re)) {
+        if (t) tables[m[1]] = t;
+        if (bf) familles[m[1]] = bf[1].replace(/^[A-Z]{6}\+/, '');
+      }
+  }
+  return { tables, familles };
+}
+
+module.exports = { charger, inflate, tableDePolice, runs, policesDuDocument };

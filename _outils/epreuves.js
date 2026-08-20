@@ -56,6 +56,8 @@ function preparer(racine) {
     'function cleTarif(nom)',
     'function tarifDuNom(nom)',
     'function motsDeFiche(c)',
+    'function clesParCouverture(c)',
+    'function cleParCouverture(c)',
     'function tarifParCouverture(c)'
   ].map(extraire).join('\n');
 

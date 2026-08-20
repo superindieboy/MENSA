@@ -1860,6 +1860,12 @@ async function chargerDonnees(){
   };
   const [c,t]=await Promise.all([lire('catalogue.json'),lire('tarifs.json')]);
   CATALOGUE=c; TARIFS=t; TARIFS_MOTS=null;
+  /* Le relevé précédent, s'il existe. Un tarif est une chronique, pas un
+     instantané : le garder permet de dire de combien un cigare a monté depuis
+     la dernière homologation. Son absence n'est pas une erreur — c'est l'état
+     normal jusqu'au premier changement de tarif, et l'app s'en passe. */
+  try{ TARIFS_AVANT=await lire('tarifs-precedent.json'); }
+  catch(e){ TARIFS_AVANT={}; }
   reinitialiserCatalogue();
 }
 /* Le catalogue de travail est une copie fraîche de l'original. Les fiches des
@@ -2247,6 +2253,7 @@ const TARIF_SOURCE='Au 1er juin 2026';
    chargement — sans quoi les fusions et les compléments s accumulent.
  */
 let TARIFS={};
+let TARIFS_AVANT={};   // relevé précédent, pour dire depuis quand un prix a changé
 /* Un tarif se saisit comme il s'écrit en France, à la virgule, et se stocke au
    centime. Une saisie qui n'est pas un montant renvoie null : l'appelant sait
    alors distinguer « rien saisi » de « saisi de travers », et le dit. */
@@ -2317,6 +2324,20 @@ function cleTarif(nom){
 function tarifDuNom(nom){
   const k=cleTarif(nom);
   return (k&&TARIFS[k]>0)?TARIFS[k]:null;
+}
+/* L'évolution d'un tarif, en toutes lettres. Le relevé précédent est vide tant
+   qu'aucun nouveau tarif n'a été homologué : l'histoire d'un prix commence à
+   son premier changement. Sous un pour cent, c'est un arrondi de centime et
+   non une hausse : on se tait. */
+function evolutionDuTarif(c){
+  if(!c||!(c.tarif>0)||c.exclusivite)return null;
+  const cle=cleDuTarif(c);                    // null si le prix a été corrigé à la main
+  if(!cle)return null;
+  const avant=TARIFS_AVANT[cle];
+  if(!(avant>0)||avant===c.tarif)return null;
+  const pct=Math.round((c.tarif-avant)/avant*100);
+  if(Math.abs(pct)<1)return null;
+  return {avant,pct};
 }
 /* Le tarif de référence d'un cigare qu'on ne connaît que par son nom — un lot
    de cave, une envie. La fiche d'abord, qui peut porter une correction du
@@ -2413,17 +2434,33 @@ function detailDeFiche(c){
    jumelle qu'on vient d'effacer : la fusion, elle, retire pour de bon, si
    bien qu'un second passage ne trouvait plus de quoi rendre le tarif. */
 let TARIFS_MOTS=null;
-function tarifParCouverture(c){
+function clesParCouverture(c){
   if(!TARIFS_MOTS)TARIFS_MOTS=Object.keys(TARIFS).map(k=>({k,mots:k.split(' ')}));
   const mots=new Set(motsDeFiche(c));
-  if(!mots.size)return null;
-  let trouve=null;
-  for(const e of TARIFS_MOTS){
-    if(!e.mots.every(x=>mots.has(x)))continue;
-    if(trouve)return null;                 // plusieurs entrées : on ne tranche pas
-    trouve=e;
-  }
-  return trouve?TARIFS[trouve.k]:null;
+  if(!mots.size)return [];
+  return TARIFS_MOTS.filter(e=>e.mots.every(x=>mots.has(x))).map(e=>e.k);
+}
+function cleParCouverture(c){
+  const k=clesParCouverture(c);
+  return k.length===1?k[0]:null;           // plusieurs entrées : on ne tranche pas
+}
+function tarifParCouverture(c){
+  const k=cleParCouverture(c);
+  return k?TARIFS[k]:null;
+}
+/* La clé du relevé qui répond du prix d'une fiche — par son nom, ou par
+   recouvrement. On en a besoin pour interroger le relevé précédent au même
+   endroit : sans elle, un cigare dont le prix vient d'un recouvrement, comme
+   les Behike, n'aurait jamais d'histoire. */
+function cleDuTarif(c){
+  if(!c||!(c.tarif>0))return null;
+  const k=cleTarif(c.name);
+  if(k&&TARIFS[k]===c.tarif)return k;
+  /* Quand plusieurs lignes du relevé tiennent dans les mots de la fiche — le
+     Behike en recouvre trois — c'est le prix qui tranche : une seule d'entre
+     elles vaut ce que la fiche affiche. À défaut d'unicité, on renonce. */
+  const candidates=clesParCouverture(c).filter(x=>TARIFS[x]===c.tarif);
+  return candidates.length===1?candidates[0]:null;
 }
 function completerTarifs(){
   catalog.forEach(c=>{
@@ -2563,8 +2600,14 @@ function ligneTarif(c){
   // 1er juin ne peut pas répondre d'un prix qu'il n'a jamais publié. On
   // reconnaît une correction à ce qu'elle s'écarte du relevé, plutôt qu'à un
   // marqueur — ainsi une fiche revenue au prix du relevé cesse d'être datée.
-  const duReleve=c.tarifDuReleve||tarifDuNom(c.name)===c.tarif;
-  const source=duReleve?TARIF_SOURCE:(c.tarifLe?'Au '+dateEnToutesLettres(c.tarifLe):'');
+  const duReleve=c.tarifDuReleve||tarifDuNom(c.name)===c.tarif||!!cleDuTarif(c);
+  // ce que le prix a fait depuis le relevé d'avant : un tarif se lit mieux
+  // avec son mouvement que seul
+  const ev=evolutionDuTarif(c);
+  const source=[
+    duReleve?TARIF_SOURCE:(c.tarifLe?'Au '+dateEnToutesLettres(c.tarifLe):''),
+    ev?`${ev.pct>0?'+':'−'}${Math.abs(ev.pct)} % depuis ${fmtPrix(ev.avant)}`:''
+  ].filter(Boolean).join(' · ');
   return `<div class="spec-row"><span class="spec-k">Prix en France</span>
     <span class="spec-v spec-prix">${fmtPrix(c.tarif)}${source?`<small class="spec-mm">${source}</small>`:''}</span></div>`;
 }
@@ -3645,8 +3688,16 @@ function bilanCave(){
   // est le seul qu'elles aient. On les compte à part pour pouvoir le dire —
   // un total dont on ignore la base ne vaut pas mieux qu'un total faux.
   let exclusifs=0, valeurExclusifs=0;
+  /* Ce que la même cave valait au relevé précédent. On ne compare que relevé
+     à relevé, sur les seuls lots que les deux connaissent : y mêler un prix
+     corrigé par un membre ferait passer sa correction pour une hausse. */
+  let releveAvant=0, releveApres=0, nbCompares=0;
   Object.values(cave).forEach(arr=>arr.forEach(l=>{
     if(!l.qty||l.qty<=0)return;
+    const fiche=ficheDuLot(l.name,l.detail);
+    const cle=fiche?cleDuTarif(fiche):null;
+    const p0=cle?TARIFS_AVANT[cle]:null, p1=cle?TARIFS[cle]:null;
+    if(p0>0&&p1>0){ releveAvant+=p0*l.qty; releveApres+=p1*l.qty; nbCompares+=l.qty; }
     const ref=tarifDeReference(l.name);
     if(ref>0){
       france+=ref*l.qty; nbFrance+=l.qty;
@@ -3683,6 +3734,7 @@ function bilanCave(){
     sansRepere:cigares(aveugles),
     tarifFrance:france, nbTarifFrance:nbFrance,
     exclusifs, valeurExclusifs,
+    releveAvant, releveApres, nbCompares,
     franceChiffres, payeChiffres, nbChiffres,
     moyFr:moyenne(fr), nbFr:cigares(fr),
     moyAilleurs:moyenne(ailleurs), nbAilleurs:cigares(ailleurs)
@@ -3731,6 +3783,14 @@ function valeurCaveHtml(b){
   // la part du total qu'aucun relevé ne peut confirmer
   if(b.exclusifs)
     h+=`<p class="vc-note">Dont ${fmtPrix(b.valeurExclusifs)} pour ${b.exclusifs} exclusivité${b.exclusifs>1?'s':''}, compté${b.exclusifs>1?'es':'e'} au prix de leur fiche plutôt qu'au relevé.</p>`;
+  /* Ce que la cave a pris sans qu'on y touche. Une cave se valorise du seul
+     fait que les tarifs montent : c'est le genre de nouvelle qu'on aime
+     apprendre, et le genre de chiffre qu'on ne peut pas calculer soi-même. */
+  if(b.nbCompares&&b.releveAvant>0&&b.releveApres!==b.releveAvant){
+    const ecart=b.releveApres-b.releveAvant;
+    const pct=Math.round(Math.abs(ecart)/b.releveAvant*100);
+    h+=`<p class="vc-note">Depuis le relevé précédent, ${b.nbCompares === 1 ? 'ce cigare a' : `ces ${b.nbCompares} cigares ont`} ${ecart>0?'pris':'perdu'} ${fmtPrix(Math.abs(ecart))}${pct>=1?` — ${pct} %`:''}, sans que vous ayez rien acheté.</p>`;
+  }
   return h+'</div>';
 }
 function renderCave(){
