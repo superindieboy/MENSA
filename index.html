@@ -769,7 +769,6 @@ body{
 /* Le prix se lit d'un coup d'œil dans une grille qui, sinon, se lit ligne à
    ligne : c'est la seule valeur qu'on cherche sans lire l'intitulé. */
 .spec-prix{color:var(--cognac);font-size:15px;font-weight:600}
-.spec-unite{font-size:11px;font-weight:400;color:var(--ink-3)}
 .spec-strength{display:flex;gap:3px;align-items:center}
 .spec-pip{width:14px;height:6px;border-radius:3px;background:var(--line-2)}
 .spec-pip.on{background:var(--cognac)}
@@ -2261,8 +2260,7 @@ function ligneTarif(c){
   const duReleve=c.tarifDuReleve||tarifDuNom(c.name)===c.tarif;
   const source=duReleve?TARIF_SOURCE:(c.tarifLe?'Au '+dateEnToutesLettres(c.tarifLe):'');
   return `<div class="spec-row"><span class="spec-k">Prix en France</span>
-    <span class="spec-v spec-prix">${fmtPrix(c.tarif)} <small class="spec-unite">l'unité</small>
-      ${source?`<small class="spec-mm">${source}</small>`:''}</span></div>`;
+    <span class="spec-v spec-prix">${fmtPrix(c.tarif)}${source?`<small class="spec-mm">${source}</small>`:''}</span></div>`;
 }
 /* Dernier prix payé en France pour ce cigare, s'il date de moins de six mois.
    Au-delà, un tarif n'est plus un repère fiable. */
