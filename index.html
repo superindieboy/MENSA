@@ -516,6 +516,7 @@ body{
 .disc-score{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500}
 .score-dot{width:8px;height:8px;border-radius:50%;background:var(--gold)}
 .disc-count{color:var(--ink-3);font-weight:400}
+.disc-prix{font-size:12.5px;font-weight:600;color:var(--cognac);margin-top:3px}
 .disc-vierge{color:var(--cognac);font-weight:500;font-size:11.5px;
   border:1px dashed var(--line-2);border-radius:20px;padding:1px 8px}
 
@@ -532,6 +533,8 @@ body{
 
 /* ===== CAVE ===== */
 .cave-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:24px}
+/* La wishlist en compte quatre : deux par deux plutôt qu'un orphelin sous trois */
+#wl-stats{grid-template-columns:repeat(2,1fr)}
 .cstat{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 12px;text-align:center}
 .cstat-n{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--cognac);line-height:1}
 .cstat-l{font-size:11px;color:var(--ink-3);margin-top:5px}
@@ -981,6 +984,8 @@ body{touch-action:manipulation}
       <label class="disc-sort">Trier par
         <select id="disc-sort" onchange="resetDiscoverPaging();renderDiscover()">
           <option value="note">note</option>
+          <option value="qualite-prix">rapport qualité-prix</option>
+          <option value="prix">prix</option>
           <option value="nom">nom</option>
           <option value="format">format</option>
         </select>
@@ -2079,6 +2084,14 @@ function tarifDuNom(nom){
   const k=cleTarif(nom);
   return (k&&TARIFS[k]>0)?TARIFS[k]:null;
 }
+/* Le tarif de référence d'un cigare qu'on ne connaît que par son nom — un lot
+   de cave, une envie. La fiche d'abord, qui peut porter une correction du
+   cercle ; le relevé ensuite, qui couvre bien au-delà du catalogue. */
+function tarifDeReference(nom){
+  const c=ficheByName(nom);
+  if(c&&c.tarif>0)return c.tarif;
+  return tarifDuNom(nom);
+}
 /* Propose le tarif du relevé au membre qui crée une fiche. Une proposition ne
    remplace jamais une saisie : seul un champ vide, ou une proposition faite
    plus tôt, se laisse réécrire — d'où le marqueur, que la saisie efface. */
@@ -2309,8 +2322,9 @@ const members=[];
    s'en tenir aux quatre historiques rendait invisibles au filtre les cigares
    du Costa Rica, du Mexique et du Brésil. */
 const TERROIR_FILTERS={'Cuba':'cuba','Nicaragua':'nica','Rép. Dom.':'rep','Honduras':'hon','Costa Rica':'cr','Mexique':'mex','Brésil':'bre','Autre':'autre'};
+const TRANCHES_PRIX={'Moins de 10 €':[0,10],'10 à 20 €':[10,20],'20 à 40 €':[20,40],'Plus de 40 €':[40,1e9]};
 const filterList=['Tous',...Object.keys(TERROIR_FILTERS),'Doux','Médium','Corsé','Note 4,5+',
-  'Fumés par le cercle','Jamais fumés'];
+  ...Object.keys(TRANCHES_PRIX),'Fumés par le cercle','Jamais fumés'];
 let activeFilter='Tous';
 
 /* ================= NAV ================= */
@@ -2819,6 +2833,28 @@ function trierCatalogue(list){
   const copie=list.slice();
   if(critere==='nom')
     return copie.sort((a,b)=>normCigar(a.name).localeCompare(normCigar(b.name),'fr'));
+  // Une fiche sans tarif ne peut ni se classer par prix ni se comparer : elle
+  // passe à la fin plutôt que de valoir zéro, ce qui la ferait passer devant.
+  const enQueue=(a,b,va,vb,ordre)=>{
+    if(va==null&&vb==null)return normCigar(a.name).localeCompare(normCigar(b.name),'fr');
+    if(va==null)return 1;
+    if(vb==null)return -1;
+    return ordre;
+  };
+  if(critere==='prix'){
+    return copie.sort((a,b)=>enQueue(a,b,a.tarif||null,b.tarif||null,(a.tarif-b.tarif)||0));
+  }
+  /* Rapport qualité-prix : la note du cercle rapportée au prix. La question
+     que se pose vraiment celui qui remplit sa cave n'est pas « quel est le
+     meilleur » mais « qu'est-ce qui vaut son prix ». Il faut les deux — un
+     cigare que personne n'a noté ne se compare à rien. */
+  if(critere==='qualite-prix'){
+    const rapport=c=>(c.score>0&&c.tarif>0)?(c.score/c.tarif):null;
+    return copie.sort((a,b)=>{
+      const ra=rapport(a), rb=rapport(b);
+      return enQueue(a,b,ra,rb,(rb-ra)||0);
+    });
+  }
   if(critere==='format'){
     const taille=c=>(c.length&&c.ring)?(c.length*c.ring):-1;
     return copie.sort((a,b)=>{
@@ -2844,6 +2880,9 @@ function renderDiscover(){
     if(activeFilter==='Médium'&&c.force!=='Médium')return false;
     if(activeFilter==='Corsé'&&c.force!=='Corsé')return false;
     if(activeFilter==='Note 4,5+'&&!(c.score>=4.5))return false;
+    // une tranche de prix ne peut rien dire d'une fiche sans tarif : elle sort
+    const tr=TRANCHES_PRIX[activeFilter];
+    if(tr&&!(c.tarif>=tr[0]&&c.tarif<tr[1]))return false;
     // le catalogue est un territoire : on doit pouvoir isoler ce qui reste à explorer
     if(activeFilter==='Fumés par le cercle'&&!(c.votes>0))return false;
     if(activeFilter==='Jamais fumés'&&(c.votes||0)>0)return false;
@@ -2862,12 +2901,16 @@ function renderDiscover(){
     // se confondait avec les autres : rien ne disait qu'elle restait à découvrir
     const score=c.score>0?`<div class="disc-score"><span class="score-dot"></span>${c.score.toFixed(1)}${c.votes>0?` <span class="disc-count">· ${c.votes.toLocaleString('fr-FR')} avis</span>`:''}</div>`
       :`<div class="disc-score"><span class="disc-vierge">Jamais fumé</span>${c.length?` <span class="disc-count">· ${c.length} mm</span>`:''}</div>`;
+    // le prix sur la vignette : sans lui, trier par prix ou par rapport
+    // qualité-prix produirait un ordre que rien ne justifierait à l'œil
+    const prix=c.tarif>0?`<div class="disc-prix">${fmtPrix(c.tarif)} <span class="disc-count">l'unité</span></div>`:'';
     return `<div class="disc-card" onclick="openCigarDetail('${c.id}')">
       <div class="disc-img" style="background:${p.fill}">${cigarHtml(c.terroir,70)}</div>
       <div class="disc-info">
         <div class="disc-name">${echapper(c.name)}</div>
         <div class="disc-sub">${echapper(sub)}</div>
         ${score}
+        ${prix}
       </div>
     </div>`;
   }).join('') : `<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:40px 0">Aucune référence ne correspond. Affinez votre recherche.</div>`;
@@ -2994,6 +3037,16 @@ function ligneLot(l,k,seul){
   else if(l.added)bouts.push(`🗓️ ${l.added}`);
   if(l.boughtIn)bouts.push(`${drapeauAchat(l.boughtIn)} ${echapper(l.boughtIn)}`);
   if(l.price!==null&&l.price!==undefined)bouts.push(`💶 ${fmtPrix(l.price)} l'unité${l.qty>1?` · ${fmtPrix(l.price*l.qty)}`:''}`);
+  /* L'écart au tarif France. Le bilan compare déjà les moyennes France et
+     étranger, mais une moyenne noie les cas : c'est ici qu'on voit quel achat
+     précis valait le voyage. Sous 3 %, l'écart tient au centime d'arrondi et
+     ne mérite pas d'être affiché. */
+  const ref=tarifDeReference(l.name);
+  if(l.price!==null&&l.price!==undefined&&ref>0){
+    const ecart=Math.round((l.price-ref)/ref*100);
+    if(Math.abs(ecart)>=3)
+      bouts.push(`${ecart<0?'▼':'▲'} ${Math.abs(ecart)} % ${ecart<0?'sous':'au-dessus'} du tarif France`);
+  }
   return `<div class="cave-item${seul?'':' cave-lot'}" onclick="openEditCaveSheet('${l.id}')">
     <div class="cave-bar" style="background:${(palette[k]||palette.autre).band}"></div>
     <div class="cave-info">
@@ -3009,31 +3062,41 @@ function ligneLot(l,k,seul){
    à un inventaire complet. L'écart France / étranger est la question que se
    pose tout acheteur au retour d'un voyage. */
 function bilanCave(){
-  const lots=[], sansPrix=[];
+  const lots=[], estimes=[], aveugles=[];
   Object.values(cave).forEach(arr=>arr.forEach(l=>{
     if(!l.qty||l.qty<=0)return;
-    if(l.price===null||l.price===undefined)sansPrix.push(l); else lots.push(l);
+    if(l.price!==null&&l.price!==undefined){ lots.push(l); return; }
+    // faute de prix saisi, le tarif France fait un repère honnête : mieux vaut
+    // une valeur estimée et annoncée comme telle qu'un lot passé sous silence
+    const ref=tarifDeReference(l.name);
+    if(ref>0)estimes.push({qty:l.qty,price:ref}); else aveugles.push(l);
   }));
-  if(!lots.length)return null;
+  if(!lots.length&&!estimes.length)return null;
   const cigares=liste=>liste.reduce((s,l)=>s+l.qty,0);
   const somme=liste=>liste.reduce((s,l)=>s+l.price*l.qty,0);
   const moyenne=liste=>{const n=cigares(liste);return n?somme(liste)/n:null;};
+  // La comparaison France / étranger ne porte que sur les prix saisis : une
+  // estimation vaut le tarif français, elle fausserait l'écart qu'on mesure.
   const enFrance=l=>normCigar(l.boughtIn)==='france';
   const fr=lots.filter(enFrance);
   const ailleurs=lots.filter(l=>l.boughtIn&&!enFrance(l));
+  const tout=lots.concat(estimes);
   return {
     total:somme(lots), nb:cigares(lots), moyenne:moyenne(lots),
-    nonChiffres:cigares(sansPrix),
+    estime:somme(estimes), nbEstimes:cigares(estimes),
+    totalTout:somme(tout), moyenneTout:moyenne(tout),
+    sansRepere:cigares(aveugles),
     moyFr:moyenne(fr), nbFr:cigares(fr),
     moyAilleurs:moyenne(ailleurs), nbAilleurs:cigares(ailleurs)
   };
 }
-function valeurCaveHtml(){
-  const b=bilanCave();
+function valeurCaveHtml(b){
+  b=b||bilanCave();
   if(!b)return '';
   let h=`<div class="vc">
     <div class="vc-head">Le prix de votre cave</div>
-    <div class="vc-row"><span>Prix moyen au cigare</span><b>${fmtPrix(b.moyenne)}</b></div>`;
+    <div class="vc-row"><span>Valeur totale${b.nbEstimes?', estimations comprises':''}</span><b>${fmtPrix(b.totalTout)}</b></div>
+    <div class="vc-row"><span>Prix moyen au cigare</span><b>${fmtPrix(b.moyenneTout)}</b></div>`;
   if(b.moyFr!==null&&b.moyAilleurs!==null){
     const ecart=b.moyFr-b.moyAilleurs;
     const pct=Math.round(Math.abs(ecart)/b.moyAilleurs*100);
@@ -3045,17 +3108,23 @@ function valeurCaveHtml(){
           ? 'Vos achats reviennent au même prix des deux côtés de la frontière.'
           : `En moyenne, vos cigares achetés en France reviennent ${pct} % ${ecart>0?'plus':'moins'} cher que ceux achetés ailleurs.`}</p>`;
   }
-  if(b.nonChiffres)h+=`<p class="vc-note">${b.nonChiffres} cigare${b.nonChiffres>1?'s sont':' est'} sans prix : ${b.nonChiffres>1?'ils ne comptent':'il ne compte'} pas dans ce total.</p>`;
+  // ce qui est estimé doit se dire, et se chiffrer : un total qui mêle sans
+  // le dire des prix payés et des tarifs relevés ne vaut rien
+  if(b.nbEstimes)
+    h+=`<p class="vc-note">Dont ${fmtPrix(b.estime)} estimés au tarif France, pour ${b.nbEstimes} cigare${b.nbEstimes>1?'s':''} dont vous n'avez pas noté le prix.</p>`;
+  if(b.sansRepere)
+    h+=`<p class="vc-note">${b.sansRepere} cigare${b.sansRepere>1?'s ne figurent':' ne figure'} ni avec un prix ni au relevé : ${b.sansRepere>1?'ils restent':'il reste'} hors du total.</p>`;
   return h+'</div>';
 }
 function renderCave(){
   const tous=[];
   Object.values(cave).forEach(arr=>arr.forEach(l=>tous.push(l)));
-  let total=0,valeur=0,toutChiffre=true;
-  tous.forEach(l=>{
-    total+=l.qty;
-    if(l.price!==null&&l.price!==undefined)valeur+=l.price*l.qty; else toutChiffre=false;
-  });
+  let total=0;
+  tous.forEach(l=>{ total+=l.qty; });
+  // le chiffre du bandeau et le détail dessous doivent sortir du même calcul
+  const b=bilanCave();
+  const valeur=b?b.totalTout:0;
+  const estimee=!!(b&&(b.nbEstimes||b.sansRepere));
   // un cigare compte pour une référence, quel que soit le nombre de lots — et
   // désormais quelle que soit l'étagère, le comptage par terroir dédoublant
   // un cigare dont deux lots n'auraient pas reçu le même code
@@ -3063,8 +3132,8 @@ function renderCave(){
   document.getElementById('cave-stats').innerHTML=`
     <div class="cstat"><div class="cstat-n">${total}</div><div class="cstat-l">cigares</div></div>
     <div class="cstat"><div class="cstat-n">${refs}</div><div class="cstat-l">références</div></div>
-    <div class="cstat"><div class="cstat-n">${valeur>0?fmtPrix(valeur):'—'}</div><div class="cstat-l">valeur${(valeur>0&&!toutChiffre)?' connue':''}</div></div>`;
-  document.getElementById('cave-valeur').innerHTML=valeurCaveHtml();
+    <div class="cstat"><div class="cstat-n">${valeur>0?fmtPrix(valeur):'—'}</div><div class="cstat-l">valeur${(valeur>0&&estimee)?' estimée':''}</div></div>`;
+  document.getElementById('cave-valeur').innerHTML=valeurCaveHtml(b);
 
   // recherche insensible aux accents dans le nom et le module
   const q=normCigar(document.getElementById('cave-search').value);
@@ -3134,6 +3203,9 @@ function ligneEnvie(w){
   const bouts=[];
   if(c&&c.votes)bouts.push(`⭐ ${c.score.toFixed(1)} au cercle · ${c.votes} avis`);
   else bouts.push('Personne ne l\'a encore noté');
+  // ce qu'il en coûterait : une envie sans prix reste une envie abstraite
+  const ref=tarifDeReference(w.name);
+  if(ref>0)bouts.push(`💶 ${fmtPrix(ref)} l'unité`);
   if(w.added)bouts.push(`🗓️ ajouté le ${w.added}`);
   return `<div class="cave-item" onclick="openEditWlSheet('${w.id}')">
     <div class="cave-bar" style="background:${(palette[terroirDeLEnvie(w)]||palette.autre).band}"></div>
@@ -3150,9 +3222,14 @@ function renderWishlist(){
   const notes=wishlist.filter(w=>{const c=ficheByName(w.name);return c&&c.votes;}).length;
   // « origines » et non « terroirs » : on compte désormais des pays réels
   const origines=new Set(wishlist.map(w=>etagereDeLEnvie(w).cle)).size;
+  // ce que la liste représente, au tarif France : une envie chiffrée se décide
+  const chiffrees=wishlist.map(w=>tarifDeReference(w.name)).filter(p=>p>0);
+  const somme=chiffrees.reduce((s,p)=>s+p,0);
   document.getElementById('wl-stats').innerHTML=`
     <div class="cstat"><div class="cstat-n">${wishlist.length}</div><div class="cstat-l">envie${wishlist.length>1?'s':''}</div></div>
     <div class="cstat"><div class="cstat-n">${origines}</div><div class="cstat-l">origine${origines>1?'s':''}</div></div>
+    <div class="cstat"><div class="cstat-n">${somme>0?fmtPrix(somme):'—'}</div><div class="cstat-l">${
+      chiffrees.length&&chiffrees.length<wishlist.length?`pour ${chiffrees.length} sur ${wishlist.length}`:'au tarif France'}</div></div>
     <div class="cstat"><div class="cstat-n">${notes}</div><div class="cstat-l">notés par le cercle</div></div>`;
 
   const q=normCigar(document.getElementById('wl-search').value);
