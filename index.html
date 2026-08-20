@@ -2396,8 +2396,13 @@ function compterNoms(){
 function detailDeFiche(c){
   if(!c)return '';
   if(nomsPartages[normCigar(c.name)]>1&&c.length&&c.ring)return `${c.length} mm · RG ${c.ring}`;
-  if(c.force)return c.force;
-  return (c.module&&c.module!=='—')?c.module:'';
+  /* Cette place revient au format, et à lui seul. La force s'y glissait et
+     chassait la vitole : côte à côte, deux Por Larrañaga annonçaient l'un
+     « Médium », l'autre « Panatella (deliciosos) » — deux réponses à deux
+     questions différentes, sous la même étiquette. La force se lit sur la
+     fiche, où elle a sa ligne. */
+  if(c.module&&c.module!=='—')return c.module;
+  return c.vitola||'';
 }
 /* Le relevé nomme parfois plus court que le catalogue : « El Criollito Half
    Corona » là où l'auteur d'une fiche écrit « PDR Criollito Half Corona ». On
