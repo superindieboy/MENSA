@@ -2808,7 +2808,40 @@ const TERROIR_FILTERS={'Cuba':'cuba','Nicaragua':'nica','Rép. Dom.':'rep','Hond
 const TRANCHES_PRIX={'Moins de 10 €':[0,10],'10 à 20 €':[10,20],'20 à 40 €':[20,40],'Plus de 40 €':[40,1e9]};
 const filterList=['Tous',...Object.keys(TERROIR_FILTERS),'Doux','Médium','Corsé','Note 4,5+',
   ...Object.keys(TRANCHES_PRIX),'Fumés par le cercle','Jamais fumés'];
-let activeFilter='Tous';
+/* Les filtres se cumulent, et leur famille décide comment.
+   Dans une même famille ils s'additionnent — Cuba ou Nicaragua ; d'une famille
+   à l'autre ils se resserrent — cubain ET doux ET entre 20 et 40 €. C'est la
+   seule lecture qui donne un résultat à chaque combinaison : exiger « Cuba ET
+   Nicaragua » d'un même cigare n'en désignerait jamais aucun. */
+const FAMILLES_FILTRES={
+  terroir:Object.keys(TERROIR_FILTERS),
+  force:['Doux','Médium','Corsé'],
+  note:['Note 4,5+'],
+  prix:Object.keys(TRANCHES_PRIX),
+  vecu:['Fumés par le cercle','Jamais fumés']
+};
+const filtresActifs=new Set();
+function familleDuFiltre(f){
+  for(const nom in FAMILLES_FILTRES)if(FAMILLES_FILTRES[nom].includes(f))return nom;
+  return null;
+}
+// le groupement se fait une fois par affichage, non pour chacune des trois
+// mille fiches que la liste traverse
+function filtresParFamille(){
+  const g={};
+  filtresActifs.forEach(f=>{const fam=familleDuFiltre(f);if(fam)(g[fam]=g[fam]||[]).push(f);});
+  return g;
+}
+function passeLesFiltres(c,g){
+  if(g.terroir&&!g.terroir.some(f=>c.terroir===TERROIR_FILTERS[f]))return false;
+  if(g.force&&!g.force.some(f=>c.force===f))return false;
+  if(g.note&&!(c.score>=4.5))return false;
+  // une tranche de prix ne peut rien dire d'une fiche sans tarif : elle sort
+  if(g.prix&&!g.prix.some(f=>{const t=TRANCHES_PRIX[f];return c.tarif>=t[0]&&c.tarif<t[1];}))return false;
+  // le catalogue est un territoire : on doit pouvoir isoler ce qui reste à explorer
+  if(g.vecu&&!g.vecu.some(f=>f==='Fumés par le cercle'?(c.votes>0):!(c.votes>0)))return false;
+  return true;
+}
 
 /* ================= NAV ================= */
 function go(s){
@@ -3296,7 +3329,12 @@ function refreshDetailLike(p){
 
 /* ================= DISCOVER ================= */
 function renderFilters(){
-  document.getElementById('filters').innerHTML=filterList.map(f=>`<span class="chip ${f===activeFilter?'on':''}" onclick="setFilter('${f}')">${f}</span>`).join('');
+  // « Tous » n'est pas un filtre mais leur absence : il s'allume quand aucun
+  // autre ne l'est, et les éteint tous quand on le touche
+  document.getElementById('filters').innerHTML=filterList.map(f=>{
+    const actif=(f==='Tous')?!filtresActifs.size:filtresActifs.has(f);
+    return `<span class="chip ${actif?'on':''}" onclick="setFilter('${f}')">${f}</span>`;
+  }).join('');
 }
 /* Le catalogue s'affiche par tranches : sans cela il s'arrêtait à 60 fiches
    sur 858, rendant le reste inatteignable. Toute nouvelle recherche repart
@@ -3305,7 +3343,25 @@ const DISC_PAGE=60;
 let discShown=DISC_PAGE;
 function resetDiscoverPaging(){discShown=DISC_PAGE;}
 function showMoreDiscover(){discShown+=DISC_PAGE;renderDiscover();}
-function setFilter(f){activeFilter=f;resetDiscoverPaging();renderFilters();renderDiscover();}
+function setFilter(f){
+  if(f==='Tous')filtresActifs.clear();
+  else if(filtresActifs.has(f))filtresActifs.delete(f);   // un second appui le retire
+  else filtresActifs.add(f);
+  resetDiscoverPaging();renderFilters();renderDiscover();
+}
+/* Quand rien ne correspond, dire quoi défaire. « Affinez votre recherche »
+   était un conseil à l'envers dès lors que les filtres se cumulent : ce qu'il
+   faut, c'est en retirer un. Et le dire ne suffit pas si « Tous » est sorti de
+   l'écran, la bande de filtres défilant horizontalement — on le remet donc
+   sous la main. */
+function messageDecouverteVide(){
+  const n=filtresActifs.size;
+  if(!n)return 'Aucune référence ne correspond. Essayez un autre mot.';
+  const retirer=`<span class="rail-more" style="margin-left:6px" onclick="setFilter('Tous')">Retirer les filtres</span>`;
+  return (n===1
+    ? 'Aucune référence ne porte ce filtre.'
+    : `Aucune référence ne réunit ces ${n} filtres.`)+retirer;
+}
 /* Sous-titre Découvrir : total du catalogue arrondi à la cinquantaine inférieure */
 function renderDiscoverIntro(){
   const rounded=Math.floor(catalog.length/50)*50;
@@ -3378,21 +3434,10 @@ function renderDiscover(){
   renderDiscoverIntro();
   // recherche insensible aux accents : « padron » doit trouver « Padrón »
   const q=normCigar(document.getElementById('search-input').value);
+  const familles=filtresParFamille();
   let list=catalog.filter(c=>{
     if(q && !normCigar([c.name,c.brand,c.country,c.module,c.profile,(c.flavors||[]).join(' ')].join(' ')).includes(q))return false;
-    const tf=TERROIR_FILTERS[activeFilter];
-    if(tf && c.terroir!==tf)return false;
-    if(activeFilter==='Doux'&&c.force!=='Doux')return false;
-    if(activeFilter==='Médium'&&c.force!=='Médium')return false;
-    if(activeFilter==='Corsé'&&c.force!=='Corsé')return false;
-    if(activeFilter==='Note 4,5+'&&!(c.score>=4.5))return false;
-    // une tranche de prix ne peut rien dire d'une fiche sans tarif : elle sort
-    const tr=TRANCHES_PRIX[activeFilter];
-    if(tr&&!(c.tarif>=tr[0]&&c.tarif<tr[1]))return false;
-    // le catalogue est un territoire : on doit pouvoir isoler ce qui reste à explorer
-    if(activeFilter==='Fumés par le cercle'&&!(c.votes>0))return false;
-    if(activeFilter==='Jamais fumés'&&(c.votes||0)>0)return false;
-    return true;
+    return passeLesFiltres(c,familles);
   });
   list=trierCatalogue(list);
   const shown=list.slice(0,discShown);
@@ -3403,7 +3448,7 @@ function renderDiscover(){
   const nbExcl=triExcl?list.filter(c=>c.exclusivite).length:0;
   document.getElementById('disc-count').textContent=`${list.length} référence${list.length>1?'s':''} · ${catalog.length} au catalogue`
     +(triExcl?` · ${nbExcl||'aucune'} exclusivité${nbExcl>1?'s':''} en tête`:'')
-    +(activeFilter==='Tous'&&vierges?` · ${vierges.toLocaleString('fr-FR')} jamais fumées`:'')
+    +(!filtresActifs.size&&vierges?` · ${vierges.toLocaleString('fr-FR')} jamais fumées`:'')
     +(list.length>shown.length?` · ${shown.length} affichées`:'');
   document.getElementById('disc-grid').innerHTML = shown.length? shown.map(c=>{
     const p=palette[c.terroir]||palette.autre;
@@ -3425,7 +3470,7 @@ function renderDiscover(){
         ${prix}
       </div>
     </div>`;
-  }).join('') : `<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:40px 0">Aucune référence ne correspond. Affinez votre recherche.</div>`;
+  }).join('') : `<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:40px 0">${messageDecouverteVide()}</div>`;
   const reste=list.length-shown.length;
   document.getElementById('disc-more').innerHTML = reste>0
     ? `<button class="logout-btn" style="width:100%;margin:0" onclick="showMoreDiscover()">Afficher ${Math.min(reste,DISC_PAGE)} références de plus <span style="color:var(--ink-3);font-weight:400">— ${reste} restantes</span></button>`
