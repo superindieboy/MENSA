@@ -1628,7 +1628,12 @@ async function confirmDeleteAccount(){
 }
 async function enterApp(user){
   let prof=null;
-  try{const {data}=await sb.from('profiles').select('*').eq('id',user.id).single(); prof=data;}catch(e){}
+  // sans profil on retombe sur le préfixe de l'adresse : c'est acceptable une
+  // fois, pas à chaque connexion. La console doit pouvoir le dire.
+  try{
+    const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
+    if(error)console.warn('profil',error.message); else prof=data;
+  }catch(e){ console.warn('profil',e&&e.message); }
   const name = (prof&&prof.name) || (user.user_metadata&&user.user_metadata.name) || user.email.split('@')[0];
   currentUser={id:user.id, email:user.email, name, init:initialsOf(name), bio:(prof&&prof.bio)||''};
   viewedMemberId=user.id;
@@ -2388,7 +2393,12 @@ async function loadPosts(){
   const nameById={}; members.forEach(m=>nameById[m.id]=m.name);
   // la date des « j'aime » n'est lue que par le fil d'activité, qui doit
   // pouvoir les ranger parmi les commentaires
-  let likes=[]; try{const r=await sb.from('post_likes').select('post_id,user_id,created_at'); likes=r.data||[];}catch(e){}
+  // un échec ici afficherait « 0 j'aime » partout sans que rien ne l'explique
+  let likes=[];
+  try{
+    const r=await sb.from('post_likes').select('post_id,user_id,created_at');
+    if(r.error)signalerEchec("« j'aime »",r.error); else likes=r.data||[];
+  }catch(e){ signalerEchec("« j'aime »",e); }
   jaimes=likes;
   // on garde aussi QUI a aimé, pour l'indicateur du fil
   const likeCount={}, likedMine={}, likedBy={};
@@ -2945,8 +2955,12 @@ async function sharePost(id){
       const a=document.createElement('a');
       a.href=URL.createObjectURL(blob); a.download='mensa.png';
       a.click(); URL.revokeObjectURL(a.href);
-      try{ await navigator.clipboard.writeText(`${text}\n${url}`); }catch(e){}
-      toast('Carte enregistrée, lien copié.');
+      // annoncer une copie qui n'a pas eu lieu vaut moins que rien : le membre
+      // colle ensuite dans le vide sans comprendre
+      let lienCopie=true;
+      try{ await navigator.clipboard.writeText(`${text}\n${url}`); }catch(e){ lienCopie=false; }
+      toast(lienCopie ? 'Carte enregistrée, lien copié.'
+                      : "Carte enregistrée. Le lien n'a pas pu être copié.");
       return;
     }
   }catch(e){ console.warn('carte',e&&e.message); }
@@ -3755,11 +3769,15 @@ function cleFilVu(){ return currentUser?('mensa-fil-vu-'+currentUser.id):null; }
 function filVuLe(){
   const k=cleFilVu(); if(!k)return 0;
   let brut=null;
+  // Silence assumé : en navigation privée, localStorage lève par nature. Le
+  // repli — la dernière semaine — est déjà le bon comportement, et le membre
+  // n'y peut rien. Le prévenir ne ferait que l'inquiéter sans recours.
   try{ brut=localStorage.getItem(k); }catch(e){}
   return brut ? (Date.parse(brut)||0) : Date.now()-FIL_PREMIERE_FOIS;
 }
 function marquerFilLu(){
   const k=cleFilVu(); if(!k)return;
+  // même silence, même raison : la pastille restera allumée, sans plus
   try{ localStorage.setItem(k,new Date().toISOString()); }catch(e){}
 }
 
@@ -5062,7 +5080,19 @@ function openBioSheet(){
 }
 async function saveBio(){
   const v=(document.getElementById('bio-input').value||'').trim();
-  if(currentUser){currentUser.bio=v; try{await sb.from('profiles').update({bio:v}).eq('id',currentUser.id);}catch(e){}}
+  if(currentUser&&sb){
+    /* La bio se mettait à jour en mémoire et le panneau se refermait : elle
+       paraissait enregistrée, et se perdait au rechargement. Le .select()
+       compte les lignes écrites, seul moyen de voir un refus de policy, qui
+       ne lève aucune erreur. En cas d'échec le panneau reste ouvert : ce qui
+       vient d'être écrit ne doit pas disparaître avec le message. */
+    const {data,error}=await sb.from('profiles').update({bio:v}).eq('id',currentUser.id).select();
+    if(error||!(data&&data.length)){
+      toast("La bio n'a pas pu être enregistrée. Réessayez.",'err');
+      return;
+    }
+    currentUser.bio=v;
+  }
   document.getElementById('prof-bio').textContent=v||BIO_PLACEHOLDER;
   closeSheet('bio-overlay');
 }
