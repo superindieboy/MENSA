@@ -2376,6 +2376,44 @@ function ficheByName(name){
   const m=catalog.filter(c=>normCigar(c.name)===k);
   return m.length===1?m[0]:null;
 }
+/* La fiche d'un lot de cave ou d'une envie, quand plusieurs la revendiquent.
+   Deux fiches nommées « My Father Le Bijou 1922 » ne diffèrent que par leur
+   module : le lot en garde un, et c'est lui qui départage. Sans cela, ouvrir
+   un lot dont le nom est ambigu ne pré-sélectionnait aucune fiche, et
+   l'enregistrer réclamait un choix dans une liste que rien n'ouvrait. */
+/* Les suggestions du catalogue, classées. Il compte plus de trois mille
+   fiches : en prendre huit dans l'ordre du fichier revient à tirer au sort.
+   On remonte donc ce qui commence par ce qu'on tape, puis les fiches
+   détaillées avant celles nées du relevé — plus complètes, et souvent celles
+   que le cercle connaît — puis les noms les plus courts, qui sont les plus
+   génériques. */
+const AC_MAX=10;
+function suggestions(q,n){
+  const k=normCigar(q);
+  if(k.length<2)return [];
+  const rang=c=>{
+    const nom=normCigar(c.name);
+    let r=0;
+    if(nom===k)r-=100; else if(nom.indexOf(k)===0)r-=50;
+    if(c.vitola||c.module||c.wrapper)r-=10;
+    return r+nom.length/1000;
+  };
+  return catalog
+    .filter(c=>normCigar([c.name,c.brand,c.country].join(' ')).includes(k))
+    .sort((a,b)=>rang(a)-rang(b))
+    .slice(0,n||AC_MAX);
+}
+function ficheDuLot(nom,detail){
+  const seule=ficheByName(nom);
+  if(seule)return seule;
+  const k=normCigar(nom);
+  if(!k)return null;
+  const memes=catalog.filter(c=>normCigar(c.name)===k);
+  if(!memes.length||!detail||detail==='—')return null;
+  const d=normCigar(detail);
+  const exacts=memes.filter(c=>normCigar(c.module||'')===d||normCigar(c.vitola||'')===d);
+  return exacts.length===1?exacts[0]:null;
+}
 function ficheOf(p){
   if(!p)return null;
   if(p.catalogId){const c=catalog.find(x=>x.id===p.catalogId);if(c)return c;}
@@ -3408,7 +3446,7 @@ function wlAcSearch(q){
   const list=document.getElementById('wl-ac-list');
   q=normCigar(q);
   if(q.length<2){list.classList.remove('open');list.innerHTML='';return;}
-  const matches=catalog.filter(c=>normCigar([c.name,c.brand,c.country].join(' ')).includes(q)).slice(0,8);
+  const matches=suggestions(q);
   if(!matches.length){list.classList.remove('open');list.innerHTML='';return;}
   list.innerHTML=matches.map(c=>{
     const p=palette[c.terroir]||palette.autre;
@@ -3898,7 +3936,7 @@ function scAcSearch(q){
   document.getElementById('sc-spec').innerHTML='';
   q=normCigar(q);
   if(q.length<2){list.classList.remove('open');list.innerHTML='';return;}
-  const matches=catalog.filter(c=>normCigar([c.name,c.brand,c.country].join(' ')).includes(q)).slice(0,8);
+  const matches=suggestions(q);
   if(!matches.length){list.classList.remove('open');list.innerHTML='';return;}
   list.innerHTML=matches.map(c=>{
     const p=palette[c.terroir]||palette.autre;
@@ -4346,7 +4384,7 @@ function acSearch(q){
   }
   q=normCigar(q);
   if(q.length<2){list.classList.remove('open');list.innerHTML='';return;}
-  const matches=catalog.filter(c=>normCigar([c.name,c.brand,c.country].join(' ')).includes(q)).slice(0,8);
+  const matches=suggestions(q);
   let h=matches.map(c=>{
     const p=palette[c.terroir]||palette.autre;
     const sub=[c.country,c.module||c.force].filter(Boolean).join(' · ');
@@ -4798,7 +4836,7 @@ function caveAcSearch(q){
   const list=document.getElementById('cave-ac-list');
   q=normCigar(q);
   if(q.length<2){list.classList.remove('open');list.innerHTML='';return;}
-  const matches=catalog.filter(c=>normCigar([c.name,c.brand,c.country].join(' ')).includes(q)).slice(0,8);
+  const matches=suggestions(q);
   if(!matches.length){
     // même issue que pour une dégustation : on propose d'en créer la fiche
     list.innerHTML=`<div class="ac-create" onclick="caveAcCreate()">+ Créer une nouvelle fiche</div>`;
@@ -4889,13 +4927,15 @@ function openEditCaveSheet(id){
   if(!currentUser||it.user_id!==currentUser.id)return;
   editingCaveId=id;
   caveSelectedTerroir=it.terroir||null;
-  caveSelectedCigar=ficheByName(it.name);   // sans quoi une simple correction redemanderait la fiche
+  // le module du lot départage les fiches homonymes ; sans quoi une simple
+  // correction redemanderait la fiche, sans moyen de la désigner
+  caveSelectedCigar=ficheDuLot(it.name,it.detail);
   reinitFiche(FICHE_CAVE);
   closeCaveAc();
   document.getElementById('cave-title').textContent='Modifier la référence';
   document.getElementById('cave-submit-btn').textContent='Enregistrer';
   document.getElementById('cave-submit-btn').disabled=false;
-  renderCaveSpec(ficheByName(it.name));
+  renderCaveSpec(caveSelectedCigar);
   document.getElementById('c-name').value=it.name||'';
   document.getElementById('c-qty').value=it.qty||1;
   document.getElementById('c-price').value=(it.price===null||it.price===undefined)?'':it.price;
@@ -5042,6 +5082,8 @@ async function saveFumee(){
   if(fiche.erreur){
     err.textContent=fiche.erreur;
     if(fiche.ouvrirPanneau)ouvrirPanneauFiche();
+    // renvoyer à une liste que rien n'ouvre est une impasse : on l'ouvre
+    if(fiche.ouvrirListe)acSearch(document.getElementById('f-name').value);
     if(btn)btn.disabled=false;
     return;
   }
@@ -5201,7 +5243,8 @@ async function resoudreFiche(nom,terroir,country,cfg){
   // une ligne comme « Flor de Selva Clásica » couvre huit vitoles : rien ne
   // permet de trancher à la place du membre, et se tromper fausse la note
   if(memes.length>1)
-    return {erreur:`${memes.length} formats portent ce nom. Choisissez le vôtre dans la liste de suggestions.`};
+    return {erreur:`${memes.length} formats portent ce nom. Choisissez le vôtre dans la liste ci-dessous.`,
+            ouvrirListe:true};
   // cigare inconnu : sa fiche doit être créée, et sciemment
   if(document.getElementById(cfg.panneau).style.display==='none')
     return {erreur:`Ce cigare n'est pas au catalogue. Renseignez sa fiche pour pouvoir ${cfg.verbe}.`,ouvrirPanneau:true};
@@ -5267,6 +5310,7 @@ async function saveCave(){
   if(fiche.erreur){
     if(err)err.textContent=fiche.erreur; else toast(fiche.erreur,'err');
     if(fiche.ouvrirPanneau)ouvrirPanneauFiche(FICHE_CAVE);
+    if(fiche.ouvrirListe)caveAcSearch(document.getElementById('c-name').value);
     btn.disabled=false; return;
   }
   if(err)err.textContent='';
