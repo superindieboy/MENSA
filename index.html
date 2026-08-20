@@ -1752,7 +1752,7 @@ async function logout(){
   currentUser=null;
   document.getElementById('auth-screen').classList.add('show');
 }
-function openDeleteConfirm(){ document.getElementById('delete-overlay').classList.add('open'); }
+function openDeleteConfirm(){ ouvrirSeul('delete-overlay'); }
 async function confirmDeleteAccount(){
   if(!currentUser||!sb)return;
   const uid=currentUser.id;
@@ -1964,7 +1964,7 @@ function openBadgeSheet(uid){
   document.getElementById('badge-label').value='';
   document.getElementById('badge-sub').textContent=`Distinctions de ${nomDuMembre(uid)}, visibles de tout le cercle.`;
   renderBadgeSheet();
-  document.getElementById('badge-overlay').classList.add('open');
+  ouvrirSeul('badge-overlay');
 }
 function renderBadgeSheet(){
   const uid=badgeMembreId; if(!uid)return;
@@ -3857,7 +3857,7 @@ function clearWlFields(){
 }
 function openWlSheet(){
   wlAddMode(); clearWlFields();
-  document.getElementById('wl-overlay').classList.add('open');
+  ouvrirSeul('wl-overlay');
 }
 /* Depuis une dégustation : le cigare est connu, on ne redemande rien. */
 function openWlSheetFromPost(id){
@@ -3870,7 +3870,7 @@ function openWlSheetFromPost(id){
   document.getElementById('w-detail').value=(c&&c.module&&c.module!=='—')?c.module:'';
   document.getElementById('w-note').value=`Repéré chez ${p.user}.`;
   wlSelectedTerroir=(c&&c.terroir)||p.terroir||null;
-  document.getElementById('wl-overlay').classList.add('open');
+  ouvrirSeul('wl-overlay');
 }
 /* Depuis le catalogue : c'est là qu'on découvre un cigare qu'on n'a pas
    encore fumé, donc le premier endroit d'où l'envie naît. */
@@ -3883,7 +3883,7 @@ function openWlSheetFromCigar(id){
   const mod=(c.module&&c.module!=='—')?c.module:(c.vitola||'');
   document.getElementById('w-detail').value=mod||'';
   wlSelectedTerroir=c.terroir||null;
-  document.getElementById('wl-overlay').classList.add('open');
+  ouvrirSeul('wl-overlay');
 }
 function openEditWlSheet(id){
   const w=wishlist.find(x=>x.id===id);if(!w)return;
@@ -3904,7 +3904,7 @@ function openEditWlSheet(id){
     `<button class="btn-primary" id="wl-cave-btn" style="flex-basis:100%" onclick="envieVersCave()">Je l'ai acheté — passer en cave</button>`);
   actions.insertAdjacentHTML('beforeend',
     `<button class="btn-danger" id="wl-delete-btn" onclick="deleteWishlist()">Retirer</button>`);
-  document.getElementById('wl-overlay').classList.add('open');
+  ouvrirSeul('wl-overlay');
 }
 async function saveWishlist(){
   if(!currentUser||!sb)return closeSheet('wl-overlay');
@@ -3954,7 +3954,7 @@ function envieVersCave(){
   caveSelectedTerroir=terroirDeLEnvie(w);
   caveSelectedCigar=ficheByName(w.name);
   closeCaveAc();
-  document.getElementById('cave-overlay').classList.add('open');
+  ouvrirSeul('cave-overlay');
 }
 /* L'identifiant est passé en argument, jamais relu depuis la variable :
    caveAddMode() efface le drapeau au milieu de l'enregistrement, et l'envie
@@ -4055,7 +4055,7 @@ function openRecherche(){
   const champ=document.getElementById('rech-input');
   champ.value='';
   renderRecherche();
-  document.getElementById('rech-overlay').classList.add('open');
+  ouvrirSeul('rech-overlay');
   // la mise en page doit être faite avant de donner le focus, sinon iOS
   // ouvre le clavier sur un panneau encore en cours d'apparition
   requestAnimationFrame(()=>champ.focus());
@@ -4173,7 +4173,7 @@ function renderFil(){
 function openFil(){
   if(!currentUser)return;
   renderFil();
-  document.getElementById('fil-overlay').classList.add('open');
+  ouvrirSeul('fil-overlay');
   marquerFilLu();
   majFilCompte();
 }
@@ -4300,7 +4300,7 @@ function openSessionDetail(id){
     + (isAdmin()?`<button class="btn-ghost" onclick="openEditSessionSheet('${s.id}')">Modifier</button>`:'')
     + (isAdmin()?`<button class="btn-danger" onclick="deleteSession('${s.id}')">Annuler la séance</button>`:'')
     + `<button class="btn-ghost" onclick="closeSheet('seance-overlay')">Fermer</button>`;
-  document.getElementById('seance-overlay').classList.add('open');
+  ouvrirSeul('seance-overlay');
   poserAncre('seance',s.id);
 }
 /* ---- Organiser ---- */
@@ -4344,7 +4344,7 @@ function scAddMode(){
 function openSessionSheet(){
   if(!isAdmin())return;
   scAddMode();
-  document.getElementById('seance-edit-overlay').classList.add('open');
+  ouvrirSeul('seance-edit-overlay');
 }
 function openEditSessionSheet(id){
   const s=sessions.find(x=>x.id===id);if(!s)return;
@@ -4359,7 +4359,7 @@ function openEditSessionSheet(id){
   document.getElementById('sc-place').value=s.place;
   document.getElementById('sc-date').value=(s.heldOn||'').slice(0,10)||todayISO();
   if(scSelected)document.getElementById('sc-spec').innerHTML=specCardHtml(scSelected,'✓ Fiche catalogue')+'<div style="height:16px"></div>';
-  document.getElementById('seance-edit-overlay').classList.add('open');
+  ouvrirSeul('seance-edit-overlay');
 }
 async function saveSession(){
   if(!isAdmin()||!sb)return;
@@ -4868,7 +4868,7 @@ function openCigarDetail(id){
     document.getElementById('detail-actions').insertAdjacentHTML('beforeend',
       `<button class="btn-ghost" id="detail-edit-btn" style="flex-basis:100%" onclick="openEditCigarSheet('${c.id}')">Modifier la fiche</button>`);
   }
-  document.getElementById('detail-overlay').classList.add('open');
+  ouvrirSeul('detail-overlay');
   poserAncre('cigare',c.id);
 }
 /* Édition d'une fiche catalogue — réservée au compte admin.
@@ -4886,8 +4886,8 @@ function openEditCigarSheet(id){
   if(!isAdmin())return;
   const c=catalog.find(x=>x.id===id);if(!c)return;
   editingCigarId=id;
-  // la fiche s'ouvre depuis trois panneaux : on referme celui d'où l'on vient
-  ['detail-overlay','post-overlay','cave-overlay'].forEach(closeSheet);
+  // la fiche s'ouvre depuis six panneaux au moins ; ouvrirSeul() referme celui
+  // d'où l'on vient, quel qu'il soit
   document.getElementById('ec-err').textContent='';
   const dash=v=>(v==='—'?'':(v==null?'':v));
   Object.entries(EC_FIELDS).forEach(([k,elId])=>{document.getElementById(elId).value=dash(c[k]);});
@@ -4895,7 +4895,7 @@ function openEditCigarSheet(id){
   document.getElementById('ec-tarif').value=ecrireTarif(c.tarif);
   poserExclusivite('ec-',c.exclusivite||'');
   setEcTerroir(c.terroir||null);
-  document.getElementById('cigar-edit-overlay').classList.add('open');
+  ouvrirSeul('cigar-edit-overlay');
 }
 async function saveCigarCard(){
   if(!isAdmin()||!sb||!editingCigarId)return;
@@ -4994,7 +4994,7 @@ function openPostDetail(id){
     + (mine?`<button class="btn-ghost" onclick="openEditPostSheet('${p.id}')">Modifier</button>`:'')
     + (canDelete?`<button class="btn-danger" onclick="deletePost('${p.id}')">${delLabel}</button>`:'')
     + '<button class="btn-ghost" onclick="closeSheet(\'post-overlay\')">Fermer</button>';
-  document.getElementById('post-overlay').classList.add('open');
+  ouvrirSeul('post-overlay');
   poserAncre('degustation',p.id);
 }
 async function deletePost(id){
@@ -5119,7 +5119,7 @@ function openFumeeSheet(){
   resetNewCigarFields();
   setTerroir(null);
   resetThirds();
-  document.getElementById('fumee-overlay').classList.add('open');
+  ouvrirSeul('fumee-overlay');
 }
 const CHAMPS_FICHE=['brand','vitola','module','length','ring','wrapper','binder','filler','strength','tarif'];
 const LIBELLE_FICHE_FERMEE="+ Ce cigare n'est pas dans le catalogue ? Ajouter sa fiche";
@@ -5284,7 +5284,7 @@ function renderCaveSpec(c){
 }
 function openCaveSheet(){
   caveAddMode(); clearCaveFields();
-  document.getElementById('cave-overlay').classList.add('open');
+  ouvrirSeul('cave-overlay');
 }
 function openCaveSheetFromPost(id){
   const p=feed.find(x=>x.id===id);if(!p)return;
@@ -5298,7 +5298,7 @@ function openCaveSheetFromPost(id){
   caveSelectedTerroir=(c&&c.terroir)||p.terroir||null;
   caveSelectedCigar=c||null;
   closeCaveAc();
-  document.getElementById('cave-overlay').classList.add('open');
+  ouvrirSeul('cave-overlay');
 }
 function findCaveItem(id){
   for(const k of Object.keys(cave)){const it=cave[k].find(x=>x.id===id);if(it)return it;}
@@ -5330,7 +5330,7 @@ function openEditCaveSheet(id){
   if(!document.getElementById('cave-delete-btn')){
     actions.insertAdjacentHTML('beforeend',`<button class="btn-danger" id="cave-delete-btn" onclick="deleteCaveItem()">Supprimer</button>`);
   }
-  document.getElementById('cave-overlay').classList.add('open');
+  ouvrirSeul('cave-overlay');
 }
 /* Fumer un cigare de sa cave : ouvre la notation prérempli et retire
    l'exemplaire du stock une fois la dégustation publiée. */
@@ -5388,10 +5388,22 @@ function closeSheet(id){
   // l'adresse ne doit plus désigner un panneau fermé
   if(id==='post-overlay'||id==='detail-overlay'||id==='seance-overlay')retirerAncre();
 }
+/* Un panneau s'ouvre seul, toujours.
+   Ils partagent le même plan — z-index 100 pour tous — si bien que deux
+   panneaux ouverts en même temps, c'est l'ordre du document qui décide lequel
+   couvre l'autre. La fiche catalogue est écrite avant la cave, la wishlist et
+   les séances : « Corriger cette fiche » l'ouvrait derrière le panneau d'où
+   l'on venait, et le membre croyait au clic perdu.
+   Chaque ouverture énumérait ce qu'elle devait refermer, et en oubliait.
+   Refermer tout le reste ne demande pas de se souvenir. */
+function ouvrirSeul(id){
+  document.querySelectorAll('.overlay.open').forEach(o=>{ if(o.id!==id)closeSheet(o.id); });
+  document.getElementById(id).classList.add('open');
+}
 const BIO_PLACEHOLDER='Aucune bio pour le moment.';
 function openBioSheet(){
   document.getElementById('bio-input').value=(currentUser&&currentUser.bio)?currentUser.bio:'';
-  document.getElementById('bio-overlay').classList.add('open');
+  ouvrirSeul('bio-overlay');
   setTimeout(()=>document.getElementById('bio-input').focus(),60);
 }
 async function saveBio(){
