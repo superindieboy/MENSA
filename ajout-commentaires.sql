@@ -51,7 +51,7 @@ create policy "commentaires_delete_hote" on public.post_comments
   );
 
 create policy "commentaires_delete_admin" on public.post_comments
-  for delete to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+  for delete to authenticated using (public.est_admin());
 
 -- Vérification : la table répond et elle est vide au départ.
 select count(*) as commentaires from public.post_comments;

@@ -11,7 +11,7 @@ drop policy if exists "posts_delete_admin" on public.posts;
 create policy "posts_delete_admin"
   on public.posts
   for delete
-  using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+  using (public.est_admin());
 
 -- Vérification : doit renvoyer une ligne « posts / posts_delete_admin / DELETE ».
 select tablename, policyname, cmd

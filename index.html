@@ -1032,7 +1032,7 @@ body{touch-action:manipulation}
       <div class="prof-av" id="prof-av">H</div>
       <div style="flex:1">
         <div class="prof-name serif" id="prof-name">Hippolyte</div>
-        <div class="prof-handle" id="prof-handle">@hippolyte</div>
+        <div class="prof-handle" id="prof-handle">@membre</div>
         <div id="prof-badges"></div>
         <div class="prof-stats">
           <div class="pstat"><div class="pstat-n serif" id="ps-fumees">—</div><div class="pstat-l">cigares</div></div>
@@ -1534,8 +1534,20 @@ function timeAgo(iso){
 function fmtDate(iso){const d=new Date(iso);return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;}
 
 let currentUser=null, authMode='login';
-const ADMIN_EMAILS=['hippolyte.sable@gmail.com'];
-function isAdmin(){ return !!(currentUser && ADMIN_EMAILS.includes((currentUser.email||'').toLowerCase())); }
+/* Qui modère. La question se pose à la base, seule à pouvoir y répondre : les
+   policies décident réellement, et le code servi n'a plus à nommer personne.
+   Ce drapeau n'ouvre aucun droit — il affiche ou masque des boutons. Le forcer
+   depuis la console d'un navigateur ne donne rien : chaque écriture reste
+   soumise à la policy correspondante, qui interroge la même table. */
+let estAdmin=false;
+function isAdmin(){ return estAdmin; }
+async function chargerRoleAdmin(){
+  estAdmin=false;
+  if(!sb||!currentUser)return;
+  // fonction absente ? on reste simple membre, ce qui est le repli sûr
+  try{ const {data,error}=await sb.rpc('est_admin'); if(!error)estAdmin=!!data; }
+  catch(e){ console.warn('est_admin',e&&e.message); }
+}
 
 function show(id,disp){const e=document.getElementById(id);if(e)e.style.display=disp;}
 /* Bandeau de retour. Une action réussie ne disait rien jusqu'ici : impossible
@@ -1626,6 +1638,8 @@ async function enterApp(user){
   document.getElementById('prof-handle').textContent='@'+currentUser.email.split('@')[0];
   document.getElementById('prof-bio').textContent=currentUser.bio||BIO_PLACEHOLDER;
   show('prof-club','none');
+  // avant loadAll : les écrans de modération se dessinent pendant celui-ci
+  await chargerRoleAdmin();
   await loadAll();
   document.getElementById('auth-screen').classList.remove('show');
   go('feed');

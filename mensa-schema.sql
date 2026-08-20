@@ -222,30 +222,49 @@ create policy "commentaires_delete_hote" on public.post_comments for delete to a
 );
 
 -- ---------- ADMINISTRATEUR ----------
+-- ---------- QUI MODÈRE ----------
+-- Une donnée, non une adresse écrite dans le code. Le dépôt est servi
+-- publiquement par le domaine : rien n'y doit nommer quiconque. Aucune policy
+-- d'écriture sur cette table — on ne s'y ajoute que depuis l'éditeur SQL.
+
+create table if not exists public.admins (
+  user_id  uuid primary key references auth.users on delete cascade,
+  added_at timestamptz default now()
+);
+alter table public.admins enable row level security;
+drop policy if exists "admins_lecture" on public.admins;
+create policy "admins_lecture" on public.admins for select to authenticated using (true);
+
+create or replace function public.est_admin()
+returns boolean language sql stable as $$
+  select exists (select 1 from public.admins where user_id = auth.uid())
+$$;
+grant execute on function public.est_admin() to authenticated;
+
 -- Modération des publications, et correction de n'importe quelle fiche du
 -- catalogue. Le renommage d'une fiche se répercute sur les dégustations de
 -- tous les membres : d'où le droit d'update au-delà de ses propres lignes.
 -- Les caves restent privées : aucune policy admin ne les couvre.
 
-create policy "posts_delete_admin"    on public.posts         for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
-create policy "posts_update_admin"    on public.posts         for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
-create policy "catalog_update_admin"  on public.catalog_items for update using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
-create policy "catalog_delete_admin"  on public.catalog_items for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
-create policy "commentaires_delete_admin" on public.post_comments for delete using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+create policy "posts_delete_admin"    on public.posts         for delete using (public.est_admin());
+create policy "posts_update_admin"    on public.posts         for update using (public.est_admin());
+create policy "catalog_update_admin"  on public.catalog_items for update using (public.est_admin());
+create policy "catalog_delete_admin"  on public.catalog_items for delete using (public.est_admin());
+create policy "commentaires_delete_admin" on public.post_comments for delete using (public.est_admin());
 
 -- SÉANCES : une invitation, donc visible de tous ; conviée par le seul
 -- modérateur. Publier sa lecture reste ouvert à tous — c'est posts.session_id,
 -- régi par les policies de posts.
 create policy "seances_lecture"      on public.tasting_sessions for select to authenticated using (true);
-create policy "seances_insert_admin" on public.tasting_sessions for insert to authenticated with check ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com' and auth.uid() = user_id);
-create policy "seances_update_admin" on public.tasting_sessions for update to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
-create policy "seances_delete_admin" on public.tasting_sessions for delete to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+create policy "seances_insert_admin" on public.tasting_sessions for insert to authenticated with check (public.est_admin() and auth.uid() = user_id);
+create policy "seances_update_admin" on public.tasting_sessions for update to authenticated using (public.est_admin());
+create policy "seances_delete_admin" on public.tasting_sessions for delete to authenticated using (public.est_admin());
 
 -- BADGES : lisibles par tout le cercle, décernés par le seul modérateur.
 create policy "badges_lecture"      on public.member_badges for select to authenticated using (true);
-create policy "badges_insert_admin" on public.member_badges for insert to authenticated with check ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
-create policy "badges_update_admin" on public.member_badges for update to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
-create policy "badges_delete_admin" on public.member_badges for delete to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+create policy "badges_insert_admin" on public.member_badges for insert to authenticated with check (public.est_admin());
+create policy "badges_update_admin" on public.member_badges for update to authenticated using (public.est_admin());
+create policy "badges_delete_admin" on public.member_badges for delete to authenticated using (public.est_admin());
 
 -- =====================================================================
 --  Terminé. Pensez ensuite à désactiver la confirmation par email

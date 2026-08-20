@@ -32,13 +32,13 @@ create policy "badges_lecture" on public.member_badges
 
 -- Décernés par le seul modérateur.
 create policy "badges_insert_admin" on public.member_badges
-  for insert to authenticated with check ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+  for insert to authenticated with check (public.est_admin());
 
 create policy "badges_update_admin" on public.member_badges
-  for update to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+  for update to authenticated using (public.est_admin());
 
 create policy "badges_delete_admin" on public.member_badges
-  for delete to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+  for delete to authenticated using (public.est_admin());
 
 -- Vérification : la table répond, et elle est vide au départ.
 select count(*) as badges from public.member_badges;

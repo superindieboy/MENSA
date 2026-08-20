@@ -1,0 +1,9 @@
+# MENSA est un cercle privé : tout ce qu'il contient vit derrière une
+# authentification, et rien n'a à figurer dans un moteur de recherche.
+#
+# Le domaine sert l'intégralité du dépôt — les scripts SQL, le schéma, la
+# table d'appariement des tarifs — et non la seule application. Aucune de ces
+# adresses n'a vocation à être découverte.
+
+User-agent: *
+Disallow: /

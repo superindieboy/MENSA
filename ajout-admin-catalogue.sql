@@ -15,13 +15,13 @@ drop policy if exists "catalog_update_admin" on public.catalog_items;
 create policy "catalog_update_admin"
   on public.catalog_items
   for update
-  using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+  using (public.est_admin());
 
 drop policy if exists "catalog_delete_admin" on public.catalog_items;
 create policy "catalog_delete_admin"
   on public.catalog_items
   for delete
-  using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+  using (public.est_admin());
 
 -- Renommer une fiche doit rester rétroactif : les dégustations sont reliées
 -- au catalogue par le nom du cigare. Sans cette policy, un renommage laisserait
@@ -32,7 +32,7 @@ drop policy if exists "posts_update_admin" on public.posts;
 create policy "posts_update_admin"
   on public.posts
   for update
-  using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+  using (public.est_admin());
 
 -- Rien pour cave_items, en revanche : chaque cave est privée, personne d'autre
 -- que son propriétaire n'y écrit — pas même le modérateur. Un renommage de

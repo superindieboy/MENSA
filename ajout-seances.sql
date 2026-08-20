@@ -48,11 +48,11 @@ create policy "seances_lecture"    on public.tasting_sessions
 -- de posts, et non par celles-ci.
 create policy "seances_insert_admin" on public.tasting_sessions
   for insert to authenticated
-  with check ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com' and auth.uid() = user_id);
+  with check (public.est_admin() and auth.uid() = user_id);
 create policy "seances_update_admin" on public.tasting_sessions
-  for update to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+  for update to authenticated using (public.est_admin());
 create policy "seances_delete_admin" on public.tasting_sessions
-  for delete to authenticated using ((auth.jwt() ->> 'email') = 'hippolyte.sable@gmail.com');
+  for delete to authenticated using (public.est_admin());
 
 -- Vérification : la table répond, et posts porte bien sa colonne.
 select
