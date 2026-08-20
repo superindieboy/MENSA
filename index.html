@@ -1161,7 +1161,7 @@ body{touch-action:manipulation}
       <div class="field"><label>Cape</label><input id="nc-wrapper" placeholder="Ex : Équateur"></div>
       <div class="field"><label>Sous-cape</label><input id="nc-binder" placeholder="Ex : Nicaragua"></div>
       <div class="field"><label>Tripe</label><input id="nc-filler" placeholder="Ex : Nicaragua, Honduras"></div>
-      <div class="field"><label>Force (1 à 5)</label><input id="nc-strength" type="number" min="1" max="5"></div>
+      <div class="field"><label>Intensité (1 à 5)</label><input id="nc-strength" type="number" min="1" max="5"></div>
       <div class="field">
         <div class="terroir-pick">
           <span class="tchip" id="nc-excl" onclick="basculerExclusivite('nc-')">Exclusivité</span>
@@ -1287,7 +1287,7 @@ body{touch-action:manipulation}
     <div class="field"><label>Cape</label><input id="ec-wrapper" placeholder="Ex : Équateur"></div>
     <div class="field"><label>Sous-cape</label><input id="ec-binder" placeholder="Ex : Nicaragua"></div>
     <div class="field"><label>Tripe</label><input id="ec-filler" placeholder="Ex : Nicaragua, Honduras"></div>
-    <div class="field"><label>Force (1 à 5)</label><input id="ec-strength" type="number" min="1" max="5"></div>
+    <div class="field"><label>Intensité (1 à 5)</label><input id="ec-strength" type="number" min="1" max="5"></div>
     <div class="field">
       <div class="terroir-pick">
         <span class="tchip" id="ec-excl" onclick="basculerExclusivite('ec-')">Exclusivité</span>
@@ -1371,7 +1371,7 @@ body{touch-action:manipulation}
       <div class="field"><label>Cape</label><input id="cc-wrapper" placeholder="Ex : Équateur"></div>
       <div class="field"><label>Sous-cape</label><input id="cc-binder" placeholder="Ex : Nicaragua"></div>
       <div class="field"><label>Tripe</label><input id="cc-filler" placeholder="Ex : Nicaragua, Honduras"></div>
-      <div class="field"><label>Force (1 à 5)</label><input id="cc-strength" type="number" min="1" max="5"></div>
+      <div class="field"><label>Intensité (1 à 5)</label><input id="cc-strength" type="number" min="1" max="5"></div>
       <div class="field">
         <div class="terroir-pick">
           <span class="tchip" id="cc-excl" onclick="basculerExclusivite('cc-')">Exclusivité</span>
@@ -4714,7 +4714,11 @@ function goProfile(){ if(currentUser){viewedMemberId=currentUser.id; renderProfi
 let selectedCigar=null;
 let selectedTerroir=null;
 function terroirOf(country){const s=(country||'').toLowerCase();if(s.includes('cuba'))return'cuba';if(s.includes('nicaragua'))return'nica';if(s.includes('dom'))return'rep';if(s.includes('honduras'))return'hon';return'cuba';}
-function forceLabel(n){return n>=4?'Corsé':n<=1?'Doux':'Médium';}
+/* L'intensité se note sur cinq ; ses trois bandes doivent donc se répartir
+   symétriquement. La règle ne reconnaissait comme doux que le 1 seul, si bien
+   qu'un cigare noté 2 sur 5 passait pour médium — et que le filtre « Doux »
+   ne désignait qu'une fiche de tout le catalogue. */
+function forceLabel(n){return n>=4?'Corsé':n<=2?'Doux':'Médium';}
 
 /* Sa note face à celle du cercle. Les deux chiffres existaient déjà, mais
    jamais côte à côte : c'est leur écart qui fait discuter. Rien à afficher
@@ -4782,7 +4786,7 @@ function specCardHtml(c,badge,modifiable){
   const p=palette[c.terroir]||palette.autre;
   const flavors=(c.flavors||[]).map(f=>`<span class="flavor">${echapper(f)}</span>`).join('');
   let strengthRow='';
-  if(c.strength){let pips='';for(let i=1;i<=5;i++)pips+=`<span class="spec-pip ${i<=c.strength?'on':''}"></span>`;strengthRow=`<div class="spec-row"><span class="spec-k">Force</span><span class="spec-v spec-strength">${pips}</span></div>`;}
+  if(c.strength){let pips='';for(let i=1;i<=5;i++)pips+=`<span class="spec-pip ${i<=c.strength?'on':''}"></span>`;strengthRow=`<div class="spec-row"><span class="spec-k">Intensité</span><span class="spec-v spec-strength">${pips}</span></div>`;}
   return `<div class="spec-card">
     <div class="spec-hero" style="background:${p.fill}">
       <div class="poster-cig">${cigarHtml(c.terroir,96)}</div>
