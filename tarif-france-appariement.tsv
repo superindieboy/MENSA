@@ -9,6 +9,7 @@ mensa-0017	El Septimo Rembrandt	32.00	El Septimo REMBRANDT, en 20 cigare
 mensa-0032	Bolívar Coronas Junior	11.50	Bolivar Coronas Junior, en 25 cigares
 mensa-0033	Bolívar Royal Coronas	19.20	Bolivar Royal Coronas, en 25 cigares
 mensa-0034	Bolívar Petit Coronas	13.50	Bolivar Petit Coronas, en 25 cigares
+mensa-0035	Bolívar Regentes	39.00	Bolivar Regentes Edition Limitée 2021, en 25 cigares
 mensa-0036	Bolívar Belicosos Finos	22.30	Bolivar Belicosos Finos, en 25 cigares
 mensa-0038	Cohiba Medio Siglo	71.00	Cohiba Medio Siglo, en 25 cigares
 mensa-0039	Cohiba Siglo I	36.00	Cohiba Siglo I, en 25 cigares
@@ -31,6 +32,8 @@ mensa-0063	Cuaba Exclusivos	17.80	Cuaba Exclusivos, en 25 cigares
 mensa-0064	Cuaba Distinguidos	23.00	Cuaba Distinguidos, en 10 cigares
 mensa-0065	Cuaba Salomón	30.40	Cuaba Salomon, en 10 cigares
 mensa-0066	Diplomáticos N° 2	18.40	Diplomaticos n°2, en 25 cigares
+mensa-0067	El Rey del Mundo Demi-tasse	6.90	Rey del Mundo Demi Tasse, en 25 cigares
+mensa-0068	El Rey del Mundo Choix Suprême	15.90	Rey del Mundo Choix Suprême, en 25 cigares
 mensa-0069	Fonseca Delicias	6.00	Fonseca Delicias, en 25 cigares
 mensa-0070	Fonseca Cosacos	9.20	Fonseca Cosacos, en 25 cigares
 mensa-0071	Fonseca N° 1	12.40	Fonseca n°1, en 25 cigares
@@ -49,13 +52,17 @@ mensa-0083	H. Upmann Magnum 50	27.20	H.Upmann Magnum 50, en 25 cigares
 mensa-0085	H.upmann Regalias	9.00	H.Upmann Regalias, en 25 cigares
 mensa-0086	H.upmann Upmann N° 2	26.40	H.Upmann n°2, en 25 cigares
 mensa-0087	H.upmann Sir Winston	39.20	H.Upmann Sir Winston, en 25 cigares
+mensa-0088	Hoyo de Monterrey Hoyo du Maire	9.80	Hoyo de Monterrey Le Hoyo du Maire, en 25 cigares
 mensa-0089	Hoyo de Monterrey Petit Robustos	17.80	Hoyo de Monterrey Petit Robustos, en 25 cigares
+mensa-0090	Hoyo de Monterrey Hoyo du Député	12.20	Hoyo de Monterrey Le Hoyo du Député, en 25 cigares
 mensa-0091	Hoyo de Monterrey Epicure No. 2	22.00	Hoyo de Monterrey Epicure n°2, en 50 cigares
 mensa-0092	Hoyo de Monterrey Epicure N°3	25.50	Hoyo de Monterrey Epicure N°3, en 25 cigares
 mensa-0093	Hoyo de Monterrey Coronations	11.80	Hoyo de Monterrey Coronation (tube), en 25 cigares
 mensa-0094	Hoyo de Monterrey Palmas Extra	9.10	Hoyo de Monterrey Palmas Extra, en 25 cigares
+mensa-0095	Hoyo de Monterrey Le Hoyo Río Seco	30.40	Hoyo de Monterrey Rio Seco, en 25 cigares
 mensa-0096	Hoyo de Monterrey Epicure Especial	24.10	Hoyo de Monterrey Epicure Especial, en 25 cigares
 mensa-0097	Hoyo de Monterrey Epicure N° 1	23.00	Hoyo de Monterrey Epicure n°1, en 25 cigares
+mensa-0098	Hoyo de Monterrey Monterreyes N° 4	68.00	Hoyo de Monterrey Monterreyes N°4 Edition Limitée 2021, en 10 cigare
 mensa-0099	Hoyo de Monterrey Le Hoyo de San Juan	29.10	Hoyo de Monterrey Le Hoyo de San Juan, en 25 cigares
 mensa-0101	Hoyo de Monterrey Double Coronas	35.10	Hoyo de Monterrey Double Coronas, en 50 cigares
 mensa-0102	José L. Piedra Petit Cazadores	3.10	Jose L. Piedra Petit Cazadores (fagot), en 25 cigares
@@ -64,6 +71,7 @@ mensa-0104	José L. Piedra Brevas	4.10	Jose L. Piedra Brevas (fagot), en 25 ciga
 mensa-0105	José L. Piedra Conservas	4.20	Jose L. Piedra Conservas, en 12 cigares
 mensa-0106	José L. Piedra Cazadores	3.90	Jose L. Piedra Cazadores (fagot), en 25 cigares
 mensa-0107	Juan López Selección N° 2	17.30	Juan Lopez Seleccion n°2, en 25 cigares
+mensa-0108	Juan López Dom Juan 1622	33.50	Juan Lopez Dom Juan 1622  Edition Regionale 2022, en 10 cigares
 mensa-0110	La Flor de Cano Petit Coronas	5.50	La flor de Cano Petit Coronas, en 25 cigares
 mensa-0111	La Flor de Cano Elegidos	6.80	La Flor de Cano Elegidos, en 10 cigares
 mensa-0112	La Gloria Cubana Turquinos	20.20	La Gloria Cubana Turquinos, en 10 cigares
@@ -109,6 +117,7 @@ mensa-0159	Partagás Presidentes	20.00	Partagas Presidentes, en 25 cigares
 mensa-0161	Partagás Rito	82.00	Partagas Rito, en 20 cigares
 mensa-0164	Partagás Lusitania	35.60	Partagas Lusitanias, en 50 cigares
 mensa-0165	Por Larrañaga Galanes	14.20	Por Larranaga Galanes, en 10 cigares
+mensa-0166	Por Larrañaga Prometidos	33.50	Por Larrañaga Prometidos Edition Régionale 2021, en 10 cigares
 mensa-0167	Por Larrañaga Montecarlos	8.20	Por Larrañaga Montecarlo, en 25 cigares
 mensa-0168	Punch Petit Coronation	11.00	Punch Petit Coronations (tube), en 25 cigares
 mensa-0169	Punch Short de Punch	17.60	Punch Short de Punch, en 10 cigares
@@ -131,6 +140,7 @@ mensa-0186	Rafael González Petit Coronas	10.80	Rafael Gonzalez Petit Coronas, e
 mensa-0187	Ramón Allones Small Club Coronas	11.00	Ramon Allones Small Club Coronas, en 25 cigares
 mensa-0188	Ramón Allones Specially Selected	19.00	Ramon Allones Allones Specially Selected, en 50 cigares
 mensa-0189	Ramón Allones Allones N° 3	23.00	Ramon Allones Allones N°3, en 10 cigares
+mensa-0190	Ramón Allones Absolutos	48.00	Ramon Allones Absolutos Edition Limitée 2024 ( coffret), en 20 cigares
 mensa-0191	Ramón Allones Gigantes	29.70	Ramon Allones Gigantes, en 25 cigares
 mensa-0192	Romeo y Julieta Petit Royales	13.90	Romeo y Julieta Petit Royales, en 25 cigares
 mensa-0193	Romeo y Julieta Petit Julietas	8.50	Romeo y Julieta Petit Julietas, en 25 cigares
@@ -167,6 +177,7 @@ mensa-0226	Trinidad Media Luna	48.00	Trinidad Media Luna, en 12 cigares
 mensa-0227	Trinidad Topes	69.00	Trinidad Topes, en 12 cigares
 mensa-0228	Trinidad Coloniales	51.00	Trinidad Coloniales, en 24 cigares
 mensa-0229	Trinidad Robustos Extra	83.00	Trinidad Robusto Extra, en 12 cigares
+mensa-0230	Trinidad Cabildos	110.00	Trinidad Cabildos Edition Limitée 2024, en 12 cigares
 mensa-0232	Trinidad Fundadores	68.00	Trinidad Fundadores, en 24 cigares
 mensa-0233	Vegas Robaina Famosos	18.90	Vegas Robaina Famosos, en 25 cigares
 mensa-0234	Vegas Robaina Únicos	25.50	Vegas Robaina Unicos, en 25 cigares
@@ -191,6 +202,8 @@ mensa-0294	Cumpay Volcán	15.90	Cumpay Volcán (boîte), en 20 cigares
 mensa-0295	Cumpay N° 15	13.80	Cumpay N°15, en 20 cigares
 mensa-0296	Cumpay Churchill	15.30	Cumpay Churchill (boîte à plat), en 25 cigares
 mensa-0297	Cumpay Lancero	19.00	Cumpay Lancero, en 20 cigares
+mensa-0298	Cumpay Maduro Robusto	13.50	Cumpay Robusto Maduro, en 20 cigares
+mensa-0299	Cumpay Maduro Volcán	16.80	Cumpay Volcán Maduro, en 20 cigares
 mensa-0310	Don Tomás Brazil Robusto	7.00	Don Tomas Brazil Robusto, en 25 cigares
 mensa-0321	Flor de Copán Short Robusto	8.50	Flor de Copan Short Robusto, en 20 cigares
 mensa-0322	Flor de Copán Monarcas	13.00	Flor de Copan Monarcas (tube), en 14 cigares
@@ -257,6 +270,7 @@ mensa-0540	New World Dorado Toro	22.00	New World Dorado Toro, (coffret), en 10 c
 mensa-0542	Nicarao Gordito	12.00	Nicarao Gordito (coffret), en 20 cigares
 mensa-0544	Nicarao Especial Toro	15.90	Nicarao Especial Toro (coffret), en 21 cigares
 mensa-0545	Nicarao Especial Toro Doble	16.50	Nicarao Especial Toro Doble (coffret), en 21 cigares
+mensa-0548	Nub Maduro 460	12.50	Nub 460 Maduro (coffret), en 24 cigares
 mensa-0556	Oliva Serie G Double Robusto	7.50	Oliva Serie G Double Robusto (coffret), en 25 cigares
 mensa-0557	Oliva Serie G Toro	8.50	Oliva Serie G Toro (coffret), en 25 cigares
 mensa-0558	Oliva Serie O Toro	10.00	Oliva Série O Toro (coffret), en 20 cigares
@@ -282,6 +296,10 @@ mensa-0605	Paradiso Papagayo Xxl	16.80	Paradiso Papagayo xxl (coffret), en 24 ci
 mensa-0626	Skinhead Red Caïman	22.50	Skinhead Red Caïman (coffret), en 10 cigares
 mensa-0639	West Tampa Red Toro	15.00	West Tampa Red Toro (coffret), en 20 cigares
 mensa-0640	West Tampa White Toro	15.00	West Tampa White  Toro (coffret), en 20 cigares
+mensa-0643	Antonella Claro Toro	14.50	Antonella TORO CLARO (coffret), en 26 cigares 
+mensa-0644	Antonella Claro Torpedo	14.50	Antonella TORPEDO CLARO (coffret), en 26 cigares 
+mensa-0645	Antonella Maduro Gordito	16.50	Antonella GORDITO MADURO (coffret), en 26 cigares
+mensa-0646	Antonella Maduro Torpedo	14.50	Antonella TORPEDO MADURO (coffret), en 26 cigares
 mensa-0653	Arturo Fuente Chateau Fuente	16.00	Arturo Fuente Château Fuente , en 10 cigares
 mensa-0658	Arturo Fuente Chateau Fuente	16.00	Arturo Fuente Château Fuente , en 10 cigares
 mensa-0661	Ashton Symetry Sublime	26.00	Ashton Symetry Sublime (coffret), en 25 cigares
@@ -302,6 +320,7 @@ mensa-0751	Davidoff Maduro Toro	60.00	Davidoff Maduro Toro, en 20 cigares
 mensa-0757	Davidoff Yamasá Toro	30.00	Davidoff Yamasa Toro, en 12 cigares 
 mensa-0758	Davidoff Yamasá Pirámides	32.00	Davidoff Yamasa Piramides, en 12 cigares 
 mensa-0767	El Criollito Robusto	8.00	El Criollito Robusto (Coffret), en 24 cigares
+mensa-0784	La Aurora 115 Robusto	16.20	LA AURORA 115 EDITION ROBUSTO, en 20 cigares
 mensa-0792	Los Dueños Robusto	13.90	Los Dueños Robusto (coffret), en 10 cigares
 mensa-0793	Los Dueños Torpedo	14.80	Los Dueños Torpedo (coffret), en 10 cigares
 mensa-0805	Macanudo Inspirado Robusto	11.00	Macanudo Inspirado Robusto, en 10 cigares
@@ -317,5 +336,12 @@ mensa-0824	Silencio Black Supremo	16.90	Silencio Black Supremo, en 25 cigares
 mensa-0825	Silencio Blue Toro	17.00	Silencio Blue Toro, en 20 cigares
 mensa-0826	Silencio Red Dot Churchill	16.40	Silencio Red Dot Churchill, en 25 cigares
 mensa-0840	Vegafina Terra	9.30	Vegafina Terra, en 25 cigares
+mensa-0846	Vegafina 1998 Vf 50	9.20	Vegafina VF 1998 50, en 10 cigares
+mensa-0847	Vegafina 1998 Vf 56	10.90	Vegafina VF 1998 56, en 10 cigares
+mensa-0849	Vegafina 1998 Vf 52	10.40	Vegafina VF 1998 52, en 10 cigares
+mensa-0850	Vegafina 1998 Vf 46	9.30	Vegafina VF 1998 46, en 10 cigares
+mensa-0851	Vegafina 1998 Vf 54	11.40	Vegafina VF 1998 54, en 10 cigares
+mensa-0853	Vegafina 1998 Vf 42l	9.80	Vegafina VF 1998 42L, en 10 cigares
+mensa-0855	Vegafina Classic Supremo	10.00	Vegafina Classic Supremo Edition Limitée 2024 (coffret), en 12 cigares
 mensa-0856	Villiger 1888 Robusto	11.50	Villiger 1888 Robusto, en 20 cigares
 mensa-0857	Villiger 1888 Corona	11.00	Villiger 1888 Corona, en 20 cigares
