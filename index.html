@@ -852,6 +852,21 @@ body{touch-action:manipulation}
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.err{background:#6E2318;color:#fff}
+/* Bandeau de panne. Le retour passager s'efface au bout de quelques secondes ;
+   celui-ci reste, parce qu'une erreur non rattrapée laisse l'écran figé et que
+   le seul geste utile — recharger — doit rester à portée de doigt. */
+.panne{
+  position:fixed;left:0;right:0;bottom:0;z-index:500;display:none;
+  align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;
+  padding:13px 16px;background:#2A1512;border-top:1px solid #6E2318;
+  color:#F0D9D2;font-size:13px;line-height:1.4;text-align:center;
+}
+.panne.show{display:flex}
+.panne button{
+  background:transparent;border:1px solid #E08A7A;color:#E08A7A;
+  border-radius:9px;padding:7px 15px;font-size:12.5px;cursor:pointer;
+}
+.panne button:hover{background:#E08A7A;color:#2A1512}
 /* Tirer pour rafraîchir */
 .ptr{
   position:fixed;left:50%;top:62px;z-index:150;transform:translateX(-50%) scale(.9);
@@ -1092,6 +1107,10 @@ body{touch-action:manipulation}
 <!-- ===== BANDEAU DE RETOUR ===== -->
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="ptr" class="ptr">Tirez pour rafraîchir</div>
+<div id="panne" class="panne" role="alert">
+  <span id="panne-texte">Quelque chose n'a pas fonctionné. La page n'est peut-être plus à jour.</span>
+  <button type="button" onclick="location.reload()">Recharger</button>
+</div>
 
 <!-- ===== FUMÉE SHEET ===== -->
 <div class="overlay" id="fumee-overlay">
@@ -1495,6 +1514,18 @@ body{touch-action:manipulation}
       <div class="auth-links" style="justify-content:center">
         <span class="auth-link" id="auth-toggle" onclick="toggleAuthMode()">Pas encore de compte ? Créer un compte</span>
       </div>
+      <div class="auth-links" id="auth-oubli-wrap" style="justify-content:center;margin-top:9px">
+        <span class="auth-link" id="auth-oubli" onclick="envoyerLienMotDePasse()">Mot de passe oublié ?</span>
+      </div>
+    </div>
+
+    <!-- Retour d'un lien de réinitialisation : le seul écran où l'on choisit
+         un mot de passe sans connaître l'ancien. -->
+    <div id="auth-recover" style="display:none">
+      <h3 class="auth-h serif">Nouveau mot de passe</h3>
+      <div class="auth-field"><label>Choisissez un mot de passe</label><input id="auth-new-pass" type="password" autocomplete="new-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')enregistrerNouveauMotDePasse()"></div>
+      <div class="auth-err" id="auth-recover-err"></div>
+      <button class="auth-btn" id="auth-recover-submit" onclick="enregistrerNouveauMotDePasse()">Enregistrer et entrer</button>
     </div>
 
     <div class="auth-note" id="auth-note">Connexion sécurisée</div>
@@ -1503,12 +1534,43 @@ body{touch-action:manipulation}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+/* ================= FILET =================
+   Une erreur non rattrapée laissait le membre devant un écran figé, sans un
+   mot : il écrivait « ça ne marche plus » et personne, lui pas plus que nous,
+   ne pouvait dire quoi. On ne prétend pas réparer — on nomme la panne et on
+   met à portée le seul geste utile. Le détail reste en console pour qui sait
+   l'ouvrir. Ce bloc vient en tête du script afin de couvrir aussi ce qui
+   pourrait casser à l'ouverture. */
+let panneVue=false;
+function signalerPanne(origine,erreur){
+  console.error('panne ['+origine+']',erreur);
+  if(panneVue)return;      // une erreur qui se répète ne doit pas marteler l'écran
+  panneVue=true;
+  const b=document.getElementById('panne');
+  if(b)b.classList.add('show');
+}
+window.addEventListener('error',e=>{
+  // une bague qui ne se charge pas n'est pas une panne : ces erreurs-là portent
+  // l'élément pour cible, et l'application continue très bien sans l'image
+  if(e.target&&e.target!==window)return;
+  signalerPanne('erreur',e.error||e.message);
+});
+window.addEventListener('unhandledrejection',e=>signalerPanne('promesse',e.reason));
+
 /* ================= CONFIG SUPABASE =================
    Renseignez les deux valeurs ci-dessous depuis votre projet Supabase
    (Project Settings → API). La clé "anon public" est conçue pour être
    exposée côté navigateur : ce sont les règles RLS qui protègent les données. */
 const SUPABASE_URL = 'https://jjqhezyheqdobzeozugt.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpqcWhlenloZXFkb2J6ZW96dWd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjEzODMsImV4cCI6MjA5ODI5NzM4M30.zVf-eww8skGZL16jQae9fMXny-melRJ64SArpWxZhgE';
+
+/* Retour d'un lien de réinitialisation. Supabase dépose son jeton dans le
+   fragment de l'adresse et l'efface aussitôt qu'il l'a lu : il faut donc
+   relever le passage ici, avant que le client ne soit créé, sans quoi il n'en
+   resterait aucune trace au moment de décider quel écran ouvrir. */
+const FRAGMENT = String(location.hash||'');
+const LIEN_RECUPERATION = /type=recovery/.test(FRAGMENT);
+const LIEN_EXPIRE = /error_code=otp_expired|error=access_denied/.test(FRAGMENT);
 
 const sbReady = (SUPABASE_URL.indexOf('VOTRE-PROJET')<0 && window.supabase);
 const sb = sbReady ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
@@ -1568,8 +1630,62 @@ function toggleAuthMode(){
   document.getElementById('auth-toggle').textContent = signup?'Déjà membre ? Se connecter':'Pas encore de compte ? Créer un compte';
   show('auth-name-wrap', signup?'block':'none');
   document.getElementById('auth-pass').setAttribute('autocomplete', signup?'new-password':'current-password');
+  show('auth-oubli-wrap', signup?'none':'flex');
   document.getElementById('auth-err').textContent='';
   document.getElementById('auth-info').textContent='';
+}
+/* ---- Mot de passe oublié ----
+   Sans cela, un membre qui oublie son mot de passe est dehors pour de bon :
+   personne dans le cercle ne peut le lui rendre, et personne ne le doit. Le
+   lien part vers son adresse, lui seul le reçoit, lui seul choisit la suite.
+   On ne dit jamais si l'adresse est connue — ce serait révéler qui est du
+   cercle à qui n'en est pas. */
+async function envoyerLienMotDePasse(){
+  const err=document.getElementById('auth-err'); err.textContent='';
+  const info=document.getElementById('auth-info'); info.textContent='';
+  if(!sbReady){err.textContent="Configuration Supabase requise (voir le fichier).";return;}
+  const champ=document.getElementById('auth-email');
+  const email=(champ.value||'').trim().toLowerCase();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){
+    err.textContent="Indiquez d'abord votre adresse email : le lien y sera envoyé.";
+    champ.focus();return;
+  }
+  const lien=document.getElementById('auth-oubli');
+  lien.textContent='Envoi…';
+  try{
+    const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+    if(error)err.textContent=error.message;
+    else info.textContent="Si un compte existe à cette adresse, un lien vient d'y être envoyé. Il expire dans l'heure.";
+  }catch(e){ err.textContent="Erreur réseau. Réessayez."; }
+  lien.textContent='Mot de passe oublié ?';
+}
+function ouvrirNouveauMotDePasse(){
+  show('auth-form','none'); show('auth-recover','block');
+  document.getElementById('auth-screen').classList.add('show');
+  const champ=document.getElementById('auth-new-pass');
+  if(champ)champ.focus();
+}
+async function enregistrerNouveauMotDePasse(){
+  const err=document.getElementById('auth-recover-err'); err.textContent='';
+  const champ=document.getElementById('auth-new-pass');
+  const pw=champ.value||'';
+  if(pw.length<6){err.textContent='6 caractères minimum.';return;}
+  const btn=document.getElementById('auth-recover-submit'); btn.disabled=true;
+  try{
+    const {data,error}=await sb.auth.updateUser({password:pw});
+    if(error){
+      err.textContent=/expire|invalid|session/i.test(error.message||'')
+        ? "Ce lien n'est plus valable. Demandez-en un nouveau depuis l'écran de connexion."
+        : error.message;
+      btn.disabled=false;return;
+    }
+    // le jeton a fait son office : il n'a plus rien à faire dans la barre d'adresse
+    history.replaceState(null,'',location.pathname+location.search);
+    champ.value='';
+    show('auth-recover','none'); show('auth-form','block');
+    if(data&&data.user){ await enterApp(data.user); toast('Mot de passe modifié.'); }
+  }catch(e){ err.textContent="Erreur réseau. Réessayez."; }
+  btn.disabled=false;
 }
 async function authSubmit(){
   const err=document.getElementById('auth-err'); err.textContent='';
@@ -1654,7 +1770,15 @@ async function checkAuth(){
     document.getElementById('auth-info').textContent="Configuration requise : renseignez SUPABASE_URL et SUPABASE_ANON_KEY en haut du script.";
     document.getElementById('auth-screen').classList.add('show');return;
   }
+  if(LIEN_EXPIRE){
+    document.getElementById('auth-info').textContent="Ce lien n'est plus valable. Demandez-en un nouveau ci-dessous.";
+    history.replaceState(null,'',location.pathname+location.search);
+    document.getElementById('auth-screen').classList.add('show');return;
+  }
+  // la session doit être établie avant qu'on propose de changer le mot de passe :
+  // c'est elle, et rien d'autre, qui autorise le changement
   const {data}=await sb.auth.getSession();
+  if(LIEN_RECUPERATION){ ouvrirNouveauMotDePasse(); return; }
   if(data&&data.session){await enterApp(data.session.user);}
   else{document.getElementById('auth-screen').classList.add('show');}
 }
@@ -2130,7 +2254,10 @@ function cleTarif(nom){
   // « Gros robusto » au catalogue, « Grand Robusto » au relevé : c'est le même
   // format. Le rapprochement est sans danger, le relevé n'écrivant jamais
   // « gros » — pas une seule fois sur 3626 lignes.
-  k=k.replace(/ en$/,'').replace(/([a-z0-9])s\b/g,'$1').replace(/\bgros\b/g,'grand');
+  // L'ordre compte, et il a longtemps été le mauvais : la règle du pluriel
+  // faisait de « gros » un « gro » que le synonyme ne reconnaissait plus.
+  // Le synonyme passe donc en premier. Voir _outils/epreuves.js.
+  k=k.replace(/ en$/,'').replace(/\bgros\b/g,'grand').replace(/([a-z0-9])s\b/g,'$1');
   /* Mots dédoublés, articles écartés, puis triés. Le relevé écrit « Vegafina
      VF 1998 56 » là où le catalogue écrit « Vegafina 1998 VF 56 », « Le Hoyo
      du Maire » face à « Hoyo du Maire », « Rey del Mundo » face à « El Rey

@@ -77,6 +77,11 @@ if (tar && typeof tar === 'object') {
   else bon('toutes les valeurs sont des prix positifs');
 }
 
+// ---- 4. L'appariement des prix ----
+// Une seule commande avant de pousser : la forme des fichiers, puis le sens.
+console.log('');
+fautes += require('./epreuves.js')(racine);
+
 console.log('');
 if (fautes) { console.error(`${fautes} problème(s). Ne poussez pas en l'état.`); process.exit(1); }
 console.log('Rien à signaler.');
