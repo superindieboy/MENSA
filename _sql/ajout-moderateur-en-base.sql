@@ -42,17 +42,26 @@ grant execute on function public.est_admin() to authenticated;
 -- ---------- LES POLICIES CESSENT DE CITER UNE ADRESSE ----------
 
 -- Catalogue : le modérateur corrige la fiche de n'importe qui.
+-- Les noms sont ceux du schéma : « catalog », non « catalogue ». Un drop qui
+-- se trompe de nom ne trouve rien, et laisse vivre l'ancienne règle.
+drop policy if exists "catalog_update_admin" on public.catalog_items;
+drop policy if exists "catalog_delete_admin" on public.catalog_items;
 drop policy if exists "catalogue_update_admin" on public.catalog_items;
 drop policy if exists "catalogue_delete_admin" on public.catalog_items;
-create policy "catalogue_update_admin" on public.catalog_items
+create policy "catalog_update_admin" on public.catalog_items
   for update to authenticated using (public.est_admin());
-create policy "catalogue_delete_admin" on public.catalog_items
+create policy "catalog_delete_admin" on public.catalog_items
   for delete to authenticated using (public.est_admin());
 
 -- Dégustations : le modérateur retire ce qui n'a pas sa place.
 drop policy if exists "posts_delete_admin" on public.posts;
+drop policy if exists "posts_update_admin" on public.posts;
 create policy "posts_delete_admin" on public.posts
   for delete to authenticated using (public.est_admin());
+-- renommer une fiche réécrit le nom du cigare sur les dégustations d'autrui :
+-- la modération a besoin d'écrire au-delà de ses propres lignes
+create policy "posts_update_admin" on public.posts
+  for update to authenticated using (public.est_admin());
 
 -- Commentaires : idem.
 drop policy if exists "commentaires_delete_admin" on public.post_comments;
@@ -60,6 +69,9 @@ create policy "commentaires_delete_admin" on public.post_comments
   for delete to authenticated using (public.est_admin());
 
 -- Badges : une distinction se décerne, elle ne se prend pas.
+-- « badges_update_admin » ne se recrée pas : rien ne modifie un badge, on en
+-- pose et on en retire.
+drop policy if exists "badges_update_admin" on public.member_badges;
 drop policy if exists "badges_insert_admin" on public.member_badges;
 drop policy if exists "badges_delete_admin" on public.member_badges;
 create policy "badges_insert_admin" on public.member_badges
