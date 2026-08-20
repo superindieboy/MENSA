@@ -888,6 +888,19 @@ body{touch-action:manipulation}
   .palais{grid-template-columns:1fr;justify-items:center}
   .screen-title{font-size:24px}
   .filters{flex-wrap:nowrap;overflow-x:auto}
+  /* Les rangées qui défilent vont d'un bord à l'autre.
+     Sur un téléphone, une rangée qui s'arrête à vingt pixels du bord se lit
+     comme une liste tronquée, non comme une rangée qui continue : la dernière
+     vignette bute contre du vide au lieu de sortir de l'écran. On laisse donc
+     la piste déborder la marge de la page, et on rend cette marge en padding —
+     la première vignette reste alignée sur les titres, mais le défilement,
+     lui, touche les bords. scroll-padding aligne l'aimantation sur ce même
+     repère, faute de quoi elle collerait les vignettes au bord de l'écran. */
+  .rail-scroll,.filters,.badges{
+    margin-left:-20px;margin-right:-20px;
+    padding-left:20px;padding-right:20px;
+    scroll-padding-left:20px;
+  }
   /* Deux champs par ligne deviennent illisibles sur un écran de téléphone :
      on les empile, et on allège les libellés secondaires. */
   .field-pair{flex-direction:column;gap:0}
