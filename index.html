@@ -2175,11 +2175,36 @@ function detailDeFiche(c){
   if(c.force)return c.force;
   return (c.module&&c.module!=='—')?c.module:'';
 }
+/* Le relevé nomme parfois plus court que le catalogue : « El Criollito Half
+   Corona » là où l'auteur d'une fiche écrit « PDR Criollito Half Corona ». On
+   retient une entrée du relevé quand elle est la SEULE dont tous les mots
+   figurent déjà dans la fiche — sur 2908 clés, cette unicité vaut preuve.
+
+   Le prix se relit ainsi du relevé à chaque chargement, et non d'une fiche
+   jumelle qu'on vient d'effacer : la fusion, elle, retire pour de bon, si
+   bien qu'un second passage ne trouvait plus de quoi rendre le tarif. */
+let TARIFS_MOTS=null;
+function tarifParCouverture(c){
+  if(!TARIFS_MOTS)TARIFS_MOTS=Object.keys(TARIFS).map(k=>({k,mots:k.split(' ')}));
+  const mots=new Set(motsDeFiche(c));
+  if(!mots.size)return null;
+  let trouve=null;
+  for(const e of TARIFS_MOTS){
+    if(!e.mots.every(x=>mots.has(x)))continue;
+    if(trouve)return null;                 // plusieurs entrées : on ne tranche pas
+    trouve=e;
+  }
+  return trouve?TARIFS[trouve.k]:null;
+}
 function completerTarifs(){
   catalog.forEach(c=>{
     if(c.tarif>0)return;
-    const p=tarifDuNom(c.name);
-    if(p>0)c.tarif=p;
+    let p=tarifDuNom(c.name);
+    // à défaut d'un nom identique, l'entrée du relevé que la fiche recouvre
+    // entièrement — mais jamais pour une fiche homonyme d'une autre, où rien
+    // ne dirait laquelle des deux le relevé désigne
+    if(!(p>0)&&!(nomsPartages[normCigar(c.name)]>1))p=tarifParCouverture(c);
+    if(p>0){ c.tarif=p; c.tarifDuReleve=true; }
   });
 }
 /* Propose le tarif du relevé au membre qui crée une fiche. Une proposition ne
@@ -2271,7 +2296,7 @@ async function refreshFeed(force){
 async function loadMemberCatalog(){
   const {data,error}=await sb.from('catalog_items').select('*').order('created_at');
   // même si le catalogue des membres ne répond pas, l'embarqué doit être chiffré
-  if(error){signalerEchec('catalogue',error);completerTarifs();return;}
+  if(error){signalerEchec('catalogue',error);compterNoms();completerTarifs();return;}
   (data||[]).forEach(r=>{
     const key=(r.name||'').trim().toLowerCase();
     if(!key)return;
@@ -2297,9 +2322,11 @@ async function loadMemberCatalog(){
     entry.score=catalog[i].score; entry.votes=catalog[i].votes;
     catalog[i]=entry;
   });
+  // le décompte des noms précède : completerTarifs s'en sert pour refuser de
+  // chiffrer une fiche dont une homonyme existe
   fusionnerFichesJumelles();
-  completerTarifs();
   compterNoms();
+  completerTarifs();
 }
 async function loadProfiles(){
   const {data,error}=await sb.from('profiles').select('id,name,bio').order('created_at');
