@@ -2093,6 +2093,20 @@ function tarifDeReference(nom){
   if(c&&c.tarif>0)return c.tarif;
   return tarifDuNom(nom);
 }
+/* Une fiche sans tarif propre prend celui du relevé, une fois pour toutes.
+   Sans cela l'app se contredisait : la cave annonçait « 26 % sous le tarif
+   France » pour un cigare dont la fiche n'affichait aucun prix — le lot
+   consultait le relevé, la fiche s'en tenait à sa seule colonne. Le cas
+   n'avait rien de rare : les fiches créées par les membres n'ont jamais reçu
+   les tarifs versés au catalogue embarqué. Un tarif effectif résolu ici, et
+   tout ce qui vit dessous — vignette, tri par prix, tranches — s'accorde. */
+function completerTarifs(){
+  catalog.forEach(c=>{
+    if(c.tarif>0)return;
+    const p=tarifDuNom(c.name);
+    if(p>0)c.tarif=p;
+  });
+}
 /* Propose le tarif du relevé au membre qui crée une fiche. Une proposition ne
    remplace jamais une saisie : seul un champ vide, ou une proposition faite
    plus tôt, se laisse réécrire — d'où le marqueur, que la saisie efface. */
@@ -2181,7 +2195,8 @@ async function refreshFeed(force){
 /* Fiches cigare ajoutées par les membres, fusionnées avec le catalogue embarqué */
 async function loadMemberCatalog(){
   const {data,error}=await sb.from('catalog_items').select('*').order('created_at');
-  if(error){signalerEchec('catalogue',error);return;}
+  // même si le catalogue des membres ne répond pas, l'embarqué doit être chiffré
+  if(error){signalerEchec('catalogue',error);completerTarifs();return;}
   (data||[]).forEach(r=>{
     const key=(r.name||'').trim().toLowerCase();
     if(!key)return;
@@ -2207,6 +2222,7 @@ async function loadMemberCatalog(){
     entry.score=catalog[i].score; entry.votes=catalog[i].votes;
     catalog[i]=entry;
   });
+  completerTarifs();
 }
 async function loadProfiles(){
   const {data,error}=await sb.from('profiles').select('id,name,bio').order('created_at');
@@ -3050,7 +3066,7 @@ function ligneLot(l,k,seul){
   if(l.price!==null&&l.price!==undefined&&ref>0){
     const ecart=Math.round((l.price-ref)/ref*100);
     if(Math.abs(ecart)>=3)
-      bouts.push(`${ecart<0?'▼':'▲'} ${Math.abs(ecart)} % ${ecart<0?'sous':'au-dessus'} du tarif France`);
+      bouts.push(`${ecart<0?'▼':'▲'} ${Math.abs(ecart)} % ${ecart<0?'sous le':'au-dessus du'} tarif France`);
   }
   return `<div class="cave-item${seul?'':' cave-lot'}" onclick="openEditCaveSheet('${l.id}')">
     <div class="cave-bar" style="background:${(palette[k]||palette.autre).band}"></div>
