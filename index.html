@@ -2686,7 +2686,8 @@ function dernierPrixFrancais(nom){
     .filter(p=>normCigar(p.name)===cle
             && /france/.test(normCigar(p.boughtIn))
             && p.added && new Date(p.added)>=limite
-            && isFinite(p.price))
+            // un cigare offert ne renseigne personne sur ce qu'il coûte
+            && isFinite(p.price) && p.price>0)
     .sort((a,b)=>new Date(b.added)-new Date(a.added))[0]||null;
 }
 /* Les données n'étaient chargées qu'à la connexion : un membre laissant l'app
@@ -3756,13 +3757,15 @@ function ligneLot(l,k,seul){
   if(age)bouts.push(`${age.mois>=12?'🥃':'⏳'} en cave depuis ${age.texte}`);
   else if(l.added)bouts.push(`🗓️ ${l.added}`);
   if(l.boughtIn)bouts.push(`${drapeauAchat(l.boughtIn)} ${echapper(l.boughtIn)}`);
-  if(l.price!==null&&l.price!==undefined)bouts.push(`💶 ${fmtPrix(l.price)} l'unité${l.qty>1?` · ${fmtPrix(l.price*l.qty)}`:''}`);
+  // zéro euro n'est pas un prix : c'est un cadeau, et la ligne le dit ainsi
+  if(l.price===0)bouts.push('🎁 offert');
+  else if(l.price!==null&&l.price!==undefined)bouts.push(`💶 ${fmtPrix(l.price)} l'unité${l.qty>1?` · ${fmtPrix(l.price*l.qty)}`:''}`);
   /* L'écart au tarif France. Le bilan compare déjà les moyennes France et
      étranger, mais une moyenne noie les cas : c'est ici qu'on voit quel achat
      précis valait le voyage. Sous 3 %, l'écart tient au centime d'arrondi et
      ne mérite pas d'être affiché. */
   const ref=tarifDeReference(l.name);
-  if(l.price!==null&&l.price!==undefined&&ref>0){
+  if(l.price>0&&ref>0){                    // un cadeau n'est pas une bonne affaire
     const ecart=Math.round((l.price-ref)/ref*100);
     // une exclusivité n'a pas de tarif français : l'écart se mesure alors au
     // prix de la fiche, et la phrase doit le dire plutôt que d'invoquer la France
@@ -3807,6 +3810,7 @@ function bilanCave(){
      à relevé, sur les seuls lots que les deux connaissent : y mêler un prix
      corrigé par un membre ferait passer sa correction pour une hausse. */
   let releveAvant=0, releveApres=0, nbCompares=0;
+  let offerts=0;
   Object.values(cave).forEach(arr=>arr.forEach(l=>{
     if(!l.qty||l.qty<=0)return;
     const fiche=ficheDuLot(l.name,l.detail);
@@ -3821,6 +3825,14 @@ function bilanCave(){
       const fiche=ficheByName(l.name);
       if(fiche&&fiche.exclusivite){ exclusifs+=l.qty; valeurExclusifs+=ref*l.qty; }
     }
+    /* Un cigare à zéro euro n'a pas été acheté : il a été offert. Le compter
+       comme un achat écrase toutes les moyennes — cinq cigares à vingt euros
+       et un cadeau donnent un prix moyen de seize euros soixante, que personne
+       n'a jamais payé. Il sort donc de tout ce qui touche à la dépense, et
+       n'entre pas non plus dans les estimations : son prix est connu, il est
+       nul. Il reste dans la valeur au tarif, qui dit ce que vaut la cave et
+       non ce qu'elle a coûté. */
+    if(l.price===0){ offerts+=l.qty; return; }
     if(l.price!==null&&l.price!==undefined){
       lots.push(l);
       // le même panier des deux côtés : sans quoi l'écart mêlerait des cigares
@@ -3848,7 +3860,7 @@ function bilanCave(){
     totalTout:somme(tout), moyenneTout:moyenne(tout),
     sansRepere:cigares(aveugles),
     tarifFrance:france, nbTarifFrance:nbFrance,
-    exclusifs, valeurExclusifs,
+    exclusifs, valeurExclusifs, offerts,
     releveAvant, releveApres, nbCompares,
     franceChiffres, payeChiffres, nbChiffres,
     moyFr:moyenne(fr), nbFr:cigares(fr),
@@ -3894,6 +3906,9 @@ function valeurCaveHtml(b){
     h+=`<p class="vc-note">Dont ${fmtPrix(b.estime)} estimés au tarif France, pour ${b.nbEstimes} cigare${b.nbEstimes>1?'s':''} dont vous n'avez pas noté le prix.</p>`;
   if(b.sansRepere)
     h+=`<p class="vc-note">${b.sansRepere} cigare${b.sansRepere>1?'s ne figurent':' ne figure'} ni avec un prix ni au relevé : ${b.sansRepere>1?'ils restent':'il reste'} hors du total.</p>`;
+  // ce qui a été offert se dit, sans quoi le compte semblerait incomplet
+  if(b.offerts)
+    h+=`<p class="vc-note">${b.offerts} cigare${b.offerts>1?'s':''} à zéro euro — offert${b.offerts>1?'s':''}, sans doute — rest${b.offerts>1?'ent':'e'} hors des moyennes.</p>`;
   // dire lesquels ne relèvent pas du tarif français, et pour combien : c'est
   // la part du total qu'aucun relevé ne peut confirmer
   if(b.exclusifs)
