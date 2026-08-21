@@ -74,7 +74,7 @@ for (const l of lots) {
       echecs.push({ ...l, raison: `dimensions incompatibles (fiche ${f.length}×${f.ring})` });
       continue;
     }
-    resultats.push({ id: f.id, nom: f.name, rang: l.rang, voie, titre: l.titre, revue: l.revue });
+    resultats.push({ id: f.id, nom: f.name, rang: l.rang, voie, titre: l.titre, revue: l.revue, aromes: l.aromes || [] });
   } else echecs.push({ ...l, raison: candidats.length ? `${candidats.length} fiches` : 'aucune fiche' });
 }
 
@@ -84,9 +84,18 @@ const parFiche = {};
 resultats.forEach(r => (parFiche[r.id] = parFiche[r.id] || []).push(r));
 const retenus = [], discordants = [];
 for (const [id, l] of Object.entries(parFiche)) {
+  /* Les arômes, eux, s'additionnent : deux numéros qui décrivent le même
+     cigare ne se contredisent pas, ils se complètent. On garde les plus
+     souvent cités — cinq suffisent à dessiner un profil. */
+  const compte = {};
+  l.forEach(x => (x.aromes || []).forEach(a => compte[a] = (compte[a] || 0) + 1));
+  const aromes = Object.entries(compte).sort((a, b) => b[1] - a[1]).slice(0, 5).map(x => x[0]);
   const rangs = [...new Set(l.map(x => x.rang))];
-  if (rangs.length === 1) retenus.push({ id, nom: l[0].nom, rang: rangs[0], sources: l.length });
-  else discordants.push({ id, nom: l[0].nom, rangs: l.map(x => `${x.rang}/3 (${x.revue.slice(0, 12)})`) });
+  if (rangs.length === 1) retenus.push({ id, nom: l[0].nom, rang: rangs[0], sources: l.length, aromes });
+  // un désaccord sur l'intensité ne disqualifie pas les arômes : c'est la même
+  // fiche, décrite deux fois, et seul le chiffre diverge
+  else { discordants.push({ id, nom: l[0].nom, rangs: l.map(x => `${x.rang}/3 (${x.revue.slice(0, 12)})`) });
+         if (aromes.length) retenus.push({ id, nom: l[0].nom, rang: null, sources: l.length, aromes }); }
 }
 
 console.log(`\nlots titrés          ${lots.length}`);

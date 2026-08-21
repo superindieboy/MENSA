@@ -11,6 +11,58 @@ const { charger, inflate, tableDePolice, runs } = require('./lire-pdf.js');
 
 const RANG = { C: 1, B: 2, A: 3 };
 
+/* Le vocabulaire des arômes, et lui seul.
+   On relève des descripteurs, non des phrases : « cèdre » est un fait, la
+   façon dont une revue l'écrit lui appartient. Chaque terme retenu existe
+   déjà au catalogue, écrit comme les membres l'écrivent. L'ordre compte :
+   « sous-bois » se cherche avant « bois », « chocolat noir » avant
+   « chocolat », faute de quoi le plus court mangerait le plus précis. */
+const AROMES = [
+  ['sous-bois', /sous-\s?bois/i],
+  ['chocolat noir', /chocolat\s+noir/i],
+  ['pain grillé', /pain\s+grill|torr[ée]fi/i],
+  ['fruits rouges', /fruits?\s+rouges?/i],
+  ['fruits secs', /fruits?\s+secs?/i],
+  ['café', /\bcaf[ée]|espresso|moka\b/i],
+  ['cacao', /cacao/i],
+  ['chocolat', /chocolat/i],
+  ['cèdre', /c[èe]dre/i],
+  ['cuir', /\bcuir/i],
+  ['poivre', /poivr/i],
+  ['épices', /[ée]pic[ée]|[ée]pices/i],
+  ['terre', /\bterre|terreu/i],
+  ['bois', /\bbois[éles]?\b|\bbois\b/i],
+  ['noix', /\bnoix\b|ol[ée]agineu/i],
+  ['noisette', /noisette/i],
+  ['amande', /amande/i],
+  ['miel', /\bmiel\b/i],
+  ['vanille', /vanille/i],
+  ['caramel', /caramel/i],
+  ['réglisse', /r[ée]glisse/i],
+  ['floral', /floral|\bfleurs?\b/i],
+  ['herbacé', /herbac|v[ée]g[ée]tal/i],
+  ['foin', /\bfoin\b/i],
+  ['crème', /cr[èe]me|cr[ée]meu/i],
+  ['beurre', /beurr/i],
+  ['agrumes', /agrume|citron|orange/i],
+  ['cannelle', /cannelle/i],
+  ['muscade', /muscade/i],
+  ['champignon', /champignon/i]
+];
+const MAX_AROMES = 5;
+function aromesDuTexte(texte) {
+  const t = ' ' + texte + ' ';
+  const trouves = [];
+  let reste = t;
+  for (const [nom, re] of AROMES) {
+    if (!re.test(reste)) continue;
+    trouves.push(nom);
+    reste = reste.replace(new RegExp(re.source, 'gi'), ' ');   // ne pas recompter le même mot
+    if (trouves.length >= MAX_AROMES) break;
+  }
+  return trouves;
+}
+
 function polices(doc) {
   const tables = {}, familles = {};
   for (const [num, corps] of doc.objets) {
@@ -107,11 +159,14 @@ function extraire(chemin) {
       const tete = gros.filter(r => sommet - r.y < 70);
       const maxi = Math.max(...tete.map(r => r.taille));
       const titre = tete.map(r => r.t.trim()).join(' ').replace(/\s+/g, ' ').trim();
-      const dim = bloc.map(r => r.t).join(' ').match(/(\d{2,3})\s*mm\s*[×x]\s*(\d{2})/);
+      const texte = bloc.map(r => r.t).join(' ').replace(/\s+/g, ' ');
+      const dim = texte.match(/(\d{2,3})\s*mm\s*[×x]\s*(\d{2})/);
+      // la prose du bloc ne sort pas d'ici : on n'en retient que les arômes
       lots.push({
         objet: num, rang: RANG[mq.t.trim()], titre, police: familles[mq.police],
         vitole: tete.filter(r => r.taille === maxi).map(r => r.t.trim()).join(' ').trim(),
-        length: dim ? +dim[1] : null, ring: dim ? +dim[2] : null
+        length: dim ? +dim[1] : null, ring: dim ? +dim[2] : null,
+        aromes: aromesDuTexte(texte)
       });
     }
   }
@@ -127,7 +182,7 @@ if (require.main === module) {
     const nommes = r.lots.filter(l => l.titre);
     console.log(`\n===== ${chemin.split(/[\\/]/).pop()}`);
     console.log(`police ${r.police} (${r.noms} noms) · ${r.pastilles} pastilles · ${nommes.length} avec un titre (${Math.round(nommes.length / (r.pastilles || 1) * 100)} %)`);
-    nommes.slice(0, 14).forEach(l =>
-      console.log(`   ${l.rang}/3  ${String(l.length || '—').padStart(3)}×${String(l.ring || '—').padEnd(3)} ${l.titre.slice(0, 60)}`));
+    nommes.slice(0, 12).forEach(l =>
+      console.log(`   ${l.rang}/3  ${l.titre.slice(0, 42).padEnd(43)} ${(l.aromes || []).join(", ")}`));
   }
 }

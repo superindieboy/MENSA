@@ -978,6 +978,16 @@ body{touch-action:manipulation}
       <div class="rail-scroll" id="rail-people"></div>
     </div>
 
+    <!-- Ce qu'aucun membre n'a fumé, et qui ressemble à ce que vous aimez.
+         N'apparaît que si vos dégustations en disent assez. -->
+    <div class="rail" id="rail-affinites" style="display:none">
+      <div class="rail-head">
+        <div class="rail-title"><span class="ico">🧭</span> À votre goût</div>
+        <span class="rail-all" id="rail-affinites-pourquoi"></span>
+      </div>
+      <div class="rail-scroll" id="rail-pour-vous"></div>
+    </div>
+
     <div class="sec-label">En détail</div>
     <div class="search" id="feed-search-wrap" style="display:none">
       <i>🔍</i>
@@ -1852,23 +1862,68 @@ async function reessayerChargement(){
    cents kilo-octets à chaque correction. « no-cache » ne veut pas dire « ne
    pas garder » mais « revalider » — le navigateur envoie l'ETag et reçoit un
    304 vide tant que le fichier n'a pas bougé. */
+/* ---- Le catalogue en poche ----
+   Sept cents kilo-octets de catalogue et de relevé à chaque ouverture, dans un
+   fumoir en sous-sol : l'app s'ouvrait au rythme du réseau. On en garde une
+   copie sur l'appareil. Elle sert d'abord — l'app s'ouvre alors sans attendre
+   — et l'on va vérifier ensuite, en fond, si le dépôt a changé.
+
+   On compare les textes bruts plutôt qu'une date ou un numéro de version :
+   c'est la seule preuve qui ne mente pas, et le catalogue ne bouge qu'aux
+   jours de mise en ligne. En navigation privée, le stockage lève : l'app
+   retombe alors sur son comportement d'avant, sans rien dire. */
+const CACHE_DONNEES='mensa-donnees-v1';
+function cacheLire(){
+  try{
+    const brut=localStorage.getItem(CACHE_DONNEES);
+    if(!brut)return null;
+    const o=JSON.parse(brut);
+    return (o&&o.catalogue&&o.tarifs)?o:null;
+  }catch(e){ return null; }
+}
+function cacheEcrire(catalogue,tarifs,avant){
+  try{ localStorage.setItem(CACHE_DONNEES,JSON.stringify({catalogue,tarifs,avant:avant||''})); }
+  catch(e){ /* quota plein ou navigation privée : la copie est un confort, pas un dû */ }
+}
 async function chargerDonnees(){
   const lire=async f=>{
     const r=await fetch(f,{cache:'no-cache'});
     if(!r.ok)throw new Error(f+' : HTTP '+r.status);
-    return r.json();
+    return r.text();
   };
-  const [c,t]=await Promise.all([lire('catalogue.json'),lire('tarifs.json')]);
-  CATALOGUE=c; TARIFS=t; TARIFS_MOTS=null;
-  /* Le relevé précédent, s'il existe. Un tarif est une chronique, pas un
-     instantané : le garder permet de dire de combien un cigare a monté depuis
-     la dernière homologation. Son absence n'est pas une erreur — c'est l'état
-     normal jusqu'au premier changement de tarif, et l'app s'en passe. */
-  try{ TARIFS_AVANT=await lire('tarifs-precedent.json'); }
-  catch(e){ TARIFS_AVANT={}; }
-  reinitialiserCatalogue();
+  const poser=(c,t,a)=>{
+    CATALOGUE=JSON.parse(c); TARIFS=JSON.parse(t);
+    TARIFS_AVANT=a?JSON.parse(a):{};
+    TARIFS_MOTS=null;
+    reinitialiserCatalogue();
+  };
+  const enLigne=async()=>{
+    const [c,t]=await Promise.all([lire('catalogue.json'),lire('tarifs.json')]);
+    let a=''; try{ a=await lire('tarifs-precedent.json'); }catch(e){}
+    return {c,t,a};
+  };
+
+  const copie=cacheLire();
+  if(copie){
+    poser(copie.catalogue,copie.tarifs,copie.avant);
+    // la vérification se fait en fond : elle ne doit pas retarder l'ouverture
+    enLigne().then(async({c,t,a})=>{
+      if(c===copie.catalogue&&t===copie.tarifs&&a===(copie.avant||''))return;
+      poser(c,t,a); cacheEcrire(c,t,a);
+      if(currentUser&&sb)await loadMemberCatalog(); else { compterNoms(); completerTarifs(); }
+      renderRails(); renderDiscover(); renderCave(); renderWishlist();
+      toast('Catalogue mis à jour.');
+    }).catch(e=>console.warn('rafraîchissement',e&&e.message));
+    return;
+  }
+  const {c,t,a}=await enLigne();
+  poser(c,t,a); cacheEcrire(c,t,a);
 }
-/* Le catalogue de travail est une copie fraîche de l'original. Les fiches des
+/* Le relevé précédent, s'il existe, se charge avec le reste : un tarif est une
+   chronique, pas un instantané. Son absence n'est pas une erreur — c'est
+   l'état normal jusqu'au premier changement de tarif.
+
+   Le catalogue de travail est une copie fraîche de l'original. Les fiches des
    membres s'y insèrent, les jumelles y fusionnent, les tarifs s'y complètent —
    autant d'écritures qui, faites sur l'original, s'accumulaient d'un
    chargement à l'autre. Une fusion retirait une fiche pour de bon tandis que
@@ -3028,6 +3083,66 @@ function renderRails(){
   const emptyRail='<div class="rail-empty">Aucune publication pour le moment.</div>';
   const memberItems=feed.slice(0,12).map(p=>({terroir:p.terroir,av:p.av,who:p.init,by:p.user,rating:p.rating,name:p.name,pid:p.id}));
   document.getElementById('rail-members').innerHTML=memberItems.length?memberItems.map(posterCard).join(''):emptyRail;
+  renderAffinites();
+}
+/* ---- À votre goût ----
+   Trois mille fiches, dix membres : personne ne fera le tour du catalogue au
+   hasard. On regarde donc ce qu'un membre a aimé — ses dégustations notées
+   quatre ou plus — et l'on cherche, parmi les cigares que le cercle n'a
+   jamais fumés, ceux qui partagent ses arômes et son intensité.
+
+   Deux règles pour que ce ne soit pas une devinette : il faut au moins un
+   arôme en commun, sans quoi la proximité ne repose sur rien ; et chaque
+   proposition dit d'où elle vient, faute de quoi elle ne se discute pas. */
+const AFFINITE_MIN=2;      // au moins deux dégustations aimées, pour un goût
+function profilDuMembre(){
+  if(!currentUser)return null;
+  const miennes=feed.filter(p=>p.user_id===currentUser.id&&p.rating>=4);
+  if(miennes.length<AFFINITE_MIN)return null;
+  const aromes={}, forces=[], deja=new Set();
+  for(const p of miennes){
+    deja.add(normCigar(p.name));
+    (p.flavors||[]).forEach(a=>aromes[a]=(aromes[a]||0)+1);
+    const c=ficheOf(p);
+    if(!c)continue;
+    (c.flavors||[]).forEach(a=>aromes[a]=(aromes[a]||0)+1);
+    if(c.strength)forces.push(c.strength);
+  }
+  if(!Object.keys(aromes).length)return null;
+  const force=forces.length?forces.reduce((s,x)=>s+x,0)/forces.length:null;
+  return {aromes,force,deja,miennes};
+}
+function affinites(n){
+  const prof=profilDuMembre();
+  if(!prof)return [];
+  const notes=[];
+  for(const c of catalog){
+    if(c.votes>0)continue;                       // déjà fumé par le cercle
+    if(prof.deja.has(normCigar(c.name)))continue;
+    const communs=(c.flavors||[]).filter(a=>prof.aromes[a]);
+    if(!communs.length)continue;
+    let score=communs.reduce((s,a)=>s+prof.aromes[a],0);
+    // l'intensité rapproche ou éloigne, sans jamais décider seule
+    if(prof.force&&c.strength)score+=Math.max(0,2-Math.abs(c.strength-prof.force));
+    notes.push({c,score,communs});
+  }
+  notes.sort((a,b)=>b.score-a.score||(b.c.tarif>0?1:0)-(a.c.tarif>0?1:0));
+  return notes.slice(0,n||12);
+}
+function renderAffinites(){
+  const rail=document.getElementById('rail-affinites');
+  if(!rail)return;
+  const liste=affinites(12);
+  if(!liste.length){ rail.style.display='none'; return; }
+  rail.style.display='block';
+  const prof=profilDuMembre();
+  const dominants=Object.entries(prof.aromes).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
+  document.getElementById('rail-affinites-pourquoi').textContent=
+    dominants.length?`d'après vos ${dominants.join(', ')}`:'';
+  document.getElementById('rail-pour-vous').innerHTML=liste.map(({c,communs})=>posterCard({
+    terroir:c.terroir, club:true, name:c.name, cid:c.id,
+    sub:communs.slice(0,2).join(', ')
+  })).join('');
 }
 /* Page complète d'une rubrique du Fil (« Tout voir » / « Voir tous ») */
 function memberCardHtml(m){

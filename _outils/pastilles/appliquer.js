@@ -16,10 +16,14 @@ let brut = fs.readFileSync(path.join(RACINE, 'catalogue.json'), 'utf8');
 const fiches = JSON.parse(brut);
 const parId = new Map(fiches.map(f => [f.id, f]));
 
-const accord = [], desaccord = [], aRemplir = [], introuvables = [];
+const accord = [], desaccord = [], aRemplir = [], introuvables = [], aromatiser = [];
 for (const r of retenus) {
   const f = parId.get(r.id);
   if (!f) { introuvables.push(r); continue; }
+  // les arômes ne remplacent jamais ceux d'une fiche qui en porte déjà
+  if ((r.aromes || []).length && !(f.flavors && f.flavors.length))
+    aromatiser.push({ id: f.id, nom: f.name, aromes: r.aromes });
+  if (!r.rang) continue;
   const vise = VERS_CINQ[r.rang];
   if (f.strength) {
     // la fiche portait déjà une intensité : elle sert d'épreuve, non de cible
@@ -32,6 +36,7 @@ console.log(`déjà notées            ${accord.length + desaccord.length}`);
 console.log(`   même bande          ${accord.length}`);
 console.log(`   bande différente    ${desaccord.length}`);
 console.log(`à remplir              ${aRemplir.length}`);
+console.log(`arômes à poser         ${aromatiser.length}`);
 if (introuvables.length) console.log(`identifiants inconnus  ${introuvables.length}`);
 if (desaccord.length) {
   console.log('\n--- désaccords avec la note existante ---');
@@ -64,8 +69,30 @@ for (const r of aRemplir) {
   brut = brut.slice(0, i) + apres + brut.slice(j);
   faits++;
 }
+/* Les arômes, posés de la même façon : dans la fiche et nulle part ailleurs. */
+let parfumees = 0;
+for (const r of aromatiser) {
+  const ancre = `{"id":"${r.id}"`;
+  const i = brut.indexOf(ancre);
+  if (i < 0) { rates++; continue; }
+  let p = 0, j = i;
+  for (; j < brut.length; j++) {
+    if (brut[j] === '{') p++;
+    else if (brut[j] === '}') { p--; if (!p) { j++; break; } }
+  }
+  const avant = brut.slice(i, j);
+  const liste = JSON.stringify(r.aromes);
+  let apres;
+  if (/"flavors":\[\]/.test(avant)) apres = avant.replace('"flavors":[]', `"flavors":${liste}`);
+  else if (!/"flavors":/.test(avant)) apres = avant.replace(/}$/, `,"flavors":${liste}}`);
+  else { rates++; continue; }
+  brut = brut.slice(0, i) + apres + brut.slice(j);
+  parfumees++;
+}
+
 const relu = JSON.parse(brut);
 if (relu.length !== fiches.length) { console.error('le nombre de fiches a changé — rien écrit'); process.exit(1); }
+console.log(`${parfumees} fiches parfumées`);
 fs.writeFileSync(path.join(RACINE, 'catalogue.json'), brut);
 console.log(`\n${faits} fiches complétées, ${rates} laissées de côté`);
 const d = {};
