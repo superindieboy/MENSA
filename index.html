@@ -2281,25 +2281,24 @@ async function publierPrix(caveItemId,champs){
    dernier prix payé juste en dessous : un membre peut avoir acheté ailleurs,
    et l'écart entre les deux est précisément ce qui intéresse.
    Les fiches sans tarif ne montrent aucun bloc. */
-const TARIF_SOURCE='Au 1er juin 2026';
-/* Le relevé des prix pratiqués en France, 2908 clés au 1er
-   juin 2026. Il ne sert pas à afficher — les fiches du catalogue portent
-   déjà leur tarif — mais à en proposer un quand un membre crée une fiche
-   pour un cigare que le catalogue ignore, cas où personne ne pouvait le
-   connaître.
+const TARIF_SOURCE='Au 1er septembre 2026';
+/* Le relevé des prix homologués en France, 2957 clés, arrêté du 5 août 2026
+   applicable au 1er septembre. Il ne sert pas à afficher — les fiches du
+   catalogue portent déjà leur tarif — mais à en proposer un quand un membre
+   crée une fiche pour un cigare que le catalogue ignore, cas où personne ne
+   pouvait le connaître.
 
-   Un cigare peut être chiffré de quatre façons, de la plus sûre à la moins
-   sûre, et c'est cet ordre qui départage les libellés d'un même cigare :
-     3. son prix à l'unité, imprimé au relevé ;
-     2. le prix de sa boîte divisé par le nombre de cigares — division exacte,
-        pas une estimation : le relevé n'imprime pas toujours de prix unitaire
-        pour ce qui se vend par boîte, ou par un ;
-     1. le dernier prix d'un produit marqué « Retrait », qui sort du barème à
-        cette date mais reste le seul repère qu'on ait ;
-     0. la même chose, divisée depuis la boîte.
-   À rang égal, c'est la plus grande boîte qui l'emporte. 3594 des 3626 lignes
-   de la rubrique sont ainsi chiffrées ; les 32 restantes ne disent pas
-   combien de cigares contient leur boîte, ce qui interdit la division. */
+   Il vient désormais de la nomenclature officielle de la douane, publiée en
+   tableur à chaque homologation, et non plus d'une lecture du PDF du Journal
+   officiel : mêmes données, mais sans colonne à deviner. La précédente
+   lecture prenait d'ailleurs la colonne des ANCIENS prix — d'où cinquante-deux
+   corrections silencieuses au passage à cette source-ci.
+
+   Un cigare se chiffre à son prix à l'unité quand l'arrêté l'imprime, sinon au
+   prix de sa boîte divisé par ce que le libellé annonce — division exacte, non
+   estimation. Trente lignes sur 3 720 ne disent ni l'un ni l'autre. Quand un
+   même cigare paraît sous plusieurs présentations, c'est la moins chère qui
+   fait foi : c'est celle qu'un membre peut payer. */
 /* Le relevé et le catalogue vivent désormais dans catalogue.json et
    tarifs.json, chargés au démarrage. Sept cents kilo-octets de données
    quittent ainsi index.html : une correction de code ne fait plus
