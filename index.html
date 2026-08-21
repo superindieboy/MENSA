@@ -3924,7 +3924,7 @@ function renderCave(){
   document.getElementById('cave-stats').innerHTML=`
     <div class="cstat"><div class="cstat-n">${total}</div><div class="cstat-l">cigares</div></div>
     <div class="cstat"><div class="cstat-n">${refs}</div><div class="cstat-l">références</div></div>
-    <div class="cstat"><div class="cstat-n">${valeur>0?fmtPrix(valeur):'—'}</div><div class="cstat-l">valeur${(valeur>0&&estimee)?' estimée':''}</div></div>
+    <div class="cstat"><div class="cstat-n">${valeur>0?fmtPrix(valeur):'—'}</div><div class="cstat-l">valeur d'achat${(valeur>0&&estimee)?' estimée':''}</div></div>
     <div class="cstat"><div class="cstat-n">${(b&&b.tarifFrance>0)?fmtPrix(b.tarifFrance):'—'}</div><div class="cstat-l">${libelleTarifCave(b)}${(b&&b.nbTarifFrance&&b.nbTarifFrance<total)?` · ${b.nbTarifFrance} sur ${total}`:''}</div></div>`;
   document.getElementById('cave-valeur').innerHTML=valeurCaveHtml(b);
 
