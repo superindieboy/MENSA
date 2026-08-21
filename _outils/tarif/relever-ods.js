@@ -123,6 +123,10 @@ function relever(chemin) {
       continue;
     }
     if (NON_PRODUIT.test(libelle) || rubrique !== 'cigares') continue;
+    /* Le barème range les blunts parmi les cigares — ils en ont le régime
+       fiscal. Le cercle, lui, n'en fume pas : ce sont des enveloppes à rouler,
+       et leur place dans un catalogue de cigares n'induit que du bruit. */
+    if (/\bblunts?\b/i.test(libelle)) continue;
 
     /* Le prix en vigueur : le nouveau s'il est publié, l'ancien sinon —
        « Sans changement » veut dire ce qu'il dit. Et à défaut de prix à

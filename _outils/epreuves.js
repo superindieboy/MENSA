@@ -157,9 +157,13 @@ const AU_CATALOGUE = [
   ['mensa-0055', 'Cohiba Behike Bhk 54', 244]
 ];
 
-// Ce qu'aucun cas nommé ne verrait : un effondrement général. Des planchers,
-// non des égalités — le catalogue a vocation à grandir, pas à rétrécir.
-const PLANCHERS = { fiches: 3090, chiffrees: 2755, cles: 2900 };
+/* Ce qu'aucun cas nommé ne verrait : un effondrement général. Des planchers,
+   non des égalités — le catalogue a vocation à grandir, pas à rétrécir.
+   Ils ne s'abaissent que pour un retrait voulu : le 21 août 2026, les onze
+   fiches de blunts, que le barème range parmi les cigares mais qui n'en sont
+   pas. Descendre un plancher sans une raison de cette nature, c'est faire
+   taire le contrôle plutôt que régler ce qu'il signale. */
+const PLANCHERS = { fiches: 3080, chiffrees: 2745, cles: 2900 };
 
 const MOJIBAKE = /°[a-zA-ZÀ-ÿ]/;   // « ch°teau » : un accent perdu en chemin
 
