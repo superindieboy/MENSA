@@ -16,10 +16,32 @@ let brut = fs.readFileSync(path.join(RACINE, 'catalogue.json'), 'utf8');
 const fiches = JSON.parse(brut);
 const parId = new Map(fiches.map(f => [f.id, f]));
 
-const accord = [], desaccord = [], aRemplir = [], introuvables = [], aromatiser = [];
+/* La fiche technique : longueur, diamètre, pays, cape, sous-cape, tripe.
+   On ne remplit que le vide, et l'on refuse en bloc dès que les dimensions
+   connues des deux côtés se contredisent — ce n'est alors pas la fiche qui a
+   tort, c'est l'appariement. Un pays rempli entraîne son terroir, faute de
+   quoi le cigare resterait classé « autre » avec un pays écrit dessus. */
+const CHAMPS_TECH = ['length', 'ring', 'country', 'wrapper', 'binder', 'filler'];
+const TERROIRS = { 'Cuba': 'cuba', 'Nicaragua': 'nica', 'République dominicaine': 'rep',
+  'Honduras': 'hon', 'Costa Rica': 'cr', 'Mexique': 'mex', 'Brésil': 'bre' };
+const vide = v => v === null || v === undefined || v === '' || v === '—';
+
+const accord = [], desaccord = [], aRemplir = [], introuvables = [], aromatiser = [], techniques = [];
+const conflits = [];
 for (const r of retenus) {
   const f = parId.get(r.id);
   if (!f) { introuvables.push(r); continue; }
+  const t = r.tech || {};
+  if (t.length && t.ring && f.length && f.ring
+      && (Math.abs(f.length - t.length) > 4 || Math.abs(f.ring - t.ring) > 1)) {
+    conflits.push({ id: f.id, nom: f.name, fiche: `${f.length}×${f.ring}`, revue: `${t.length}×${t.ring}` });
+  } else {
+    const champs = {};
+    for (const c of CHAMPS_TECH) if (!vide(t[c]) && vide(f[c])) champs[c] = t[c];
+    if (champs.country && (vide(f.terroir) || f.terroir === 'autre') && TERROIRS[champs.country])
+      champs.terroir = TERROIRS[champs.country];
+    if (Object.keys(champs).length) techniques.push({ id: f.id, nom: f.name, champs });
+  }
   // les arômes ne remplacent jamais ceux d'une fiche qui en porte déjà
   if ((r.aromes || []).length && !(f.flavors && f.flavors.length))
     aromatiser.push({ id: f.id, nom: f.name, aromes: r.aromes });
@@ -37,6 +59,14 @@ console.log(`   même bande          ${accord.length}`);
 console.log(`   bande différente    ${desaccord.length}`);
 console.log(`à remplir              ${aRemplir.length}`);
 console.log(`arômes à poser         ${aromatiser.length}`);
+console.log(`fiches techniques      ${techniques.length}`);
+const parChamp = {};
+techniques.forEach(t => Object.keys(t.champs).forEach(c => parChamp[c] = (parChamp[c] || 0) + 1));
+console.log(`   champs gagnés       ${JSON.stringify(parChamp)}`);
+if (conflits.length) {
+  console.log(`\n--- ${conflits.length} dimensions contradictoires, écartées ---`);
+  conflits.slice(0, 8).forEach(c => console.log(`   ${c.id}  ${c.nom.slice(0, 38).padEnd(39)} fiche ${c.fiche}  revue ${c.revue}`));
+}
 if (introuvables.length) console.log(`identifiants inconnus  ${introuvables.length}`);
 if (desaccord.length) {
   console.log('\n--- désaccords avec la note existante ---');
@@ -90,9 +120,33 @@ for (const r of aromatiser) {
   parfumees++;
 }
 
+/* La fiche technique, champ par champ, dans l'objet de la fiche et nulle part
+   ailleurs. Un champ absent s'ajoute, un champ vide se remplit ; rien d'autre
+   n'est touché. */
+let completees = 0;
+for (const t of techniques) {
+  const ancre = `{"id":"${t.id}"`;
+  const i = brut.indexOf(ancre);
+  if (i < 0) { rates++; continue; }
+  let p = 0, j = i;
+  for (; j < brut.length; j++) {
+    if (brut[j] === '{') p++;
+    else if (brut[j] === '}') { p--; if (!p) { j++; break; } }
+  }
+  let corps = brut.slice(i, j);
+  for (const [champ, valeur] of Object.entries(t.champs)) {
+    const v = typeof valeur === 'number' ? String(valeur) : JSON.stringify(valeur);
+    const videRe = new RegExp(`"${champ}":(null|""|"—")`);
+    if (videRe.test(corps)) corps = corps.replace(videRe, `"${champ}":${v}`);
+    else if (!new RegExp(`"${champ}":`).test(corps)) corps = corps.replace(/}$/, `,"${champ}":${v}}`);
+  }
+  brut = brut.slice(0, i) + corps + brut.slice(j);
+  completees++;
+}
+
 const relu = JSON.parse(brut);
 if (relu.length !== fiches.length) { console.error('le nombre de fiches a changé — rien écrit'); process.exit(1); }
-console.log(`${parfumees} fiches parfumées`);
+console.log(`${parfumees} fiches parfumées, ${completees} fiches complétées techniquement`);
 fs.writeFileSync(path.join(RACINE, 'catalogue.json'), brut);
 console.log(`\n${faits} fiches complétées, ${rates} laissées de côté`);
 const d = {};

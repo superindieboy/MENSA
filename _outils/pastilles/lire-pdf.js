@@ -218,17 +218,22 @@ function decoderHexa(hexa, table) {
   return out;
 }
 
+/* Certaines polices écrivent sur deux octets sans le déclarer : le texte
+   arrive alors entrelardé de zéros, et « Rép. » se lit « R é p . ». On les
+   retire — un caractère nul n'a jamais rien voulu dire dans un nom de pays. */
+const sansZeros = s => s.split(String.fromCharCode(0)).join('');
+
 function decoder(cru, table) {
   const brut = cru.replace(/\\([nrtbf()\\])/g, (s, c) =>
     ({ n: '\n', r: '\r', t: '\t', b: '\b', f: '\f' }[c] || c))
     .replace(/\\([0-7]{1,3})/g, (s, o) => String.fromCharCode(parseInt(o, 8)));
-  if (!table) return brut;
+  if (!table) return sansZeros(brut);
   let out = '';
   for (const ch of brut) {
     const v = table[ch.charCodeAt(0)];
     out += (v !== undefined ? v : ch);
   }
-  return out;
+  return sansZeros(out);
 }
 
 /* Les polices du document, par nom de ressource. On balaie les corps d'objets

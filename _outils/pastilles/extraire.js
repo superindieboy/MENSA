@@ -50,6 +50,99 @@ const AROMES = [
   ['champignon', /champignon/i]
 ];
 const MAX_AROMES = 5;
+
+/* ---- La fiche technique ----
+   Sous le titre, quatre lignes nommées : le pays de fabrication, la cape, la
+   sous-cape, la tripe — puis le format. On les lit ligne à ligne et non sur le
+   texte aplati : une tripe à deux origines déborde sur la ligne suivante
+   (« Tripe : Rép. dominicaine, » / « Nicaragua »), et le texte aplati la
+   coupait sur sa virgule. */
+const PAYS_USUELS = ['Nicaragua', 'Honduras', 'République dominicaine', 'Costa Rica',
+  'Mexique', 'Brésil', 'Équateur', 'Cameroun', 'Indonésie', 'Pérou', 'Cuba',
+  'Connecticut', 'Panama', 'Colombie', 'Italie', 'États-Unis'];
+const PAYS_ABREGES = {
+  'Rép. dominicaine': 'République dominicaine',
+  'Rep. dominicaine': 'République dominicaine',
+  'Rép. Dominicaine': 'République dominicaine'
+};
+function proprete(v) {
+  let t = (v || '').replace(/\s+/g, ' ').replace(/[.,;]\s*$/, '').trim();
+  /* « É quateur » : le crénage du PDF sépare parfois l'initiale de son mot.
+     Pas de \b ici — la limite de mot de JavaScript ne reconnaît que l'ASCII,
+     et ne voit donc aucune frontière devant un « É ». */
+  t = t.replace(/(^|[\s,])([A-ZÀ-Þ])\s([a-zà-ÿ]{2,})/g, '$1$2$3');
+  // « Rép. dominicaine », au milieu d'une énumération comme toute seule
+  t = t.replace(/R[ée]p\.?\s*dominicaine/gi, 'République dominicaine');
+  // capitalisation d'imprimerie : « NIcaragua » revient à sa forme usuelle
+  t = t.split(',').map(p => {
+    const m = p.trim();
+    const usuel = PAYS_USUELS.find(u => u.toLowerCase() === m.toLowerCase());
+    return usuel || m;
+  }).join(', ');
+  return PAYS_ABREGES[t] || t;
+}
+/* Une origine ressemble à une origine, ou l'on n'en veut pas. La maquette de
+   « L'amateur de cigare » fait courir un chapô en capitales le long de la
+   colonne, et la ligne de tripe finissait par avaler « EUROPÉEN, EST NÉE EN
+   2017 ». Mieux vaut un champ vide qu'un champ absurde. */
+function estUneOrigine(v) {
+  if (!v || v.length > 44) return false;
+  if (/\d/.test(v)) return false;                       // pas de millésime ni de format
+  if (/[A-ZÀ-Þ]{4,}/.test(v)) return false;             // pas de capitales de chapô
+  if (!/^[A-ZÀ-Þ]/.test(v)) return false;               // une origine commence par une majuscule
+  if (!/^[A-Za-zÀ-ÿ'’ ,.\-]+$/.test(v)) return false;
+  // « République » ou « Rép » seuls, ou en fin d'énumération, sont des
+  // troncatures : on préfère un champ vide à une origine à moitié nommée
+  if (/^R[ée]p(ublique)?$/i.test(v) || /,\s*R[ée]p\.?$/i.test(v)) return false;
+  /* Un pays tient en un ou deux mots — « Costa Rica », « République
+     dominicaine ». Au-delà, la ligne a débordé sur la prose voisine :
+     « Honduras Christian Luis Eiroa a » n'est pas une origine. */
+  return v.split(',').every(p => p.trim().split(/\s+/).filter(Boolean).length <= 2);
+}
+function ficheTechnique(lignes) {
+  const out = {};
+  for (let i = 0; i < lignes.length; i++) {
+    let l = lignes[i].trim();
+    if (!l) continue;
+    const dim = l.match(/(\d{2,3})\s*mm\s*[×x]\s*(\d{2})/);
+    if (dim && !out.length) { out.length = +dim[1]; out.ring = +dim[2]; }
+    /* Les maquettes varient : tantôt trois lignes nommées, tantôt une seule
+       — « Cape, sous-cape, tripe : Cameroun » — quand les trois tabacs
+       partagent une origine. Les formes groupées se cherchent d'abord, sans
+       quoi « Cape » mordrait sur « Cape, sous-cape, tripe » et n'en ramènerait
+       que la ponctuation. */
+    const champs = [
+      [['wrapper', 'binder', 'filler'], /^Cape,?\s*sous-?\s?cape,?\s*(?:et\s+)?tripe\s*:\s*(.+)$/i],
+      [['wrapper', 'binder'], /^Cape\s+et\s+sous-?\s?cape\s*:\s*(.+)$/i],
+      [['binder', 'filler'], /^Sous-?\s?cape\s+et\s+tripe\s*:\s*(.+)$/i],
+      [['country'], /^Fabriqu[ée]e?\s+(?:au|en|aux)\s+(.+)$/i],
+      [['binder'], /^Sous-?\s?cape\s*:\s*(.+)$/i],       // avant « cape », qu'il contient
+      [['wrapper'], /^Cape\s*:\s*(.+)$/i],
+      [['filler'], /^Tripe\s*:\s*(.+)$/i]
+    ];
+    for (const [noms, re] of champs) {
+      const m = l.match(re);
+      if (!m || noms.every(n => out[n])) continue;
+      let v = m[1];
+      /* Une origine coupée en fin de ligne se poursuit à la suivante — par une
+         virgule quand elle en énumère deux, par un point quand c'est une
+         abréviation (« Rép. » / « dominicaine »). On n'accepte la suite que si
+         elle ressemble elle-même à une origine : courte, capitalisée, sans
+         chiffre. C'est ce garde-fou qui empêche d'avaler le chapô de la page. */
+      let j = i;
+      while (/(?:[,.]|\bR[ée]p)\s*$/.test(v) && j + 1 < lignes.length && v.length < 40) {
+        const suite = (lignes[j + 1] || '').trim();
+        if (!suite || !/^[A-ZÀ-Þa-zà-ÿ][\wÀ-ÿ'’ -]{1,24}$/.test(suite)) break;
+        if (/^(Cape|Sous-?\s?cape|Tripe|Fabriqu)/i.test(suite)) break;
+        v += ' ' + suite; j++;
+      }
+      const valeur = proprete(v);
+      if (valeur && estUneOrigine(valeur)) noms.forEach(n => { if (!out[n]) out[n] = valeur; });
+      break;
+    }
+  }
+  return out;
+}
 function aromesDuTexte(texte) {
   const t = ' ' + texte + ' ';
   const trouves = [];
@@ -160,12 +253,22 @@ function extraire(chemin) {
       const maxi = Math.max(...tete.map(r => r.taille));
       const titre = tete.map(r => r.t.trim()).join(' ').replace(/\s+/g, ' ').trim();
       const texte = bloc.map(r => r.t).join(' ').replace(/\s+/g, ' ');
-      const dim = texte.match(/(\d{2,3})\s*mm\s*[×x]\s*(\d{2})/);
+      // les lignes du bloc, de haut en bas : la fiche technique s'y lit ligne
+      // à ligne, là où le texte aplati mêle les champs
+      const parY = [];
+      [...bloc].sort((a, b) => (b.y - a.y) || (a.x - b.x)).forEach(r => {
+        const d = parY[parY.length - 1];
+        if (d && Math.abs(d.y - r.y) < 1.5) d.t += ' ' + r.t;
+        else parY.push({ y: r.y, t: r.t });
+      });
+      const tech = ficheTechnique(parY.map(l => l.t.replace(/\s+/g, ' ').trim()));
       // la prose du bloc ne sort pas d'ici : on n'en retient que les arômes
       lots.push({
         objet: num, rang: RANG[mq.t.trim()], titre, police: familles[mq.police],
         vitole: tete.filter(r => r.taille === maxi).map(r => r.t.trim()).join(' ').trim(),
-        length: dim ? +dim[1] : null, ring: dim ? +dim[2] : null,
+        length: tech.length || null, ring: tech.ring || null,
+        country: tech.country || null, wrapper: tech.wrapper || null,
+        binder: tech.binder || null, filler: tech.filler || null,
         aromes: aromesDuTexte(texte)
       });
     }
@@ -182,7 +285,7 @@ if (require.main === module) {
     const nommes = r.lots.filter(l => l.titre);
     console.log(`\n===== ${chemin.split(/[\\/]/).pop()}`);
     console.log(`police ${r.police} (${r.noms} noms) · ${r.pastilles} pastilles · ${nommes.length} avec un titre (${Math.round(nommes.length / (r.pastilles || 1) * 100)} %)`);
-    nommes.slice(0, 12).forEach(l =>
-      console.log(`   ${l.rang}/3  ${l.titre.slice(0, 42).padEnd(43)} ${(l.aromes || []).join(", ")}`));
+    nommes.slice(0, 8).forEach(l =>
+      console.log(`   ${l.rang}/3  ${(l.titre||"").slice(0,34).padEnd(35)} ${String(l.length||"—")}×${String(l.ring||"—")}  ${[l.country,l.wrapper,l.binder,l.filler].map(x=>x||"—").join(" | ")}`));
   }
 }

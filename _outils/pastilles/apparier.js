@@ -74,7 +74,9 @@ for (const l of lots) {
       echecs.push({ ...l, raison: `dimensions incompatibles (fiche ${f.length}×${f.ring})` });
       continue;
     }
-    resultats.push({ id: f.id, nom: f.name, rang: l.rang, voie, titre: l.titre, revue: l.revue, aromes: l.aromes || [] });
+    resultats.push({ id: f.id, nom: f.name, rang: l.rang, voie, titre: l.titre, revue: l.revue,
+      aromes: l.aromes || [],
+      tech: { length: l.length, ring: l.ring, country: l.country, wrapper: l.wrapper, binder: l.binder, filler: l.filler } });
   } else echecs.push({ ...l, raison: candidats.length ? `${candidats.length} fiches` : 'aucune fiche' });
 }
 
@@ -90,12 +92,22 @@ for (const [id, l] of Object.entries(parFiche)) {
   const compte = {};
   l.forEach(x => (x.aromes || []).forEach(a => compte[a] = (compte[a] || 0) + 1));
   const aromes = Object.entries(compte).sort((a, b) => b[1] - a[1]).slice(0, 5).map(x => x[0]);
+  /* La fiche technique, champ par champ : la valeur que les numéros donnent le
+     plus souvent. Deux numéros qui divergent sur une cape sont rares, et la
+     majorité tranche mieux que le hasard de l'ordre de lecture. */
+  const tech = {};
+  for (const champ of ['length', 'ring', 'country', 'wrapper', 'binder', 'filler']) {
+    const c = {};
+    l.forEach(x => { const v = x.tech && x.tech[champ]; if (v) c[v] = (c[v] || 0) + 1; });
+    const gagnant = Object.entries(c).sort((a, b) => b[1] - a[1])[0];
+    if (gagnant) tech[champ] = (champ === 'length' || champ === 'ring') ? +gagnant[0] : gagnant[0];
+  }
   const rangs = [...new Set(l.map(x => x.rang))];
-  if (rangs.length === 1) retenus.push({ id, nom: l[0].nom, rang: rangs[0], sources: l.length, aromes });
+  if (rangs.length === 1) retenus.push({ id, nom: l[0].nom, rang: rangs[0], sources: l.length, aromes, tech });
   // un désaccord sur l'intensité ne disqualifie pas les arômes : c'est la même
   // fiche, décrite deux fois, et seul le chiffre diverge
   else { discordants.push({ id, nom: l[0].nom, rangs: l.map(x => `${x.rang}/3 (${x.revue.slice(0, 12)})`) });
-         if (aromes.length) retenus.push({ id, nom: l[0].nom, rang: null, sources: l.length, aromes }); }
+         retenus.push({ id, nom: l[0].nom, rang: null, sources: l.length, aromes, tech }); }
 }
 
 console.log(`\nlots titrés          ${lots.length}`);
