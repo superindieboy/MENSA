@@ -21,7 +21,7 @@ const parId = new Map(fiches.map(f => [f.id, f]));
    connues des deux côtés se contredisent — ce n'est alors pas la fiche qui a
    tort, c'est l'appariement. Un pays rempli entraîne son terroir, faute de
    quoi le cigare resterait classé « autre » avec un pays écrit dessus. */
-const CHAMPS_TECH = ['length', 'ring', 'country', 'wrapper', 'binder', 'filler'];
+const CHAMPS_TECH = ['length', 'ring', 'country', 'wrapper', 'binder', 'filler', 'vitola', 'module'];
 const TERROIRS = { 'Cuba': 'cuba', 'Nicaragua': 'nica', 'République dominicaine': 'rep',
   'Honduras': 'hon', 'Costa Rica': 'cr', 'Mexique': 'mex', 'Brésil': 'bre' };
 const vide = v => v === null || v === undefined || v === '' || v === '—';

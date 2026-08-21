@@ -76,7 +76,8 @@ for (const l of lots) {
     }
     resultats.push({ id: f.id, nom: f.name, rang: l.rang, voie, titre: l.titre, revue: l.revue,
       aromes: l.aromes || [],
-      tech: { length: l.length, ring: l.ring, country: l.country, wrapper: l.wrapper, binder: l.binder, filler: l.filler } });
+      tech: { length: l.length, ring: l.ring, country: l.country, wrapper: l.wrapper,
+        binder: l.binder, filler: l.filler, vitola: l.vitole, module: l.module } });
   } else echecs.push({ ...l, raison: candidats.length ? `${candidats.length} fiches` : 'aucune fiche' });
 }
 
@@ -96,7 +97,7 @@ for (const [id, l] of Object.entries(parFiche)) {
      plus souvent. Deux numéros qui divergent sur une cape sont rares, et la
      majorité tranche mieux que le hasard de l'ordre de lecture. */
   const tech = {};
-  for (const champ of ['length', 'ring', 'country', 'wrapper', 'binder', 'filler']) {
+  for (const champ of ['length', 'ring', 'country', 'wrapper', 'binder', 'filler', 'vitola', 'module']) {
     const c = {};
     l.forEach(x => { const v = x.tech && x.tech[champ]; if (v) c[v] = (c[v] || 0) + 1; });
     const gagnant = Object.entries(c).sort((a, b) => b[1] - a[1])[0];

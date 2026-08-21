@@ -99,13 +99,43 @@ function estUneOrigine(v) {
      « Honduras Christian Luis Eiroa a » n'est pas une origine. */
   return v.split(',').every(p => p.trim().split(/\s+/).filter(Boolean).length <= 2);
 }
+/* Un module ressemble à une famille de format — « Petit corona gorda »,
+   « Grand robusto (laguito n° 5) » — et non à une phrase ni à un prix. */
+function estUnModule(v) {
+  if (!v || v.length > 40) return false;
+  if (/\d/.test(v) && !/\(/.test(v)) return false;      // « 127 mm » n'est pas un module
+  if (/[€%]|\.$/.test(v)) return false;
+  if (/[A-ZÀ-Þ]{4,}/.test(v)) return false;
+  return /^[A-ZÀ-Þ][A-Za-zÀ-ÿ'’()°  \-]{2,}$/.test(v);
+}
+/* La dernière ligne du titre, nettoyée. Elle arrive parfois entre parenthèses
+   — « (Toro) » — et parfois ce n'est pas un format du tout mais le millésime
+   d'une édition limitée, « LE 2023 » : un format ne se date pas. */
+function propreVitole(v, lignesTitre) {
+  if (!v || lignesTitre <= 1) return null;
+  const t = v.replace(/^\(+|\)+$/g, '').replace(/\s+/g, ' ').trim();
+  if (!t || t.length > 34) return null;
+  if (/^(LE|EL|ED|RE)\s*\d{4}$/i.test(t)) return null;
+  if (/^\d+$/.test(t)) return null;
+  return t;
+}
 function ficheTechnique(lignes) {
   const out = {};
   for (let i = 0; i < lignes.length; i++) {
     let l = lignes[i].trim();
     if (!l) continue;
     const dim = l.match(/(\d{2,3})\s*mm\s*[×x]\s*(\d{2})/);
-    if (dim && !out.length) { out.length = +dim[1]; out.ring = +dim[2]; }
+    if (dim && !out.length) {
+      out.length = +dim[1]; out.ring = +dim[2];
+      /* Le module se tient juste au-dessus des dimensions, dans les deux
+         maquettes : « Petit corona gorda » puis « 89 mm × 46 » au Cigaroscope,
+         « Robusto » puis « 127 mm × 54 » chez L'amateur. C'est la seule place
+         qui ne bouge pas d'un numéro à l'autre. */
+      for (let j = i - 1; j >= 0 && j >= i - 2; j--) {
+        const p = proprete(lignes[j]);
+        if (estUnModule(p)) { out.module = p; break; }
+      }
+    }
     /* Les maquettes varient : tantôt trois lignes nommées, tantôt une seule
        — « Cape, sous-cape, tripe : Cameroun » — quand les trois tabacs
        partagent une origine. Les formes groupées se cherchent d'abord, sans
@@ -250,8 +280,17 @@ function extraire(chemin) {
       gros.sort((a, b) => b.y - a.y);
       const sommet = gros[0].y;
       const tete = gros.filter(r => sommet - r.y < 70);
-      const maxi = Math.max(...tete.map(r => r.taille));
       const titre = tete.map(r => r.t.trim()).join(' ').replace(/\s+/g, ' ').trim();
+      /* La vitole ferme le titre. Les deux maquettes s'accordent là-dessus :
+         la marque tient les premières lignes, en capitales, et le format vient
+         en dernier — « A. FLORES / SUN GROWN / Half Corona », « AGANORSA LEAF /
+         LA VALIDACIÓN CLARO / Gran Robusto ». Se fier à la taille de la police
+         échouait : le format est plus gros que la marque au Cigaroscope, plus
+         petit chez L'amateur. */
+      const derniereY = Math.min(...tete.map(r => r.y));
+      const lignesTitre = [...new Set(tete.map(r => Math.round(r.y)))].length;
+      const vitole = tete.filter(r => Math.abs(r.y - derniereY) < 1.5)
+        .map(r => r.t.trim()).join(' ').replace(/\s+/g, ' ').trim();
       const texte = bloc.map(r => r.t).join(' ').replace(/\s+/g, ' ');
       // les lignes du bloc, de haut en bas : la fiche technique s'y lit ligne
       // à ligne, là où le texte aplati mêle les champs
@@ -265,7 +304,12 @@ function extraire(chemin) {
       // la prose du bloc ne sort pas d'ici : on n'en retient que les arômes
       lots.push({
         objet: num, rang: RANG[mq.t.trim()], titre, police: familles[mq.police],
-        vitole: tete.filter(r => r.taille === maxi).map(r => r.t.trim()).join(' ').trim(),
+        /* Un titre d'une seule ligne est une marque, sans format : on n'en tire
+           rien. Dès qu'il en compte deux, la dernière est le format, quelle que
+           soit sa casse — « Half Corona » comme « R56 ». Se fier à la casse
+           coûtait cent trente formats écrits en capitales. */
+        vitole: propreVitole(vitole, lignesTitre),
+        module: tech.module || null,
         length: tech.length || null, ring: tech.ring || null,
         country: tech.country || null, wrapper: tech.wrapper || null,
         binder: tech.binder || null, filler: tech.filler || null,
@@ -285,7 +329,7 @@ if (require.main === module) {
     const nommes = r.lots.filter(l => l.titre);
     console.log(`\n===== ${chemin.split(/[\\/]/).pop()}`);
     console.log(`police ${r.police} (${r.noms} noms) · ${r.pastilles} pastilles · ${nommes.length} avec un titre (${Math.round(nommes.length / (r.pastilles || 1) * 100)} %)`);
-    nommes.slice(0, 8).forEach(l =>
-      console.log(`   ${l.rang}/3  ${(l.titre||"").slice(0,34).padEnd(35)} ${String(l.length||"—")}×${String(l.ring||"—")}  ${[l.country,l.wrapper,l.binder,l.filler].map(x=>x||"—").join(" | ")}`));
+    nommes.slice(0, 10).forEach(l =>
+      console.log(`   ${(l.titre||"").slice(0,38).padEnd(39)} vitole: ${String(l.vitole||"—").padEnd(20)} module: ${l.module||"—"}`));
   }
 }
