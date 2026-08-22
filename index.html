@@ -6018,6 +6018,32 @@ const FICHE_DEGUSTATION={panneau:'f-newcigar-fields',bascule:'f-newcigar-toggle'
 const FICHE_CAVE={panneau:'c-newcigar-fields',bascule:'c-newcigar-toggle',prefixe:'cc-',
   champNom:'c-name',
   verbe:'enregistrer', choisie:()=>caveSelectedCigar};
+/* Deux fiches sont voisines quand les mots de l'une tiennent tous dans l'autre
+   sans que ce soit le même nom : « Prensado » dans « Prensado Churchill ». On
+   passe par la clé du relevé, qui a déjà réglé les accents, les pluriels et
+   les articles — « Serie D n°4 » et « Série D No. 4 » y sont un seul nom.
+   Un nom d'un seul mot ne dit rien : « Cohiba » voisinerait avec quarante
+   fiches. On n'avertit qu'à partir de deux. */
+function fichesJumelles(nom){
+  const a=new Set(cleTarif(nom).split(' ').filter(Boolean));
+  if(a.size<2)return [];
+  const vus=new Set();
+  return catalog.filter(c=>{
+    const b=new Set(cleTarif(c.name).split(' ').filter(Boolean));
+    if(b.size<2)return false;
+    const aDansB=[...a].every(x=>b.has(x)), bDansA=[...b].every(x=>a.has(x));
+    if(!(aDansB||bDansA)||(aDansB&&bDansA))return false;   // l'un contient l'autre, sans lui être égal
+    // huit formats d'un même nom ne font qu'un avertissement
+    const k=normCigar(c.name);
+    if(vus.has(k))return false;
+    vus.add(k); return true;
+  })
+  // la plus proche d'abord : celle qui s'écarte du nom saisi par le moins de mots
+  .sort((x,y)=>Math.abs(cleTarif(x.name).split(' ').length-a.size)
+              -Math.abs(cleTarif(y.name).split(' ').length-a.size))
+  .slice(0,4);
+}
+let jumelleSignalee='';   // le nom pour lequel l'avertissement a déjà été donné
 async function resoudreFiche(nom,terroir,country,cfg){
   cfg=cfg||FICHE_DEGUSTATION;
   if(!nom)return {erreur:`Choisissez un cigare dans le catalogue, ou renseignez sa fiche pour ${cfg.verbe}.`,ouvrirPanneau:true};
@@ -6038,6 +6064,21 @@ async function resoudreFiche(nom,terroir,country,cfg){
   // cigare inconnu : sa fiche doit être créée, et sciemment
   if(document.getElementById(cfg.panneau).style.display==='none')
     return {erreur:`Ce cigare n'est pas au catalogue. Renseignez sa fiche pour pouvoir ${cfg.verbe}.`,ouvrirPanneau:true};
+  /* Une fiche voisine existe-t-elle ? C'est ainsi que naissent les doublons :
+     le nom saisi ne correspond exactement à rien, l'app laisse créer, et le
+     catalogue se retrouve avec « Plasencia Cosecha 151 » à côté de « Plasencia
+     Cosecha 151 La Musica - Robusto ». On avertit une fois. Valider de nouveau
+     passe outre : un membre qui ajoute un format que le catalogue ignore a
+     raison, et rien ne doit l'arrêter deux fois. */
+  const jumelles=fichesJumelles(nom);
+  if(jumelles.length&&jumelleSignalee!==normCigar(nom)){
+    jumelleSignalee=normCigar(nom);
+    const autres=jumelles.length-1;
+    return {erreur:`Une fiche très proche existe déjà : « ${jumelles[0].name} »`
+      +(autres?` et ${autres} autre${autres>1?'s':''}`:'')
+      +`. Choisissez-la dans la liste si c'est le même cigare, ou validez à nouveau pour créer une fiche distincte.`,
+      ouvrirListe:true};
+  }
   if(exclusiviteIncomplete(cfg.prefixe))return {erreur:ERREUR_EXCLUSIVITE,ouvrirPanneau:true};
   const val=id=>document.getElementById(cfg.prefixe+id).value.trim();
   const excl=lireExclusivite(cfg.prefixe);
@@ -6054,6 +6095,7 @@ async function resoudreFiche(nom,terroir,country,cfg){
   const creee=(data||[])[0];
   if(!creee)return {erreur:"La fiche n'a pas pu être créée. Réessayez."};
   signalerColonnesAbsentes(ampute);
+  jumelleSignalee='';   // la fiche existe : l'avertissement se rearme
   await loadMemberCatalog();
   return {id:'m-'+creee.id,nom,terroir,module:val('module')||val('vitola')};
 }
