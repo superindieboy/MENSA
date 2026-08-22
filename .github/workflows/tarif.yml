@@ -1,0 +1,51 @@
+# Le relevé des prix se tient à jour tout seul.
+#
+# La douane publie sa nomenclature à chaque homologation, tous les deux ou
+# trois mois. Cette tâche va la chercher chaque lundi, et ne fait rien tant
+# qu'il n'y a rien de neuf — le script s'arrête de lui-même si le relevé en
+# place est déjà le plus récent.
+#
+# Elle ne pousse qu'après avoir passé les contrôles. Si une épreuve échoue —
+# un prix vérifié à la main qui ne vaut plus ce qu'il valait — la tâche
+# s'arrête en erreur et vous recevez un message. C'est voulu : un prix faux
+# est pire qu'un prix vieux d'une semaine.
+
+name: Relevé des prix
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'      # chaque lundi, 5 h UTC
+  workflow_dispatch:          # et à la demande, depuis l'onglet Actions
+
+permissions:
+  contents: write
+
+jobs:
+  mettre-a-jour:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Chercher et appliquer la dernière nomenclature
+        run: node _outils/tarif/mettre-a-jour.js --ecrire
+
+      - name: Contrôler avant de pousser
+        run: node _outils/verifier.js
+
+      - name: Publier si quelque chose a changé
+        run: |
+          if git diff --quiet; then
+            echo "Rien à publier."
+            exit 0
+          fi
+          git config user.name  "Relevé des prix"
+          git config user.email "actions@github.com"
+          DATE=$(grep -o "TARIF_SOURCE='[^']*'" index.html | sed "s/TARIF_SOURCE='//;s/'//")
+          git add catalogue.json tarifs.json tarifs-precedent.json index.html
+          git commit -m "Passe le relevé $DATE" \
+                     -m "Nomenclature de la douane, relevée et appliquée automatiquement."
+          git push

@@ -325,6 +325,16 @@ body{
    pastille qu'on allume. Le champ n'apparaît qu'une fois allumée : tant que le
    cigare se vend en France, il n'y a rien à préciser. */
 .excl-champ{margin-top:10px}
+/* Le rappel de cave. Discret par construction : une ligne, la couleur du
+   cognac, et rien qui ressemble à une notification. */
+.dort{
+  display:flex;align-items:center;gap:10px;cursor:pointer;
+  margin:-8px 0 22px;padding:11px 14px;border-radius:12px;
+  background:var(--card);border:1px solid var(--line-2);
+  font-size:13px;color:var(--ink-2);line-height:1.45;
+}
+.dort:hover{border-color:var(--cognac)}
+.dort b{color:var(--ink);font-weight:600}
 .auth-links{display:flex;justify-content:space-between;margin-top:16px}
 .auth-link{font-size:12.5px;color:var(--ink-3);cursor:pointer}
 .auth-link:hover{color:var(--cognac)}
@@ -953,6 +963,10 @@ body{touch-action:manipulation}
     <h1 class="screen-title serif">Le Fil</h1>
     <p class="screen-sub">L'activité récente des membres et du club.</p>
 
+    <!-- Ce qui attend dans votre cave. Une phrase, pas un tableau : c'est un
+         rappel, pas un inventaire — celui-ci est à deux onglets d'ici. -->
+    <div class="dort" id="feed-dort" style="display:none" onclick="go('cave')"></div>
+
     <div class="rail">
       <div class="rail-head">
         <div class="rail-title"><span class="ico">👤</span> Par les membres</div>
@@ -1312,6 +1326,18 @@ body{touch-action:manipulation}
     <div class="sheet-actions">
       <button class="btn-ghost" onclick="closeSheet('cigar-edit-overlay')">Annuler</button>
       <button class="btn-primary" id="ec-submit-btn" onclick="saveCigarCard()">Enregistrer</button>
+    </div>
+    <!-- Réunir deux fiches qui décrivent le même cigare. Réservé au
+         modérateur, comme tout cet écran. -->
+    <div id="ec-fusion" style="display:none">
+      <div class="sec-label" style="margin:22px 0 8px">Doublon</div>
+      <div class="field" style="position:relative">
+        <label>Absorber une autre fiche dans celle-ci</label>
+        <input id="ec-fusion-q" placeholder="Nom de la fiche en double…" autocomplete="off"
+               oninput="chercherFusion(this.value)">
+        <div class="ac-list" id="ec-fusion-list"></div>
+      </div>
+      <p class="vc-note" id="ec-fusion-note" style="margin-top:-6px">Les dégustations, lots de cave et envies de la fiche absorbée seront rattachés à celle-ci.</p>
     </div>
   </div>
 </div>
@@ -3084,6 +3110,37 @@ function renderRails(){
   const memberItems=feed.slice(0,12).map(p=>({terroir:p.terroir,av:p.av,who:p.init,by:p.user,rating:p.rating,name:p.name,pid:p.id}));
   document.getElementById('rail-members').innerHTML=memberItems.length?memberItems.map(posterCard).join(''):emptyRail;
   renderAffinites();
+  renderDort();
+}
+/* ---- Ce qui dort dans votre cave ----
+   L'app sait depuis quand chaque lot est là — elle l'écrit sur chaque ligne de
+   cave — mais ne s'en est jamais servie pour vous parler. Un cigare acheté
+   pour vieillir mérite qu'on le rappelle une fois l'an ; passé ce délai, ce
+   n'est plus une réserve, c'est un oubli.
+   Une phrase, jamais une liste : le détail est dans la cave, à deux onglets. */
+const DORT_MOIS=12;
+function lotsQuiDorment(){
+  if(!currentUser)return [];
+  const vieux=[];
+  Object.values(cave).forEach(arr=>arr.forEach(l=>{
+    if(!l.qty||l.qty<=0)return;
+    const age=dureeEnCave(l.addedRaw);
+    if(age&&age.mois>=DORT_MOIS)vieux.push({l,mois:age.mois,texte:age.texte});
+  }));
+  return vieux.sort((a,b)=>b.mois-a.mois);
+}
+function renderDort(){
+  const box=document.getElementById('feed-dort');
+  if(!box)return;
+  const vieux=lotsQuiDorment();
+  if(!vieux.length){ box.style.display='none'; return; }
+  const t=vieux[0], cigares=vieux.reduce((s,x)=>s+x.l.qty,0);
+  const reste=vieux.length-1;
+  box.innerHTML=`<span style="font-size:16px">🥃</span><span>`
+    +`Votre <b>${echapper(t.l.name)}</b> dort depuis ${t.texte}`
+    +(reste?` — et ${reste} autre${reste>1?'s':''} lot${reste>1?'s':''} de plus d'un an, ${cigares} cigares en tout.`:'.')
+    +`</span>`;
+  box.style.display='flex';
 }
 /* ---- À votre goût ----
    Trois mille fiches, dix membres : personne ne fera le tour du catalogue au
@@ -5151,7 +5208,78 @@ function openEditCigarSheet(id){
   document.getElementById('ec-tarif').value=ecrireTarif(c.tarif);
   poserExclusivite('ec-',c.exclusivite||'');
   setEcTerroir(c.terroir||null);
+  // la fusion ne s'offre qu'au modérateur, et repart vierge à chaque ouverture
+  show('ec-fusion',isAdmin()?'block':'none');
+  document.getElementById('ec-fusion-q').value='';
+  document.getElementById('ec-fusion-list').classList.remove('open');
   ouvrirSeul('cigar-edit-overlay');
+}
+/* ---- Fusionner deux fiches ----
+   L'application réunissait déjà les fiches rigoureusement identiques ; il n'en
+   reste aucune. Ce qui manquait, c'est de désigner soi-même deux fiches qui
+   décrivent le même cigare sans porter le même nom — « Plasencia Cosecha 151 »
+   et « Plasencia Cosecha 151 La Musica - Robusto ». Aucune machine ne peut en
+   juger : c'est au modérateur de le dire.
+
+   On garde la fiche ouverte et l'on absorbe l'autre. Une seule décision, donc,
+   et pas de « laquelle des deux ». La fiche absorbée doit être une fiche de
+   membre : celles du catalogue d'origine vivent dans un fichier et ne se
+   suppriment pas d'ici. */
+function chercherFusion(q){
+  const liste=document.getElementById('ec-fusion-list');
+  const k=normCigar(q||'');
+  if(k.length<2){ liste.classList.remove('open'); liste.innerHTML=''; return; }
+  const autres=suggestions(q,8).filter(c=>c.id!==editingCigarId);
+  if(!autres.length){ liste.classList.remove('open'); liste.innerHTML=''; return; }
+  liste.innerHTML=autres.map(c=>{
+    const membre=c.id.startsWith('m-');
+    const detail=[c.country&&c.country!=='—'?c.country:'',detailDeFiche(c),c.tarif>0?fmtPrix(c.tarif):'']
+      .filter(Boolean).join(' · ');
+    const origine=membre?'':' <small style="color:var(--ink-3)">— catalogue d’origine</small>';
+    return `<div class="ac-item" onclick="fusionnerDansLaFiche('${c.id}')">
+      <div class="ac-name">${echapper(c.name)}${origine}</div>
+      <div class="ac-sub">${echapper(detail||'Fiche catalogue')}</div>
+    </div>`;
+  }).join('');
+  liste.classList.add('open');
+}
+async function fusionnerDansLaFiche(id){
+  if(!isAdmin()||!sb||!editingCigarId)return;
+  const garde=catalog.find(c=>c.id===editingCigarId);
+  const perdue=catalog.find(c=>c.id===id);
+  if(!garde||!perdue||garde.id===perdue.id)return;
+  if(!perdue.id.startsWith('m-')){
+    toast("Cette fiche vient du catalogue d'origine : elle ne peut pas être absorbée. Ouvrez-la et absorbez l'autre.",'err');
+    return;
+  }
+  const memeNom=perdue.name===garde.name;
+  if(!confirm(`Absorber « ${perdue.name} » dans « ${garde.name} » ?\n\n`
+    +`La fiche absorbée disparaît. ${memeNom?'Les dégustations':'Les dégustations, lots de cave et envies'} qui la citent `
+    +`seront rattachés à la fiche conservée.`))return;
+  document.getElementById('ec-fusion-list').classList.remove('open');
+  try{
+    if(!memeNom){
+      // le rattachement se fait par le nom ; l'identifiant de la fiche absorbée
+      // ne désignera bientôt plus rien, on le remplace ou on l'efface
+      const vers=garde.id.startsWith('m-')?garde.id.slice(2):null;
+      await sb.from('posts').update({cigar_name:garde.name,catalog_id:vers}).eq('cigar_name',perdue.name);
+      await sb.from('cave_items').update({name:garde.name}).eq('name',perdue.name);
+      await sb.from('wishlist_items').update({name:garde.name}).eq('name',perdue.name);
+    }
+    const {data,error}=await sb.from('catalog_items').delete().eq('id',perdue.id.slice(2)).select();
+    if(error)throw error;
+    if(!(data&&data.length)){ toast("Suppression refusée : vérifiez vos droits de modérateur.",'err'); return; }
+  }catch(e){
+    toast("La fusion n'a pas abouti. Rien n'a été perdu : réessayez.",'err');
+    console.warn('fusion',e&&e.message);
+    return;
+  }
+  closeSheet('cigar-edit-overlay');
+  editingCigarId=null;
+  await loadMemberCatalog();
+  await Promise.all([loadPosts(),loadCave(),loadWishlist()]);
+  renderDiscover(); renderRails(); renderFeed(); renderCave(); renderWishlist(); renderProfile();
+  toast(`« ${perdue.name} » a été absorbée.`);
 }
 async function saveCigarCard(){
   if(!isAdmin()||!sb||!editingCigarId)return;
