@@ -58,10 +58,15 @@ body{
    conditions pour que l'œil l'accepte : un seul corps — le M est au corps du
    mot, pas plus petit — et un écart mesuré. Entre deux lettres du mot, l'encre
    laisse environ 2,4 px de blanc ; le bord du carré étant une masse plus
-   lourde qu'une lettre, on lui en donne un peu plus. */
+   lourde qu'une lettre, on lui en donne un peu plus.
+
+   Le carré, lui, est plus serré que celui du logo : ce qui éloigne le M du
+   reste du mot n'est pas l'écart entre les deux boîtes, c'est le blanc que le
+   carré laisse autour de la lettre. Le resserrer rapproche son bord de
+   l'encre, et le mot se recolle. Le rayon suit la même réduction. */
 .brand{display:flex;align-items:center;gap:2.5px;cursor:pointer}
 .brand-mark{
-  width:34px;height:34px;border-radius:9px;
+  width:29px;height:29px;border-radius:8px;
   background:var(--ink);color:var(--paper);
   display:flex;align-items:center;justify-content:center;
   font-family:var(--serif);font-weight:600;font-size:21px;
