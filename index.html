@@ -53,12 +53,18 @@ body{
   transition:transform .3s ease;
 }
 .topbar.hide{transform:translateY(-100%)}
-.brand{display:flex;align-items:center;gap:10px;cursor:pointer}
+/* Le carré ne porte pas un M en plus du mot : il porte le M DU mot. MENSA se
+   lit donc d'un trait, la première lettre étant seulement enfermée. Deux
+   conditions pour que l'œil l'accepte : un seul corps — le M est au corps du
+   mot, pas plus petit — et un écart mesuré. Entre deux lettres du mot, l'encre
+   laisse environ 2,4 px de blanc ; le bord du carré étant une masse plus
+   lourde qu'une lettre, on lui en donne un peu plus. */
+.brand{display:flex;align-items:center;gap:2.5px;cursor:pointer}
 .brand-mark{
   width:34px;height:34px;border-radius:9px;
   background:var(--ink);color:var(--paper);
   display:flex;align-items:center;justify-content:center;
-  font-family:var(--serif);font-weight:600;font-size:18px;
+  font-family:var(--serif);font-weight:600;font-size:21px;
 }
 .brand-name{font-family:var(--serif);font-weight:600;font-size:21px;letter-spacing:0.06em}
 .brand-name .dot{color:var(--cognac)}
@@ -949,9 +955,9 @@ body{touch-action:manipulation}
 
   <!-- HEADER -->
   <div class="topbar">
-    <div class="brand" onclick="go('feed')">
+    <div class="brand" onclick="go('feed')" aria-label="MENSA">
       <div class="brand-mark">M</div>
-      <div class="brand-name">MENSA<span class="dot">.</span></div>
+      <div class="brand-name">ENSA<span class="dot">.</span></div>
     </div>
     <button class="icon-btn topbar-alerts" onclick="openFil()" aria-label="Ce qui vous concerne">🔔<span class="fil-compte" id="fil-compte" style="display:none">0</span></button>
     <button class="icon-btn topbar-search" onclick="openRecherche()" aria-label="Chercher dans tout le cercle">🔍</button>
@@ -3656,7 +3662,7 @@ function renderDiscover(){
   const q=normCigar(document.getElementById('search-input').value);
   const familles=filtresParFamille();
   let list=catalog.filter(c=>{
-    if(q && !normCigar([c.name,c.brand,c.country,c.module,c.profile,(c.flavors||[]).join(' ')].join(' ')).includes(q))return false;
+    if(q && !normCigar([c.name,c.brand,c.country,c.module,c.profile,c.exclusivite,(c.flavors||[]).join(' ')].join(' ')).includes(q))return false;
     return passeLesFiltres(c,familles);
   });
   list=trierCatalogue(list);
