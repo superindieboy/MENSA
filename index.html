@@ -73,6 +73,16 @@ body{
 }
 .brand-name{font-family:var(--serif);font-weight:600;font-size:21px;letter-spacing:0.06em}
 .brand-name .dot{color:var(--cognac)}
+.ico-svg{display:inline-block;vertical-align:-0.14em;fill:currentColor;flex:none}
+.rail-title .ico-svg{vertical-align:-0.18em}
+/* Les chiffres alignés en colonne. Une app dont le sujet est les prix, les
+   longueurs et les dates ne peut pas se permettre des chiffres à chasse
+   variable : le 1 y est plus étroit que le 8, et rien ne s'aligne d'une ligne
+   à l'autre. tabular-nums leur rend une chasse commune. */
+.cave-meta,.wl-meta,.spec-score-pill,.rank-score,.disc-score,.disc-count,
+.cave-total,.stat-val,.hist-prix,.prix,.post-meta,.pd-origin,
+.spec-grid,.cave-qty,.fil-compte{font-variant-numeric:tabular-nums}
+input[type=number],.f-num{font-variant-numeric:tabular-nums}
 .topbar-actions{display:flex;align-items:center;gap:8px}
 /* le bandeau centre la marque : la loupe se pose au bord sans la décaler */
 .topbar-search{position:absolute;right:16px}
@@ -958,14 +968,50 @@ body{touch-action:manipulation}
 <body>
 <div class="app">
 
+
+  <!-- Les icônes, tracées plutôt qu'empruntées à un jeu d'émojis. Un émoji
+       se dessine autrement sur chaque système — deux membres ne voyaient pas
+       la même app — reste multicolore dans une palette tenue, et ne prend ni
+       la couleur de l'encre ni une taille. Celles-ci sont sur une grille de
+       20, pleines pour tenir à 14 px, et en currentColor : elles suivent donc
+       l'encre, le cognac et le thème sombre toutes seules.
+       Les badges des membres, eux, restent des émojis : c'est du contenu. -->
+  <svg style="display:none" aria-hidden="true"><defs>
+    <symbol id="i-recherche" viewBox="0 0 20 20"><path d="M8.6 2.7C11.86 2.7 14.5 5.34 14.5 8.6C14.5 11.86 11.86 14.5 8.6 14.5C5.34 14.5 2.7 11.86 2.7 8.6C2.7 5.34 5.34 2.7 8.6 2.7ZM8.6 4.6C6.39 4.6 4.6 6.39 4.6 8.6C4.6 10.81 6.39 12.6 8.6 12.6C10.81 12.6 12.6 10.81 12.6 8.6C12.6 6.39 10.81 4.6 8.6 4.6ZM11.73 13.07L16.53 17.87L17.87 16.53L13.07 11.73Z"/></symbol>
+    <symbol id="i-cloche" viewBox="0 0 20 20"><path d="M4.2 14.4L5.7 12.4L5.7 9.6L14.3 9.6L14.3 12.4L15.8 14.4ZM5.7 10.2C5.7 6.6 7.6 4.4 10 4.4C12.4 4.4 14.3 6.6 14.3 10.2ZM10 1.8C10.83 1.8 11.5 2.47 11.5 3.3C11.5 4.13 10.83 4.8 10 4.8C9.17 4.8 8.5 4.13 8.5 3.3C8.5 2.47 9.17 1.8 10 1.8ZM7.9 15.6L12.1 15.6C12.1 17.2 11.2 18.2 10 18.2C8.8 18.2 7.9 17.2 7.9 15.6Z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 20 20"><path d="M9.05 3.4L10.95 3.4L10.95 9.05L16.6 9.05L16.6 10.95L10.95 10.95L10.95 16.6L9.05 16.6L9.05 10.95L3.4 10.95L3.4 9.05L9.05 9.05Z"/></symbol>
+    <symbol id="i-crayon" viewBox="0 0 20 20"><path d="M2.9 17.1L4.4 12.8L7.2 15.6ZM7.21 14.91L15.71 6.41L13.09 3.79L4.59 12.29ZM14.1 2.9L17.1 5.9L15.5 7.5L12.5 4.5Z"/></symbol>
+    <symbol id="i-fil" viewBox="0 0 20 20"><path d="M3.2 6.25L16.8 6.25L16.8 4.35L3.2 4.35ZM3.2 10.95L16.8 10.95L16.8 9.05L3.2 9.05ZM3.2 15.65L11.8 15.65L11.8 13.75L3.2 13.75Z"/></symbol>
+    <symbol id="i-humidor" viewBox="0 0 20 20"><path d="M3.8 8.2L16.2 8.2C16.75 8.2 17.2 8.65 17.2 9.2L17.2 15.8C17.2 16.35 16.75 16.8 16.2 16.8L3.8 16.8C3.25 16.8 2.8 16.35 2.8 15.8L2.8 9.2C2.8 8.65 3.25 8.2 3.8 8.2ZM5 10C4.78 10 4.6 10.18 4.6 10.4L4.6 14.6C4.6 14.82 4.78 15 5 15L15 15C15.22 15 15.4 14.82 15.4 14.6L15.4 10.4C15.4 10.18 15.22 10 15 10L5 10ZM2.5 4.6L17.5 4.6C18 4.6 18.4 5 18.4 5.5L18.4 7.5C18.4 8 18 8.4 17.5 8.4L2.5 8.4C2 8.4 1.6 8 1.6 7.5L1.6 5.5C1.6 5 2 4.6 2.5 4.6ZM9.3 11.2L10.7 11.2C10.92 11.2 11.1 11.38 11.1 11.6L11.1 13.2C11.1 13.42 10.92 13.6 10.7 13.6L9.3 13.6C9.08 13.6 8.9 13.42 8.9 13.2L8.9 11.6C8.9 11.38 9.08 11.2 9.3 11.2Z"/></symbol>
+    <symbol id="i-bague" viewBox="0 0 20 20"><path d="M5.43 17.18L1.63 11.54L10.92 5.28C13.4 3.6 16.07 3.62 17.13 5.19C18.19 6.77 17.21 9.24 14.72 10.92ZM8.02 7.24L11.82 12.87L12.81 12.2L9.01 6.57L8.02 7.24ZM10.17 5.78L13.97 11.42L14.97 10.75L11.17 5.11L10.17 5.78Z"/></symbol>
+    <symbol id="i-membre" viewBox="0 0 20 20"><path d="M10 3.1C11.88 3.1 13.4 4.62 13.4 6.5C13.4 8.38 11.88 9.9 10 9.9C8.12 9.9 6.6 8.38 6.6 6.5C6.6 4.62 8.12 3.1 10 3.1ZM3.4 17.6C3.4 13.4 6.4 11.1 10 11.1C13.6 11.1 16.6 13.4 16.6 17.6Z"/></symbol>
+    <symbol id="i-membres" viewBox="0 0 20 20"><path d="M7.2 3.6C8.86 3.6 10.2 4.94 10.2 6.6C10.2 8.26 8.86 9.6 7.2 9.6C5.54 9.6 4.2 8.26 4.2 6.6C4.2 4.94 5.54 3.6 7.2 3.6ZM1.2 17.6C1.2 13.7 3.9 11.5 7.2 11.5C10.5 11.5 13.2 13.7 13.2 17.6ZM14.6 5C15.93 5 17 6.07 17 7.4C17 8.73 15.93 9.8 14.6 9.8C13.27 9.8 12.2 8.73 12.2 7.4C12.2 6.07 13.27 5 14.6 5ZM12.2 12.5C13 12.3 13.8 12.2 14.6 12.2C17.2 12.2 18.8 13.9 18.8 17.6L15.4 17.6C15.4 15.4 14.2 13.5 12.2 12.5Z"/></symbol>
+    <symbol id="i-cercle" viewBox="0 0 20 20"><path d="M6.3 11.4L9.1 11.4L9.1 18.8L7.7 17.3L6.3 18.8ZM10.9 11.4L13.7 11.4L13.7 18.8L12.3 17.3L10.9 18.8ZM10 1.4C13.53 1.4 16.4 4.27 16.4 7.8C16.4 11.33 13.53 14.2 10 14.2C6.47 14.2 3.6 11.33 3.6 7.8C3.6 4.27 6.47 1.4 10 1.4ZM10 3C7.35 3 5.2 5.15 5.2 7.8C5.2 10.45 7.35 12.6 10 12.6C12.65 12.6 14.8 10.45 14.8 7.8C14.8 5.15 12.65 3 10 3ZM10 5.3C11.38 5.3 12.5 6.42 12.5 7.8C12.5 9.18 11.38 10.3 10 10.3C8.62 10.3 7.5 9.18 7.5 7.8C7.5 6.42 8.62 5.3 10 5.3Z"/></symbol>
+    <symbol id="i-gout" viewBox="0 0 20 20"><path d="M10 7.4C11.44 7.4 12.6 8.56 12.6 10C12.6 11.44 11.44 12.6 10 12.6C8.56 12.6 7.4 11.44 7.4 10C7.4 8.56 8.56 7.4 10 7.4ZM10 1.9C11.16 1.9 12.1 2.84 12.1 4C12.1 5.16 11.16 6.1 10 6.1C8.84 6.1 7.9 5.16 7.9 4C7.9 2.84 8.84 1.9 10 1.9ZM15.2 4.9C16.36 4.9 17.3 5.84 17.3 7C17.3 8.16 16.36 9.1 15.2 9.1C14.04 9.1 13.1 8.16 13.1 7C13.1 5.84 14.04 4.9 15.2 4.9ZM15.2 10.9C16.36 10.9 17.3 11.84 17.3 13C17.3 14.16 16.36 15.1 15.2 15.1C14.04 15.1 13.1 14.16 13.1 13C13.1 11.84 14.04 10.9 15.2 10.9ZM10 13.9C11.16 13.9 12.1 14.84 12.1 16C12.1 17.16 11.16 18.1 10 18.1C8.84 18.1 7.9 17.16 7.9 16C7.9 14.84 8.84 13.9 10 13.9ZM4.8 10.9C5.96 10.9 6.9 11.84 6.9 13C6.9 14.16 5.96 15.1 4.8 15.1C3.64 15.1 2.7 14.16 2.7 13C2.7 11.84 3.64 10.9 4.8 10.9ZM4.8 4.9C5.96 4.9 6.9 5.84 6.9 7C6.9 8.16 5.96 9.1 4.8 9.1C3.64 9.1 2.7 8.16 2.7 7C2.7 5.84 3.64 4.9 4.8 4.9Z"/></symbol>
+    <symbol id="i-fumee" viewBox="0 0 20 20"><path d="M11.4 18C7.5 18 6 15.7 6 13.6C6 10.7 8.6 9.5 8.6 7.2C8.6 5.5 7.8 4 6.4 2.3C10.3 3.4 11.6 5.9 11.6 7.8C11.6 10.5 9.1 11.6 9.1 13.6C9.1 15 9.9 16.5 11.4 18ZM14.1 17.6C16.5 16.3 17.6 14.4 17.6 12.5C17.6 10 15.7 8.1 13.3 7.2C14.2 8.7 14.5 10 14.5 11.1C14.5 13.4 13.2 15.1 12.1 16.6Z"/></symbol>
+    <symbol id="i-etoile" viewBox="0 0 20 20"><path d="M10 1.4L12.12 7.09L18.18 7.34L13.42 11.11L15.05 16.96L10 13.6L4.95 16.96L6.58 11.11L1.82 7.34L7.88 7.09Z"/></symbol>
+    <symbol id="i-prix" viewBox="0 0 20 20"><path d="M2.2 10L10 2.2L17.8 2.2L17.8 10L10 17.8ZM14.2 4.2C13.32 4.2 12.6 4.92 12.6 5.8C12.6 6.68 13.32 7.4 14.2 7.4C15.08 7.4 15.8 6.68 15.8 5.8C15.8 4.92 15.08 4.2 14.2 4.2Z"/></symbol>
+    <symbol id="i-cadeau" viewBox="0 0 20 20"><path d="M3.7 9L16.3 9C16.74 9 17.1 9.36 17.1 9.8L17.1 16.8C17.1 17.24 16.74 17.6 16.3 17.6L3.7 17.6C3.26 17.6 2.9 17.24 2.9 16.8L2.9 9.8C2.9 9.36 3.26 9 3.7 9ZM2.5 5.3L17.5 5.3C17.83 5.3 18.1 5.57 18.1 5.9L18.1 8.4C18.1 8.73 17.83 9 17.5 9L2.5 9C2.17 9 1.9 8.73 1.9 8.4L1.9 5.9C1.9 5.57 2.17 5.3 2.5 5.3ZM9.15 5.3L9.15 17.6L10.85 17.6L10.85 5.3ZM10 5.5C10 5.5 7.3 5.7 5.9 5C4.7 4.4 4.7 2.8 5.9 2.3C7.6 1.6 9.4 3.5 10 5.5ZM10 5.5C10 5.5 12.7 5.7 14.1 5C15.3 4.4 15.3 2.8 14.1 2.3C12.4 1.6 10.6 3.5 10 5.5Z"/></symbol>
+    <symbol id="i-calendrier" viewBox="0 0 20 20"><path d="M3.7 4.1L16.3 4.1C17.02 4.1 17.6 4.68 17.6 5.4L17.6 16.3C17.6 17.02 17.02 17.6 16.3 17.6L3.7 17.6C2.98 17.6 2.4 17.02 2.4 16.3L2.4 5.4C2.4 4.68 2.98 4.1 3.7 4.1ZM4.7 8.3C4.42 8.3 4.2 8.52 4.2 8.8L4.2 15.3C4.2 15.58 4.42 15.8 4.7 15.8L15.3 15.8C15.58 15.8 15.8 15.58 15.8 15.3L15.8 8.8C15.8 8.52 15.58 8.3 15.3 8.3L4.7 8.3ZM6.45 2.1L6.45 2.1C6.97 2.1 7.4 2.53 7.4 3.05L7.4 4.85C7.4 5.37 6.97 5.8 6.45 5.8L6.45 5.8C5.93 5.8 5.5 5.37 5.5 4.85L5.5 3.05C5.5 2.53 5.93 2.1 6.45 2.1ZM13.55 2.1L13.55 2.1C14.07 2.1 14.5 2.53 14.5 3.05L14.5 4.85C14.5 5.37 14.07 5.8 13.55 5.8L13.55 5.8C13.03 5.8 12.6 5.37 12.6 4.85L12.6 3.05C12.6 2.53 13.03 2.1 13.55 2.1Z"/></symbol>
+    <symbol id="i-bougie" viewBox="0 0 20 20"><path d="M8.6 9.4L11.4 9.4C11.68 9.4 11.9 9.62 11.9 9.9L11.9 16.5C11.9 16.78 11.68 17 11.4 17L8.6 17C8.32 17 8.1 16.78 8.1 16.5L8.1 9.9C8.1 9.62 8.32 9.4 8.6 9.4ZM6.2 17L13.8 17C14.13 17 14.4 17.27 14.4 17.6L14.4 18.2C14.4 18.53 14.13 18.8 13.8 18.8L6.2 18.8C5.87 18.8 5.6 18.53 5.6 18.2L5.6 17.6C5.6 17.27 5.87 17 6.2 17ZM9.6 8.2L9.6 9.6L10.4 9.6L10.4 8.2ZM10 1.6C12.2 4.1 13.1 5.6 13.1 7C13.1 8.7 11.7 9.9 10 9.9C8.3 9.9 6.9 8.7 6.9 7C6.9 5.6 7.8 4.1 10 1.6Z"/></symbol>
+    <symbol id="i-lieu" viewBox="0 0 20 20"><path d="M10 18.6C10 18.6 3.3 12.3 3.3 8.2C3.3 4.6 6.3 1.9 10 1.9C13.7 1.9 16.7 4.6 16.7 8.2C16.7 12.3 10 18.6 10 18.6ZM10 5.8C8.67 5.8 7.6 6.87 7.6 8.2C7.6 9.53 8.67 10.6 10 10.6C11.33 10.6 12.4 9.53 12.4 8.2C12.4 6.87 11.33 5.8 10 5.8Z"/></symbol>
+    <symbol id="i-coeurPlein" viewBox="0 0 20 20"><path d="M10 17.6C10 17.6 2.1 12.5 2.1 7.4C2.1 4.7 4.2 2.9 6.5 2.9C8.1 2.9 9.3 3.7 10 5C10.7 3.7 11.9 2.9 13.5 2.9C15.8 2.9 17.9 4.7 17.9 7.4C17.9 12.5 10 17.6 10 17.6Z"/></symbol>
+    <symbol id="i-coeur" viewBox="0 0 20 20"><path d="M10 17.6C10 17.6 2.1 12.5 2.1 7.4C2.1 4.7 4.2 2.9 6.5 2.9C8.1 2.9 9.3 3.7 10 5C10.7 3.7 11.9 2.9 13.5 2.9C15.8 2.9 17.9 4.7 17.9 7.4C17.9 12.5 10 17.6 10 17.6ZM10 15.2C11.8 13.9 15.7 10.6 15.7 7.4C15.7 5.9 14.7 5.1 13.5 5.1C12.3 5.1 11.5 5.9 10.9 7.4L9.1 7.4C8.5 5.9 7.7 5.1 6.5 5.1C5.3 5.1 4.3 5.9 4.3 7.4C4.3 10.6 8.2 13.9 10 15.2Z"/></symbol>
+    <symbol id="i-bulle" viewBox="0 0 20 20"><path d="M10 2.4C14.9 2.4 18.6 5.5 18.6 9.5C18.6 13.5 14.9 16.6 10 16.6C9 16.6 8.1 16.5 7.2 16.3L2.8 18.4L4.1 14.6C2.4 13.3 1.4 11.5 1.4 9.5C1.4 5.5 5.1 2.4 10 2.4ZM10 4.8C6.1 4.8 3.8 7 3.8 9.5C3.8 10.9 4.5 12.2 5.8 13.2L6.9 14L6.3 15.4L7.8 14.7C8.5 14.8 9.2 14.9 10 14.9C13.9 14.9 16.2 12.6 16.2 9.5C16.2 7 13.9 4.8 10 4.8Z"/></symbol>
+    <symbol id="i-photo" viewBox="0 0 20 20"><path d="M3.1 5.1L16.9 5.1C17.67 5.1 18.3 5.73 18.3 6.5L18.3 16.2C18.3 16.97 17.67 17.6 16.9 17.6L3.1 17.6C2.33 17.6 1.7 16.97 1.7 16.2L1.7 6.5C1.7 5.73 2.33 5.1 3.1 5.1ZM4.1 6.9C3.77 6.9 3.5 7.17 3.5 7.5L3.5 15.2C3.5 15.53 3.77 15.8 4.1 15.8L15.9 15.8C16.23 15.8 16.5 15.53 16.5 15.2L16.5 7.5C16.5 7.17 16.23 6.9 15.9 6.9L4.1 6.9ZM6.5 2.9L13.5 2.9L12.7 5.1L7.3 5.1ZM10 7.9C11.93 7.9 13.5 9.47 13.5 11.4C13.5 13.33 11.93 14.9 10 14.9C8.07 14.9 6.5 13.33 6.5 11.4C6.5 9.47 8.07 7.9 10 7.9ZM10 9.6C9.01 9.6 8.2 10.41 8.2 11.4C8.2 12.39 9.01 13.2 10 13.2C10.99 13.2 11.8 12.39 11.8 11.4C11.8 10.41 10.99 9.6 10 9.6Z"/></symbol>
+    <symbol id="i-coche" viewBox="0 0 20 20"><path d="M3.1 10.1L4.9 8.3L8.1 11.5L15.1 4.2L16.9 6L8.1 15.3Z"/></symbol>
+    <symbol id="i-fleche" viewBox="0 0 20 20"><path d="M8.4 4.3L15.7 4.3L15.7 11.6L13.8 11.6L13.8 7.5L5.7 15.6L4.4 14.3L12.5 6.2L8.4 6.2Z"/></symbol>
+    <symbol id="i-retour" viewBox="0 0 20 20"><path d="M9.4 3.6L10.8 5L6.8 9.05L16.6 9.05L16.6 10.95L6.8 10.95L10.8 15L9.4 16.4L3 10Z"/></symbol>
+  </defs></svg>
+
   <!-- HEADER -->
   <div class="topbar">
     <div class="brand" onclick="go('feed')" aria-label="MENSA">
       <div class="brand-mark">M</div>
       <div class="brand-name">ENSA<span class="dot">.</span></div>
     </div>
-    <button class="icon-btn topbar-alerts" onclick="openFil()" aria-label="Ce qui vous concerne">🔔<span class="fil-compte" id="fil-compte" style="display:none">0</span></button>
-    <button class="icon-btn topbar-search" onclick="openRecherche()" aria-label="Chercher dans tout le cercle">🔍</button>
+    <button class="icon-btn topbar-alerts" onclick="openFil()" aria-label="Ce qui vous concerne"><svg class="ico-svg" width="18" height="18" aria-hidden="true"><use href="#i-cloche"/></svg><span class="fil-compte" id="fil-compte" style="display:none">0</span></button>
+    <button class="icon-btn topbar-search" onclick="openRecherche()" aria-label="Chercher dans tout le cercle"><svg class="ico-svg" width="18" height="18" aria-hidden="true"><use href="#i-recherche"/></svg></button>
   </div>
 
   <!-- ============ FIL ============ -->
@@ -980,25 +1026,25 @@ body{touch-action:manipulation}
 
     <div class="rail">
       <div class="rail-head">
-        <div class="rail-title"><span class="ico">👤</span> Par les membres</div>
-        <span class="rail-all" onclick="openListing('members')">Tout voir ↗</span>
+        <div class="rail-title"><span class="ico"><svg class="ico-svg" width="15" height="15" aria-hidden="true"><use href="#i-membre"/></svg></span> Par les membres</div>
+        <span class="rail-all" onclick="openListing('members')">Tout voir <svg class="ico-svg" width="11" height="11" aria-hidden="true"><use href="#i-fleche"/></svg></span>
       </div>
       <div class="rail-scroll" id="rail-members"></div>
     </div>
 
     <div class="rail">
       <div class="rail-head">
-        <div class="rail-title"><span class="ico">🏛️</span> Par le club</div>
-        <span class="rail-all" id="rail-organiser" style="display:none" onclick="openSessionSheet()">Organiser ↗</span>
+        <div class="rail-title"><span class="ico"><svg class="ico-svg" width="15" height="15" aria-hidden="true"><use href="#i-cercle"/></svg></span> Par le club</div>
+        <span class="rail-all" id="rail-organiser" style="display:none" onclick="openSessionSheet()">Organiser <svg class="ico-svg" width="11" height="11" aria-hidden="true"><use href="#i-fleche"/></svg></span>
       </div>
       <div class="rail-scroll" id="rail-seances"></div>
-      <span class="rail-more" id="rail-more-seances" style="display:none" onclick="openListing('club')">Toutes les séances ↗</span>
+      <span class="rail-more" id="rail-more-seances" style="display:none" onclick="openListing('club')">Toutes les séances <svg class="ico-svg" width="11" height="11" aria-hidden="true"><use href="#i-fleche"/></svg></span>
     </div>
 
     <div class="rail">
       <div class="rail-head">
-        <div class="rail-title"><span class="ico">👥</span> Les membres</div>
-        <span class="rail-all" onclick="openListing('people')">Voir tous ↗</span>
+        <div class="rail-title"><span class="ico"><svg class="ico-svg" width="15" height="15" aria-hidden="true"><use href="#i-membres"/></svg></span> Les membres</div>
+        <span class="rail-all" onclick="openListing('people')">Voir tous <svg class="ico-svg" width="11" height="11" aria-hidden="true"><use href="#i-fleche"/></svg></span>
       </div>
       <div class="rail-scroll" id="rail-people"></div>
     </div>
@@ -1007,7 +1053,7 @@ body{touch-action:manipulation}
          N'apparaît que si vos dégustations en disent assez. -->
     <div class="rail" id="rail-affinites" style="display:none">
       <div class="rail-head">
-        <div class="rail-title"><span class="ico">🧭</span> À votre goût</div>
+        <div class="rail-title"><span class="ico"><svg class="ico-svg" width="15" height="15" aria-hidden="true"><use href="#i-gout"/></svg></span> À votre goût</div>
         <span class="rail-all" id="rail-affinites-pourquoi"></span>
       </div>
       <div class="rail-scroll" id="rail-pour-vous"></div>
@@ -1015,7 +1061,7 @@ body{touch-action:manipulation}
 
     <div class="sec-label">En détail</div>
     <div class="search" id="feed-search-wrap" style="display:none">
-      <i>🔍</i>
+      <i><svg class="ico-svg" width="17" height="17" aria-hidden="true"><use href="#i-recherche"/></svg></i>
       <input id="feed-search" placeholder="Cigare, membre, terroir…" autocomplete="off" oninput="resetFeedPaging();renderFeed()">
     </div>
     <div id="feed-list"></div>
@@ -1024,7 +1070,7 @@ body{touch-action:manipulation}
 
   <!-- ============ LISTE COMPLÈTE (depuis « Tout voir ») ============ -->
   <section class="screen" id="listing">
-    <div class="prof-back" onclick="go('feed')">← Le Fil</div>
+    <div class="prof-back" onclick="go('feed')"><svg class="ico-svg" width="13" height="13" aria-hidden="true"><use href="#i-retour"/></svg> Le Fil</div>
     <div class="eyebrow" id="listing-eyebrow"></div>
     <h1 class="screen-title serif" id="listing-title"></h1>
     <p class="screen-sub" id="listing-sub"></p>
@@ -1037,11 +1083,11 @@ body{touch-action:manipulation}
     <h1 class="screen-title serif">Découvrir</h1>
     <p class="screen-sub" id="disc-intro"></p>
 
-    <div class="sec-label" id="trending-label">🔥 Tendance ce mois-ci</div>
+    <div class="sec-label" id="trending-label"><svg class="ico-svg" width="14" height="14" aria-hidden="true"><use href="#i-fumee"/></svg> Tendance ce mois-ci</div>
     <div class="rank" id="trending" style="margin-bottom:26px"></div>
 
     <div class="search">
-      <i>🔍</i>
+      <i><svg class="ico-svg" width="17" height="17" aria-hidden="true"><use href="#i-recherche"/></svg></i>
       <input id="search-input" placeholder="Cigare, vitole, maison, terroir…" oninput="resetDiscoverPaging();renderDiscover()">
     </div>
     <div class="filters" id="filters"></div>
@@ -1072,7 +1118,7 @@ body{touch-action:manipulation}
     <div class="cave-stats" id="cave-stats"></div>
     <div id="cave-valeur"></div>
     <div class="search" id="cave-search-wrap" style="display:none">
-      <i>🔍</i>
+      <i><svg class="ico-svg" width="17" height="17" aria-hidden="true"><use href="#i-recherche"/></svg></i>
       <input id="cave-search" placeholder="Chercher dans ma cave…" autocomplete="off" oninput="renderCave()">
     </div>
     <div id="cave-shelves"></div>
@@ -1086,7 +1132,7 @@ body{touch-action:manipulation}
 
     <div class="cave-stats" id="wl-stats"></div>
     <div class="search" id="wl-search-wrap" style="display:none">
-      <i>🔍</i>
+      <i><svg class="ico-svg" width="17" height="17" aria-hidden="true"><use href="#i-recherche"/></svg></i>
       <input id="wl-search" placeholder="Chercher dans ma wishlist…" autocomplete="off" oninput="renderWishlist()">
     </div>
     <div id="wl-shelves"></div>
@@ -1094,7 +1140,7 @@ body{touch-action:manipulation}
 
   <!-- ============ PROFIL ============ -->
   <section class="screen" id="profile">
-    <div class="prof-back" id="prof-back" style="display:none" onclick="goProfile()">← Mon profil</div>
+    <div class="prof-back" id="prof-back" style="display:none" onclick="goProfile()"><svg class="ico-svg" width="13" height="13" aria-hidden="true"><use href="#i-retour"/></svg> Mon profil</div>
     <div class="prof-hero">
       <div class="prof-av" id="prof-av">H</div>
       <div style="flex:1">
@@ -1108,7 +1154,7 @@ body{touch-action:manipulation}
     </div>
     <div class="prof-bio-row">
       <p class="prof-bio" id="prof-bio">Aucune bio pour le moment.</p>
-      <button class="bio-edit" id="prof-bio-edit" onclick="openBioSheet()">✎ Modifier</button>
+      <button class="bio-edit" id="prof-bio-edit" onclick="openBioSheet()"><svg class="ico-svg" width="12" height="12" aria-hidden="true"><use href="#i-crayon"/></svg> Modifier</button>
     </div>
 
     <div class="sec-label" id="palais-label" style="display:none">Le palais</div>
@@ -1141,18 +1187,18 @@ body{touch-action:manipulation}
   </section>
 
   <!-- COMPOSE FAB -->
-  <button class="fab" id="fab" onclick="openFumeeSheet()">✚</button>
-  <button class="fab" id="fab-cave" onclick="openCaveSheet()" style="display:none" aria-label="Ajouter un cigare à la cave">✚</button>
-  <button class="fab" id="fab-wishlist" onclick="openWlSheet()" style="display:none" aria-label="Ajouter un cigare à ma wishlist">✚</button>
+  <button class="fab" id="fab" onclick="openFumeeSheet()"><svg class="ico-svg" width="22" height="22" aria-hidden="true"><use href="#i-plus"/></svg></button>
+  <button class="fab" id="fab-cave" onclick="openCaveSheet()" style="display:none" aria-label="Ajouter un cigare à la cave"><svg class="ico-svg" width="22" height="22" aria-hidden="true"><use href="#i-plus"/></svg></button>
+  <button class="fab" id="fab-wishlist" onclick="openWlSheet()" style="display:none" aria-label="Ajouter un cigare à ma wishlist"><svg class="ico-svg" width="22" height="22" aria-hidden="true"><use href="#i-plus"/></svg></button>
 
   <!-- TAB BAR -->
   <nav class="tabbar">
     <div class="tabbar-inner">
-      <button class="tab active" data-screen="feed" onclick="go('feed')"><span class="tab-ico">🏠</span>Fil</button>
-      <button class="tab" data-screen="discover" onclick="go('discover')"><span class="tab-ico">🔍</span>Découvrir</button>
-      <button class="tab" data-screen="wishlist" onclick="go('wishlist')"><span class="tab-ico">🎯</span>Wishlist</button>
-      <button class="tab" data-screen="cave" onclick="go('cave')"><span class="tab-ico">🗄️</span>Cave</button>
-      <button class="tab" data-screen="profile" onclick="goProfile()"><span class="tab-ico">👤</span>Profil</button>
+      <button class="tab active" data-screen="feed" onclick="go('feed')"><span class="tab-ico"><svg class="ico-svg" width="21" height="21" aria-hidden="true"><use href="#i-fil"/></svg></span>Fil</button>
+      <button class="tab" data-screen="discover" onclick="go('discover')"><span class="tab-ico"><svg class="ico-svg" width="21" height="21" aria-hidden="true"><use href="#i-recherche"/></svg></span>Découvrir</button>
+      <button class="tab" data-screen="wishlist" onclick="go('wishlist')"><span class="tab-ico"><svg class="ico-svg" width="21" height="21" aria-hidden="true"><use href="#i-bague"/></svg></span>Wishlist</button>
+      <button class="tab" data-screen="cave" onclick="go('cave')"><span class="tab-ico"><svg class="ico-svg" width="21" height="21" aria-hidden="true"><use href="#i-humidor"/></svg></span>Cave</button>
+      <button class="tab" data-screen="profile" onclick="goProfile()"><span class="tab-ico"><svg class="ico-svg" width="21" height="21" aria-hidden="true"><use href="#i-membre"/></svg></span>Profil</button>
     </div>
   </nav>
 </div>
@@ -1257,7 +1303,7 @@ body{touch-action:manipulation}
       <label>Photo de la bague <span style="color:var(--ink-3);font-weight:400">— facultatif</span></label>
       <input type="file" id="f-photo" accept="image/*" style="display:none" onchange="choisirPhoto(this)">
       <div id="f-photo-vide">
-        <button type="button" class="btn-ghost" style="width:100%" onclick="document.getElementById('f-photo').click()">📷 Ajouter une photo</button>
+        <button type="button" class="btn-ghost" style="width:100%" onclick="document.getElementById('f-photo').click()"><svg class="ico-svg" width="14" height="14" aria-hidden="true"><use href="#i-photo"/></svg> Ajouter une photo</button>
       </div>
       <div id="f-photo-apercu" style="display:none;position:relative">
         <img id="f-photo-img" alt="Aperçu de la bague" style="width:100%;max-height:220px;object-fit:cover;border-radius:var(--r-sm);display:block">
@@ -1466,7 +1512,7 @@ body{touch-action:manipulation}
   <div class="sheet">
     <div class="sheet-grip"></div>
     <div class="search" style="margin-bottom:4px">
-      <i>🔍</i>
+      <i><svg class="ico-svg" width="17" height="17" aria-hidden="true"><use href="#i-recherche"/></svg></i>
       <input id="rech-input" placeholder="Un cigare, un membre, une envie…" autocomplete="off"
         oninput="renderRecherche()">
     </div>
@@ -2196,7 +2242,7 @@ function ligneCommentaire(c,postId,hote){
       </div>
     </div>`;
   }
-  const actions=(sien?`<button class="cm-act" aria-label="Modifier ce commentaire" onclick="ouvrirEditionCommentaire('${c.id}','${postId}')">✎</button>`:'')
+  const actions=(sien?`<button class="cm-act" aria-label="Modifier ce commentaire" onclick="ouvrirEditionCommentaire('${c.id}','${postId}')">${ico('crayon',13)}</button>`:'')
     + (peutSupprimer?`<button class="cm-act cm-del" aria-label="Supprimer ce commentaire" onclick="supprimerCommentaire('${c.id}','${postId}')">×</button>`:'');
   return `<div class="cm">
     ${entete}
@@ -3079,7 +3125,7 @@ function dessinDrapeau(pays){
 }
 function drapeauAchat(pays){
   const dessin=dessinDrapeau(pays);
-  return dessin?`<svg class="flag flag-mini" viewBox="0 0 30 20" role="img" aria-hidden="true">${dessin}</svg>`:'📍';
+  return dessin?`<svg class="flag flag-mini" viewBox="0 0 30 20" role="img" aria-hidden="true">${dessin}</svg>`:ico('lieu',12);
 }
 /* Même dessin, à la taille des en-têtes d'étagère. Faute de drapeau connu on
    met le fanion neutre, mais le nom du pays, lui, reste écrit en toutes
@@ -3215,7 +3261,7 @@ function renderAffinites(){
 /* Page complète d'une rubrique du Fil (« Tout voir » / « Voir tous ») */
 function memberCardHtml(m){
   const c=avColors[m.av]||avColors[0];
-  const crown=m.founder?`<div class="member-crown">★</div>`:'';
+  const crown=m.founder?`<div class="member-crown">${ico('etoile',12)}</div>`:'';
   return `<div class="member" onclick="openMemberProfile('${m.id}')">
     <div class="member-ph">
       <div class="member-av" style="background:${c[0]};color:${c[1]}">${echapper(m.init)}</div>${crown}
@@ -3321,19 +3367,19 @@ function renderFeed(){
       </div>
       <div class="post-body" style="cursor:pointer" onclick="openPostDetail('${p.id}')">
         <div class="cig-name">${echapper(p.name)}</div>
-        <span class="origin" style="background:${oColors[0]};color:${oColors[1]}">📍 ${echapper(p.origin)}</span>
+        <span class="origin" style="background:${oColors[0]};color:${oColors[1]}">${ico('lieu',11)} ${echapper(p.origin)}</span>
         ${tiersHtml(p)}
         ${p.note?`<p class="note">${echapper(p.note)}</p>`:''}
         <div class="flavors">${p.flavors.map(f=>`<span class="flavor">${echapper(f)}</span>`).join('')}</div>
-        ${p.place?`<div class="post-place">📍 Fumé à ${echapper(p.place)}</div>`:''}
+        ${p.place?`<div class="post-place">${ico('lieu',11)} Fumé à ${echapper(p.place)}</div>`:''}
       </div>
       <div class="post-actions">
-        <button class="act ${p.liked?'on':''}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes}</button>
+        <button class="act ${p.liked?'on':''}" onclick="toggleLike('${p.id}')"><span>${p.liked?ico('coeurPlein',14):ico('coeur',14)}</span> ${p.likes}</button>
         ${likersHtml(p)}
-        ${commentairesActifs?`<button class="act" onclick="openPostDetail('${p.id}')" aria-label="Commenter cette dégustation">💬 ${nbCommentaires(p.id)}</button>`:''}
-        <button class="act" onclick="openWlSheetFromPost('${p.id}')" aria-label="Ajouter à ma wishlist">🎯</button>
-        <button class="act" onclick="openCaveSheetFromPost('${p.id}')">🗄️ Ma cave</button>
-        <button class="act" style="margin-left:auto" onclick="sharePost('${p.id}')" aria-label="Partager cette dégustation">↗</button>
+        ${commentairesActifs?`<button class="act" onclick="openPostDetail('${p.id}')" aria-label="Commenter cette dégustation">${ico('bulle',13)} ${nbCommentaires(p.id)}</button>`:''}
+        <button class="act" onclick="openWlSheetFromPost('${p.id}')" aria-label="Ajouter à ma wishlist">${ico('bague',13)}</button>
+        <button class="act" onclick="openCaveSheetFromPost('${p.id}')">${ico('humidor',13)} Ma cave</button>
+        <button class="act" style="margin-left:auto" onclick="sharePost('${p.id}')" aria-label="Partager cette dégustation">${ico('fleche',13)}</button>
       </div>
     </article>`;
   }).join('');
@@ -3553,7 +3599,7 @@ function refreshDetailLike(p){
   const btn=document.getElementById('pd-like-btn');
   if(btn && btn.dataset.pid===p.id){
     btn.classList.toggle('on',p.liked);
-    btn.innerHTML=`<span>${p.liked?'❤️':'🤍'}</span> ${p.likes} j'aime`;
+    btn.innerHTML=`<span>${p.liked?ico('coeurPlein',14):ico('coeur',14)}</span> ${p.likes} j'aime`;
     const l=document.getElementById('pd-likers'); if(l)l.innerHTML=likersHtml(p);
   }
 }
@@ -3738,12 +3784,12 @@ function renderTrending(){
     trend=[...catalog].filter(c=>c.score>0).sort((a,b)=>b.score-a.score).slice(0,3)
       .map(c=>({c,n:c.votes,note:c.score}));
   }
-  document.getElementById('trending-label').textContent=recent?'🔥 Tendance ce mois-ci':'⭐ Les mieux notés';
+  document.getElementById('trending-label').innerHTML=recent?ico('fumee',14)+' Tendance ce mois-ci':ico('etoile',14)+' Les mieux notés';
   document.getElementById('trending').innerHTML=trend.length?trend.map((x,i)=>`
     <div class="rank-row" onclick="openCigarDetail('${x.c.id}')" style="cursor:pointer">
       <div class="rank-n">#${i+1}</div>
       <div class="rank-info"><div class="rank-name">${echapper(x.c.name)}</div><div class="rank-sub">${echapper(x.c.country||'')}${recent?` · ${x.n} dégustation${x.n>1?'s':''}`:(x.c.profile?' · '+echapper(x.c.profile):'')}</div></div>
-      <div class="rank-score">⭐ ${x.note.toFixed(1)}</div>
+      <div class="rank-score">${ico('etoile',12)} ${x.note.toFixed(1)}</div>
     </div>`).join('')
     :'<div class="rail-empty">Aucun cigare noté pour le moment.</div>';
 }
@@ -3821,12 +3867,12 @@ function dureeEnCave(dateISO){
 function ligneLot(l,k,seul){
   const bouts=[];
   const age=dureeEnCave(l.addedRaw);
-  if(age)bouts.push(`${age.mois>=12?'🥃':'⏳'} en cave depuis ${age.texte}`);
-  else if(l.added)bouts.push(`🗓️ ${l.added}`);
+  if(age)bouts.push(`${age.mois>=12?ico('humidor',12):ico('calendrier',12)} en cave depuis ${age.texte}`);
+  else if(l.added)bouts.push(`${ico('calendrier',12)} ${l.added}`);
   if(l.boughtIn)bouts.push(`${drapeauAchat(l.boughtIn)} ${echapper(l.boughtIn)}`);
   // zéro euro n'est pas un prix : c'est un cadeau, et la ligne le dit ainsi
-  if(l.price===0)bouts.push('🎁 offert');
-  else if(l.price!==null&&l.price!==undefined)bouts.push(`💶 ${fmtPrix(l.price)} l'unité${l.qty>1?` · ${fmtPrix(l.price*l.qty)}`:''}`);
+  if(l.price===0)bouts.push(ico('cadeau',12)+' offert');
+  else if(l.price!==null&&l.price!==undefined)bouts.push(`${ico('prix',12)} ${fmtPrix(l.price)} l'unité${l.qty>1?` · ${fmtPrix(l.price*l.qty)}`:''}`);
   /* L'écart au tarif France. Le bilan compare déjà les moyennes France et
      étranger, mais une moyenne noie les cas : c'est ici qu'on voit quel achat
      précis valait le voyage. Sous 3 %, l'écart tient au centime d'arrondi et
@@ -3848,7 +3894,7 @@ function ligneLot(l,k,seul){
       ${bouts.length?`<span class="cave-date">${bouts.join(' · ')}</span>`:`<span class="cave-date">Lot sans détail</span>`}
     </div>
     <span class="cave-qty">×${l.qty}</span>
-    <span class="cave-edit">✎</span>
+    <span class="cave-edit">${ico('crayon',13)}</span>
   </div>`;
 }
 /* Sur quoi repose le total. « Au tarif France » serait un abus dès qu'une
@@ -4033,8 +4079,8 @@ function renderCave(){
       if(g.lots.length===1){ h+=ligneLot(g.lots[0],k,true); return; }
       // plusieurs achats du même cigare : en-tête récapitulatif, puis le détail
       const prix=g.prixMin===null ? ''
-        : (g.prixMin===g.prixMax ? `💶 ${fmtPrix(g.prixMin)} l'unité`
-                                 : `💶 de ${fmtPrix(g.prixMin)} à ${fmtPrix(g.prixMax)} l'unité`);
+        : (g.prixMin===g.prixMax ? `${ico('prix',12)} ${fmtPrix(g.prixMin)} l'unité`
+                                 : `${ico('prix',12)} de ${fmtPrix(g.prixMin)} à ${fmtPrix(g.prixMax)} l'unité`);
       h+=`<div class="cave-groupe">
         <div class="cave-item cave-tete">
           <div class="cave-bar" style="background:${(palette[k]||palette.autre).band}"></div>
@@ -4076,12 +4122,12 @@ function etagereDeLEnvie(w){ return etagereDuCigare(w.name,w.terroir); }
 function ligneEnvie(w){
   const c=ficheByName(w.name);
   const bouts=[];
-  if(c&&c.votes)bouts.push(`⭐ ${c.score.toFixed(1)} au cercle · ${c.votes} avis`);
+  if(c&&c.votes)bouts.push(`${ico('etoile',12)} ${c.score.toFixed(1)} au cercle · ${c.votes} avis`);
   else bouts.push('Personne ne l\'a encore noté');
   // ce qu'il en coûterait : une envie sans prix reste une envie abstraite
   const ref=tarifDeReference(w.name);
-  if(ref>0)bouts.push(`💶 ${fmtPrix(ref)} l'unité`);
-  if(w.added)bouts.push(`🗓️ ajouté le ${w.added}`);
+  if(ref>0)bouts.push(`${ico('prix',12)} ${fmtPrix(ref)} l'unité`);
+  if(w.added)bouts.push(`${ico('calendrier',12)} ajouté le ${w.added}`);
   return `<div class="cave-item" onclick="openEditWlSheet('${w.id}')">
     <div class="cave-bar" style="background:${(palette[terroirDeLEnvie(w)]||palette.autre).band}"></div>
     <div class="cave-info">
@@ -4090,7 +4136,7 @@ function ligneEnvie(w){
       <span class="cave-date">${bouts.join(' · ')}</span>
       ${w.note?`<p class="wl-note">${echapper(w.note)}</p>`:''}
     </div>
-    <span class="cave-edit">✎</span>
+    <span class="cave-edit">${ico('crayon',13)}</span>
   </div>`;
 }
 function renderWishlist(){
@@ -4608,7 +4654,7 @@ function openSessionDetail(id){
   document.getElementById('seance-body').innerHTML=`
     <div class="eyebrow">Séance</div>
     <h3 class="serif" style="font-size:21px;margin:2px 0 6px">${echapper(s.name)}</h3>
-    <div class="pd-origin">🕯️ ${echapper(s.date)}${s.place?' · 📍 '+echapper(s.place):''} · organisée par ${echapper(nomDuMembre(s.user_id))}</div>
+    <div class="pd-origin">${ico('bougie',12)} ${echapper(s.date)}${s.place?' · '+ico('lieu',11)+' '+echapper(s.place):''} · organisée par ${echapper(nomDuMembre(s.user_id))}</div>
     <div class="sec-label" style="margin:20px 0 10px">Les lectures${parts.length?' · '+parts.length:''}</div>
     ${tableauSeance(parts)}
     ${verdict?`<p class="sc-verdict">${verdict}</p>`:''}
@@ -4647,7 +4693,7 @@ function scAcPick(id){
   const c=catalog.find(x=>x.id===id);if(!c)return;
   scSelected=c;
   document.getElementById('sc-name').value=c.name;
-  document.getElementById('sc-spec').innerHTML=specCardHtml(c,'✓ Fiche catalogue')+'<div style="height:16px"></div>';
+  document.getElementById('sc-spec').innerHTML=specCardHtml(c,ico('coche',12)+' Fiche catalogue')+'<div style="height:16px"></div>';
   document.getElementById('sc-ac-list').classList.remove('open');
 }
 function scAddMode(){
@@ -4678,7 +4724,7 @@ function openEditSessionSheet(id){
   document.getElementById('sc-name').value=s.name;
   document.getElementById('sc-place').value=s.place;
   document.getElementById('sc-date').value=(s.heldOn||'').slice(0,10)||todayISO();
-  if(scSelected)document.getElementById('sc-spec').innerHTML=specCardHtml(scSelected,'✓ Fiche catalogue')+'<div style="height:16px"></div>';
+  if(scSelected)document.getElementById('sc-spec').innerHTML=specCardHtml(scSelected,ico('coche',12)+' Fiche catalogue')+'<div style="height:16px"></div>';
   ouvrirSeul('seance-edit-overlay');
 }
 async function saveSession(){
@@ -5048,7 +5094,7 @@ function specCardHtml(c,badge,modifiable){
     <div class="spec-hero" style="background:${p.fill}">
       <div class="poster-cig">${cigarHtml(c.terroir,96)}</div>
       <div class="spec-badge">${badge||'Fiche catalogue'}</div>
-      ${c.score?`<div class="spec-score-pill">⭐ ${c.score.toFixed(1)}</div>`:''}
+      ${c.score?`<div class="spec-score-pill">${ico('etoile',12)} ${c.score.toFixed(1)}</div>`:''}
     </div>
     <div class="spec-body">
       <div class="spec-name">${echapper(c.name)}</div>
@@ -5068,7 +5114,7 @@ function specCardHtml(c,badge,modifiable){
       ${flavors?`<div class="spec-flavors">${flavors}</div>`:''}
       ${comparatifNotesHtml(c)}
       ${historiqueHtml(c)}
-      ${(modifiable&&isAdmin())?`<button class="spec-edit" onclick="event.stopPropagation();openEditCigarSheet('${c.id}')">✎ Corriger cette fiche</button>`:''}
+      ${(modifiable&&isAdmin())?`<button class="spec-edit" onclick="event.stopPropagation();openEditCigarSheet('${c.id}')">${ico('crayon',12)} Corriger cette fiche</button>`:''}
     </div>
   </div>`;
 }
@@ -5103,7 +5149,7 @@ function acPick(id){
   document.getElementById('f-name').value=c.name;
   document.getElementById('f-flavors').value=(c.flavors||[]).join(', ');
   document.getElementById('ac-list').classList.remove('open');
-  document.getElementById('f-spec').innerHTML=specCardHtml(c,'✓ Fiche catalogue');
+  document.getElementById('f-spec').innerHTML=specCardHtml(c,ico('coche',12)+' Fiche catalogue');
   resetNewCigarFields();
   document.getElementById('f-newcigar-toggle').style.display='none';
   setTerroir(c.terroir||null);
@@ -5185,8 +5231,8 @@ function openCigarDetail(id){
     // déjà convoité : on mène à l'envie existante plutôt que d'en créer une seconde
     const deja=wishlist.find(w=>normCigar(w.name)===normCigar(c.name));
     document.getElementById('detail-actions').insertAdjacentHTML('afterbegin', deja
-      ? `<button class="btn-ghost" id="detail-wl-btn" style="flex-basis:100%" onclick="closeSheet('detail-overlay');openEditWlSheet('${deja.id}')">🎯 Déjà dans votre wishlist</button>`
-      : `<button class="btn-primary" id="detail-wl-btn" style="flex-basis:100%" onclick="openWlSheetFromCigar('${c.id}')">🎯 Ajouter à ma wishlist</button>`);
+      ? `<button class="btn-ghost" id="detail-wl-btn" style="flex-basis:100%" onclick="closeSheet('detail-overlay');openEditWlSheet('${deja.id}')">${ico('bague',13)} Déjà dans votre wishlist</button>`
+      : `<button class="btn-primary" id="detail-wl-btn" style="flex-basis:100%" onclick="openWlSheetFromCigar('${c.id}')">${ico('bague',13)} Ajouter à ma wishlist</button>`);
   }
   if(isAdmin()){
     document.getElementById('detail-actions').insertAdjacentHTML('beforeend',
@@ -5366,13 +5412,13 @@ function openPostDetail(id){
       <div class="post-rating"><span style="color:var(--gold)">●</span> ${(p.rating||0).toFixed(1)}</div>
     </div>
     <div class="pd-name serif">${echapper(p.name)}</div>
-    ${p.origin?`<div class="pd-origin">📍 ${echapper(p.origin)}</div>`:''}
+    ${p.origin?`<div class="pd-origin">${ico('lieu',11)} ${echapper(p.origin)}</div>`:''}
     ${thirdsLine}
     ${p.note?`<p class="pd-note">${echapper(p.note)}</p>`:''}
     ${flav?`<div class="flavors" style="margin-top:6px">${flav}</div>`:''}
-    ${p.place?`<div class="post-place" style="margin-top:10px">📍 Fumé à ${echapper(p.place)}</div>`:''}
+    ${p.place?`<div class="post-place" style="margin-top:10px">${ico('lieu',11)} Fumé à ${echapper(p.place)}</div>`:''}
     <span style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-      <button class="pd-like ${p.liked?'on':''}" id="pd-like-btn" data-pid="${p.id}" onclick="toggleLike('${p.id}')"><span>${p.liked?'❤️':'🤍'}</span> ${p.likes} j'aime</button>
+      <button class="pd-like ${p.liked?'on':''}" id="pd-like-btn" data-pid="${p.id}" onclick="toggleLike('${p.id}')"><span>${p.liked?ico('coeurPlein',14):ico('coeur',14)}</span> ${p.likes} j'aime</button>
       <span id="pd-likers">${likersHtml(p)}</span>
     </span>
     ${prixFrancaisHtml(p.name)}
@@ -5385,7 +5431,7 @@ function openPostDetail(id){
   const delLabel = mine ? 'Supprimer' : 'Supprimer (modération)';
   actions.innerHTML=(currentUser?`<button class="btn-primary" style="flex-basis:100%" onclick="openFumeeSheetFromPost('${p.id}')">Ajouter une dégustation</button>`:'')
     + (currentUser?`<button class="btn-primary" style="flex-basis:100%" onclick="openCaveSheetFromPost('${p.id}')">Ajouter à ma cave</button>`:'')
-    + (currentUser?`<button class="btn-primary" style="flex-basis:100%" onclick="openWlSheetFromPost('${p.id}')">🎯 Wishlist</button>`:'')
+    + (currentUser?`<button class="btn-primary" style="flex-basis:100%" onclick="openWlSheetFromPost('${p.id}')">${ico('bague',13)} Wishlist</button>`:'')
     + (mine?`<button class="btn-ghost" onclick="openEditPostSheet('${p.id}')">Modifier</button>`:'')
     + (canDelete?`<button class="btn-danger" onclick="deletePost('${p.id}')">${delLabel}</button>`:'')
     + '<button class="btn-ghost" onclick="closeSheet(\'post-overlay\')">Fermer</button>';
@@ -5574,7 +5620,7 @@ function openEditPostSheet(id){
   setThirds(p.thirds&&p.thirds.t1, p.thirds&&p.thirds.t2, p.thirds&&p.thirds.t3, p.rating);
   afficherPhotoExistante(p.photoUrl);
   const c=ficheOf(p);
-  if(c){ selectedCigar=c; document.getElementById('f-spec').innerHTML=specCardHtml(c,'✓ Fiche catalogue'); }
+  if(c){ selectedCigar=c; document.getElementById('f-spec').innerHTML=specCardHtml(c,ico('coche',12)+' Fiche catalogue'); }
   sessionCible=p.sessionId||null;   // corriger une dégustation ne doit pas la détacher de sa séance
 }
 let editingCaveId=null;
@@ -5926,6 +5972,12 @@ async function saveFumee(){
    même nom ET même format. Le nom seul ne suffit pas — une ligne comme
    « Flor de Selva Clásica » couvre huit vitoles distinctes, que fusionner
    reviendrait à supprimer des références réelles. */
+/* Une icône du sprite. La taille est en pixels ; la couleur vient de
+   l'élément qui la porte, par currentColor. */
+function ico(nom,taille){
+  const t=taille||16;
+  return '<svg class="ico-svg" width="'+t+'" height="'+t+'" aria-hidden="true"><use href="#i-'+nom+'"/></svg>';
+}
 function normCigar(s){
   return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
     .replace(/[^a-z0-9]+/g,' ').trim();
