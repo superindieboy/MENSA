@@ -3456,13 +3456,28 @@ function dessinerCarte(p){
   g.font='24px Georgia, serif';
   g.fillText('cercle privé d\'amateurs de cigares', CARTE_L/2, 174);
 
-  // la note, en grand
-  g.fillStyle='#D9A05B';
-  g.font='600 210px Georgia, serif';
-  g.fillText(un(p.rating||0), CARTE_L/2, 470);
-  g.fillStyle='rgba(240,230,215,0.5)';
-  g.font='28px Georgia, serif';
-  g.fillText('sur 5', CARTE_L/2, 520);
+  /* La note, en grand, et son échelle sur la même ligne de base.
+
+     Elle était posée dessous, cinquante pixels plus bas — mais Georgia a des
+     chiffres elzéviriens : le 4 et la virgule descendent de quarante pixels
+     sous la ligne de base. L'encre du nombre finissait donc à 510, et celle du
+     label commençait à 505 : les deux se chevauchaient, et « sur 5 » semblait
+     pendre à la virgule.
+
+     À droite et sur la même ligne, il n'y a plus de jambage à éviter, et la
+     note se lit d'un bloc. C'est l'ensemble qu'on centre, pas le nombre seul,
+     sans quoi l'échelle déborderait l'axe de la carte. */
+  const NOTE='600 210px Georgia, serif', ECHELLE='44px Georgia, serif', ECART=28;
+  const note=un(p.rating||0);
+  g.textAlign='left';
+  g.font=NOTE;    const lNote=g.measureText(note).width;
+  g.font=ECHELLE; const lEchelle=g.measureText('sur 5').width;
+  const xNote=(CARTE_L-(lNote+ECART+lEchelle))/2;
+  g.fillStyle='#D9A05B'; g.font=NOTE;
+  g.fillText(note, xNote, 470);
+  g.fillStyle='rgba(240,230,215,0.42)'; g.font=ECHELLE;
+  g.fillText('sur 5', xNote+lNote+ECART, 470);
+  g.textAlign='center';   // tout ce qui suit est centré
 
   // le cigare
   g.fillStyle='#F0E6D7';
