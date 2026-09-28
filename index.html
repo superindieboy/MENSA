@@ -4308,7 +4308,12 @@ async function saveWishlist(){
   const modifiee=!!editingWlId;
   closeSheet('wl-overlay'); wlAddMode(); clearWlFields();
   document.getElementById('wl-search').value='';
-  await loadWishlist(); renderWishlist(); go('wishlist');
+  /* On reste où l'on était. Une envie s'ajoute le plus souvent depuis le fil,
+     au fil d'une dégustation qu'on vient de lire : basculer sur l'onglet
+     Wishlist faisait perdre sa place au membre, et l'obligeait à revenir. La
+     liste est tout de même redessinée, pour être à jour quand il s'y rendra —
+     c'est ce que fait déjà la cave. Le toast suffit à dire que c'est pris. */
+  await loadWishlist(); renderWishlist();
   toast(modifiee?'Envie modifiée.':'Ajouté à votre wishlist.');
 }
 async function deleteWishlist(){
