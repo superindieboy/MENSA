@@ -809,6 +809,10 @@ input[type=number],.f-num{font-variant-numeric:tabular-nums}
 .spec-pip.on{background:var(--cognac)}
 .spec-flavors{display:flex;flex-wrap:wrap;gap:6px}
 .spec-score-pill{position:absolute;bottom:11px;right:12px;background:rgba(20,12,6,0.7);color:#fff;border-radius:9px;padding:4px 10px;font-size:13px;font-weight:600}
+/* Une fiche que personne n'a encore fumée garde sa pastille, pour que la
+   place de la note ne se dérobe pas d'une fiche à l'autre — mais en retrait,
+   car un tiret n'a pas à peser autant qu'une note. */
+.spec-score-pill.vide{opacity:.55;font-weight:400}
 .cmp{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}
 .cmp-cell{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:9px 6px;text-align:center}
 .cmp-cell span{display:block;font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
@@ -5114,7 +5118,7 @@ function specCardHtml(c,badge,modifiable){
     <div class="spec-hero" style="background:${p.fill}">
       <div class="poster-cig">${cigarHtml(c.terroir,96)}</div>
       <div class="spec-badge">${badge||'Fiche catalogue'}</div>
-      ${c.score?`<div class="spec-score-pill">${ico('etoile',12)} ${c.score.toFixed(1)}</div>`:''}
+      <div class="spec-score-pill${c.score>0?'':' vide'}">${ico('etoile',12)} ${c.score>0?un(c.score):'—'}</div>
     </div>
     <div class="spec-body">
       <div class="spec-name">${echapper(c.name)}</div>
@@ -5129,7 +5133,14 @@ function specCardHtml(c,badge,modifiable){
         ${c.binder?`<div class="spec-row"><span class="spec-k">Sous-cape</span><span class="spec-v">${echapper(c.binder)}</span></div>`:''}
         ${c.filler?`<div class="spec-row"><span class="spec-k">Tripe</span><span class="spec-v">${echapper(c.filler)}</span></div>`:''}
         ${strengthRow}
-        ${c.votes?`<div class="spec-row"><span class="spec-k">Avis</span><span class="spec-v">${c.votes.toLocaleString('fr-FR')}</span></div>`:''}
+        ${/* La note du cercle et le nombre de dégustations s'affichent toujours,
+              même à zéro. Une moyenne qu'on ne voit que lorsqu'elle existe
+              laisse croire, sur une fiche muette, qu'on a oublié de la lire :
+              « aucune » est une réponse, l'absence n'en est pas une. Et une
+              note ne veut rien dire sans son effectif — 4,0 sur une seule
+              dégustation n'est pas 4,0 sur douze. */''}
+        <div class="spec-row"><span class="spec-k">Note du cercle</span><span class="spec-v">${c.score>0?un(c.score)+' sur 5':'pas encore notée'}</span></div>
+        <div class="spec-row"><span class="spec-k">Dégustations</span><span class="spec-v">${c.votes>0?c.votes.toLocaleString('fr-FR'):'aucune'}</span></div>
       </div>
       ${flavors?`<div class="spec-flavors">${flavors}</div>`:''}
       ${comparatifNotesHtml(c)}
