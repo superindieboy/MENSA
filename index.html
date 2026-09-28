@@ -4141,7 +4141,10 @@ function etagereDeLEnvie(w){ return etagereDuCigare(w.name,w.terroir); }
 function ligneEnvie(w){
   const c=ficheByName(w.name);
   const bouts=[];
-  if(c&&c.votes)bouts.push(`${ico('etoile',12)} ${c.score.toFixed(1)} au cercle · ${c.votes} avis`);
+  /* La moyenne porte sur toutes les dégustations publiées sur le site, sans
+     exception : loadPosts les lit toutes, et le recalcul les reprend toutes.
+     Le dire « au cercle » laissait croire à une sous-population. */
+  if(c&&c.votes)bouts.push(`${ico('etoile',12)} ${un(c.score)} sur 5 · ${c.votes} dégustation${c.votes>1?'s':''}`);
   else bouts.push('Personne ne l\'a encore noté');
   // ce qu'il en coûterait : une envie sans prix reste une envie abstraite
   const ref=tarifDeReference(w.name);
@@ -5139,7 +5142,7 @@ function specCardHtml(c,badge,modifiable){
               « aucune » est une réponse, l'absence n'en est pas une. Et une
               note ne veut rien dire sans son effectif — 4,0 sur une seule
               dégustation n'est pas 4,0 sur douze. */''}
-        <div class="spec-row"><span class="spec-k">Note du cercle</span><span class="spec-v">${c.score>0?un(c.score)+' sur 5':'pas encore notée'}</span></div>
+        <div class="spec-row"><span class="spec-k">Note des membres</span><span class="spec-v">${c.score>0?un(c.score)+' sur 5':'pas encore notée'}</span></div>
         <div class="spec-row"><span class="spec-k">Dégustations</span><span class="spec-v">${c.votes>0?c.votes.toLocaleString('fr-FR'):'aucune'}</span></div>
       </div>
       ${flavors?`<div class="spec-flavors">${flavors}</div>`:''}
