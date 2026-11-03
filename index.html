@@ -801,6 +801,9 @@ input[type=number],.f-num{font-variant-numeric:tabular-nums}
 .spec-k{font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.05em}
 .spec-v{font-size:13px;font-weight:500}
 .spec-mm{display:block;font-size:10.5px;font-weight:400;color:var(--ink-3);margin-top:1px}
+/* Le mouvement du prix est une nouvelle, la date du relevé un contexte : un
+   ton plus appuyé suffit à les distinguer sans les séparer. */
+.spec-mouvement{color:var(--ink-2)}
 /* Le prix se lit d'un coup d'œil dans une grille qui, sinon, se lit ligne à
    ligne : c'est la seule valeur qu'on cherche sans lire l'intitulé. */
 .spec-prix{color:var(--cognac);font-size:15px;font-weight:600}
@@ -2475,10 +2478,15 @@ function evolutionDuTarif(c){
   const cle=cleDuTarif(c);                    // null si le prix a été corrigé à la main
   if(!cle)return null;
   const avant=TARIFS_AVANT[cle];
-  if(!(avant>0)||avant===c.tarif)return null;
-  const pct=Math.round((c.tarif-avant)/avant*100);
-  if(Math.abs(pct)<1)return null;
-  return {avant,pct};
+  if(!(avant>0))return null;
+  /* L'écart est donné en euros, et non plus en pourcentage. Les deux relevés
+     publient des prix exacts au centime : tout écart est donc une décision de
+     la douane, pas un arrondi. Le seuil d'un pour cent qui taisait les petits
+     mouvements n'avait plus de raison d'être — et quinze centimes de plus sur
+     un cigare, c'est ce qu'on voit au comptoir. */
+  const delta=c.tarif-avant;
+  if(Math.abs(delta)<0.005)return null;
+  return {avant,delta};
 }
 /* Le tarif de référence d'un cigare qu'on ne connaît que par son nom — un lot
    de cave, une envie. La fiche d'abord, qui peut porter une correction du
@@ -2742,15 +2750,16 @@ function ligneTarif(c){
   // reconnaît une correction à ce qu'elle s'écarte du relevé, plutôt qu'à un
   // marqueur — ainsi une fiche revenue au prix du relevé cesse d'être datée.
   const duReleve=c.tarifDuReleve||tarifDuNom(c.name)===c.tarif||!!cleDuTarif(c);
-  // ce que le prix a fait depuis le relevé d'avant : un tarif se lit mieux
-  // avec son mouvement que seul
+  const source=duReleve?TARIF_SOURCE:(c.tarifLe?'Au '+dateEnToutesLettres(c.tarifLe):'');
+  /* Ce que le prix a fait depuis le relevé d'avant, sur sa propre ligne : un
+     tarif se lit mieux avec son mouvement que seul. En euros, parce que c'est
+     la monnaie dans laquelle on l'achète — « +1,40 € » se sent, « +11 % » se
+     calcule. L'ancienne mention partageait la ligne de la date ; séparée, elle
+     se repère sans qu'on ait à lire le reste. */
   const ev=evolutionDuTarif(c);
-  const source=[
-    duReleve?TARIF_SOURCE:(c.tarifLe?'Au '+dateEnToutesLettres(c.tarifLe):''),
-    ev?`${ev.pct>0?'+':'−'}${Math.abs(ev.pct)} % depuis ${fmtPrix(ev.avant)}`:''
-  ].filter(Boolean).join(' · ');
+  const mouvement=ev?`${ev.delta>0?'+':'−'}${fmtPrix(Math.abs(ev.delta))} depuis le dernier prix`:'';
   return `<div class="spec-row"><span class="spec-k">Prix en France</span>
-    <span class="spec-v spec-prix">${fmtPrix(c.tarif)}${source?`<small class="spec-mm">${source}</small>`:''}</span></div>`;
+    <span class="spec-v spec-prix">${fmtPrix(c.tarif)}${source?`<small class="spec-mm">${source}</small>`:''}${mouvement?`<small class="spec-mm spec-mouvement">${mouvement}</small>`:''}</span></div>`;
 }
 /* Dernier prix payé en France pour ce cigare, s'il date de moins de six mois.
    Au-delà, un tarif n'est plus un repère fiable. */
