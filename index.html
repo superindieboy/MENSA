@@ -5134,7 +5134,7 @@ function specCardHtml(c,badge,modifiable){
     </div>
     <div class="spec-body">
       <div class="spec-name">${echapper(c.name)}</div>
-      <div class="spec-brand">${c.brand?echapper(c.brand)+' · ':''}${echapper(c.country||'')}</div>
+      <div class="spec-brand">${[c.brand,c.country].filter(x=>x&&x!=='—').map(echapper).join(' · ')}</div>
       <div class="spec-grid">
         ${ligneTarif(c)}
         ${c.exclusivite?`<div class="spec-row"><span class="spec-k">Exclusivité</span><span class="spec-v">${echapper(c.exclusivite)}</span></div>`:''}

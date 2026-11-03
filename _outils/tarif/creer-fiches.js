@@ -148,15 +148,58 @@ function nomDuLibelle(libelle) {
    Nicaragua », « El » pour « El Unico » — ne vaut rien : on exige quatre
    lettres, et qu'il reste quelque chose derrière. À défaut, les deux premiers
    mots, qui sont la marque dans l'immense majorité des libellés. */
+/* Les mots qui ouvrent la désignation d'un cigare et ferment donc la marque.
+   Uniquement des vitoles et des formats : surtout pas des origines, sans quoi
+   « Casa de Nicaragua » s'arrêterait à « Casa de ». */
+const MOT_DE_FORMAT = new RegExp('^(?:' + [
+  'robusto', 'robustos', 'toro', 'toros', 'churchill', 'churchills', 'corona', 'coronas',
+  'coronita', 'coronitas', 'belicoso', 'belicosos', 'torpedo', 'torpedos', 'gordo', 'gordito',
+  'lancero', 'lanceros', 'perfecto', 'figurado', 'piramide', 'piramides', 'magnum', 'petit',
+  'petits', 'double', 'half', 'short', 'shorts', 'salomon', 'salomones', 'diadema', 'diademas',
+  'panetela', 'panatela', 'campana', 'sublime', 'sublimes', 'genios', 'magicos', 'siglo',
+  'behike', 'bhk', 'gran', 'grande', 'epicure', 'esplendido', 'esplendidos', 'tubulares',
+  'no', 'n'
+].join('|') + ')$', 'i');
+const nu = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const motDeMarque = m => !MOT_DE_FORMAT.test(nu(m)) && !/^\d/.test(m) && !/^\d+\s*x/i.test(m) && !/^n[°º]/i.test(m);
+
+/* Les particules qui soudent une marque en plusieurs mots. C'est le motif de
+   presque toutes : Casa DE Nicaragua, Flor DE Copán, Quai D'Orsay, Aroma DE
+   Nicaragua. « of » et « the » n'en sont pas — ils ouvrent des noms de
+   produits, « Year of the Goat ». */
+const PARTICULE = /^(?:de|del|du|da|des|la|le|los|las|y|von|van|san|santa)$/i;
+
+/* La marque d'un cigare.
+
+   Le premier mot, d'abord : il suffit pour Plasencia, Vegafina, Trinidad,
+   Davidoff. Puis on l'étend tant qu'une particule le réclame — « Casa de
+   Nicaragua » tient en un bloc, et s'arrêter à « Casa » serait le couper au
+   milieu. Un premier mot d'une ou deux lettres n'est jamais une marque à lui
+   seul : « A Flores » en prend deux.
+
+   Le catalogue sert ensuite d'arbitre, mais seulement s'il propose plus long :
+   il connaît « Black Label », « Villa Zamorano », « Alec Bradley », que nulle
+   particule ne révélerait. On ne le laisse pas raccourcir, en revanche — il
+   porte « Casa » pour Casa De Garcia et « Quai » à côté de « Quai Dorsay »,
+   et lui obéir propagerait ses propres approximations. */
 function marqueDuNom(nom, marquesTriees, norm) {
-  const n = norm(nom);
-  for (const b of marquesTriees) {
-    if (b.length < 4) continue;
-    const nb = norm(b);
-    if (n.startsWith(nb + ' ') && n.length > nb.length + 1) return b;
-  }
   const mots = nom.split(' ');
-  return mots.slice(0, Math.min(2, mots.length)).join(' ');
+  let n = mots[0] && mots[0].length <= 2 ? 2 : 1;
+  while (n < mots.length) {
+    // « D'Orsay », « L'Atelier » : la particule est collée au nom
+    if (/^[dl]['’]./i.test(mots[n]) && motDeMarque(mots[n])) { n++; continue; }
+    if (PARTICULE.test(mots[n]) && n + 1 < mots.length && motDeMarque(mots[n + 1])) { n += 2; continue; }
+    break;
+  }
+  let marque = mots.slice(0, Math.min(n, mots.length)).join(' ');
+
+  const cible = norm(nom);
+  for (const b of marquesTriees) {
+    if (b.length <= marque.length) break;      // triées par longueur : rien de plus long ensuite
+    const nb = norm(b);
+    if (cible.startsWith(nb + ' ')) return b;
+  }
+  return marque;
 }
 
 async function principal() {
