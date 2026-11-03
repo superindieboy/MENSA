@@ -804,6 +804,10 @@ input[type=number],.f-num{font-variant-numeric:tabular-nums}
 /* Le mouvement du prix est une nouvelle, la date du relevé un contexte : un
    ton plus appuyé suffit à les distinguer sans les séparer. */
 .spec-mouvement{color:var(--ink-2)}
+.vc-pdf{margin-top:12px;background:transparent;border:1px solid var(--line-2);color:var(--ink-2);
+  border-radius:9px;padding:7px 12px;font-size:12px;font-family:inherit;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:.15s}
+.vc-pdf:hover{background:var(--paper-2);color:var(--ink);border-color:var(--ink-3)}
 /* Le prix se lit d'un coup d'œil dans une grille qui, sinon, se lit ligne à
    ligne : c'est la seule valeur qu'on cherche sans lire l'intitulé. */
 .spec-prix{color:var(--cognac);font-size:15px;font-weight:600}
@@ -4062,7 +4066,143 @@ function valeurCaveHtml(b){
     const pct=Math.round(Math.abs(ecart)/b.releveAvant*100);
     h+=`<p class="vc-note">Depuis le relevé précédent, ${b.nbCompares === 1 ? 'ce cigare a' : `ces ${b.nbCompares} cigares ont`} ${ecart>0?'pris':'perdu'} ${fmtPrix(Math.abs(ecart))}${pct>=1?` — ${pct} %`:''}, sans que vous ayez rien acheté.</p>`;
   }
-  return h+'</div>';
+  return h+`<button class="vc-pdf" onclick="telechargerInventaire()">${ico('prix',12)} Inventaire PDF</button></div>`;
+}
+
+/* ---- L'inventaire de la cave, en PDF ----
+   Une cave de plusieurs centaines de cigares vaut une somme réelle, et un
+   assureur demande un inventaire daté : référence, quantité, valeur. C'est
+   aussi ce qu'on tend à un acheteur, ou ce qui reste à une succession.
+
+   Le PDF est écrit à la main, ici, sans bibliothèque. Il n'en faut pas : les
+   polices Helvetica et Courier sont dans tous les lecteurs depuis toujours, on
+   n'a donc rien à embarquer. Courier pour les chiffres — sa chasse fixe aligne
+   les colonnes sans qu'on ait à mesurer quoi que ce soit. */
+const PDF_POLICES = { texte: 'Helvetica', gras: 'Helvetica-Bold', chiffre: 'Courier' };
+
+/* Une chaîne PDF : encodage WinAnsi, et les trois caractères qui doivent être
+   échappés. Les guillemets typographiques et l'œ n'existent pas en Latin-1 :
+   on les rend plutôt que de les perdre. */
+function pdfTexte(s){
+  const remplace={'’':"'",'‘':"'",'“':'"','”':'"','œ':'oe','Œ':'OE','–':'-','—':'-','…':'...','·':'-'};
+  let out='';
+  for(const c of String(s)){
+    const r=remplace[c]!==undefined?remplace[c]:c;
+    for(const d of r){
+      const n=d.charCodeAt(0);
+      if(d==='('||d===')'||d==='\\')out+='\\'+d;
+      else if(d==='€')out+='\\200';
+      else if(n<32)out+=' ';
+      else if(n<256)out+=d;
+      else out+='?';
+    }
+  }
+  return out;
+}
+const pdfLargeurCourier=(t,corps)=>t.length*corps*0.6;
+
+function pdfInventaire(lignes,meta){
+  const L=595.28,H=841.89,M=56;             // A4, marges
+  const COL={nom:M,format:300,qte:410,pu:472,val:540};
+  const objets=[];                           // 1 Catalog · 2 Pages · 3 Fonts · puis les pages
+  const pages=[];
+  let page=null,y=0;
+
+  const ecrire=(x,yy,t,police,corps)=>page.flux+=
+    `BT /${police} ${corps} Tf 1 0 0 1 ${x.toFixed(1)} ${yy.toFixed(1)} Tm (${pdfTexte(t)}) Tj ET\n`;
+  const aDroite=(x,yy,t,corps)=>ecrire(x-pdfLargeurCourier(String(t),corps),yy,t,'F3',corps);
+  const filet=yy=>page.flux+=`0.6 w 0.75 G ${M} ${yy.toFixed(1)} m ${(L-M).toFixed(1)} ${yy.toFixed(1)} l S 0 G\n`;
+
+  function nouvellePage(){
+    page={flux:''}; pages.push(page); y=H-M;
+    ecrire(M,y,'MENSA','F2',17); y-=16;
+    ecrire(M,y,'Inventaire de cave','F1',11); y-=13;
+    ecrire(M,y,meta.sous,'F1',9); y-=10;
+    filet(y); y-=15;
+    ecrire(COL.nom,y,'RÉFÉRENCE','F2',8);
+    ecrire(COL.format,y,'FORMAT','F2',8);
+    aDroite(COL.qte,y,'QTÉ',8); aDroite(COL.pu,y,'P.U.',8); aDroite(COL.val,y,'VALEUR',8);
+    y-=6; filet(y); y-=13;
+  }
+  nouvellePage();
+
+  for(const l of lignes){
+    if(y<M+70){ nouvellePage(); }
+    ecrire(COL.nom,y,l.nom.slice(0,46),'F1',9);
+    if(l.format)ecrire(COL.format,y,l.format.slice(0,18),'F1',8);
+    aDroite(COL.qte,y,String(l.qty),9);
+    aDroite(COL.pu,y,l.pu,9);
+    aDroite(COL.val,y,l.valeur,9);
+    y-=13;
+  }
+  y-=4; filet(y); y-=15;
+  ecrire(COL.nom,y,meta.totalLibelle,'F2',10);
+  aDroite(COL.qte,y,String(meta.nb),10);
+  aDroite(COL.val,y,meta.total,10);
+  y-=20;
+  for(const note of meta.notes){ ecrire(M,y,note,'F1',8); y-=11; }
+
+  /* Assemblage. Les polices sont déclarées une fois et partagées. */
+  const police=(n,b)=>`<</Type/Font/Subtype/Type1/BaseFont/${b}/Encoding/WinAnsiEncoding>>`;
+  objets.push(`<</Type/Catalog/Pages 2 0 R>>`);
+  const kids=pages.map((_,i)=>`${4+i*2} 0 R`).join(' ');
+  objets.push(`<</Type/Pages/Kids[${kids}]/Count ${pages.length}>>`);
+  objets.push(`<</F1 ${3+pages.length*2+1} 0 R/F2 ${3+pages.length*2+2} 0 R/F3 ${3+pages.length*2+3} 0 R>>`);
+  pages.forEach(p=>{
+    objets.push(`<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${L.toFixed(2)} ${H.toFixed(2)}]/Resources<</Font 3 0 R/ProcSet[/PDF/Text]>>/Contents ${objets.length+2} 0 R>>`);
+    objets.push(`<</Length ${p.flux.length}>>\nstream\n${p.flux}endstream`);
+  });
+  objets.push(police('F1',PDF_POLICES.texte), police('F2',PDF_POLICES.gras), police('F3',PDF_POLICES.chiffre));
+  objets.push(`<</Title(${pdfTexte(meta.titre)})/Creator(MENSA)>>`);
+
+  let pdf='%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
+  const places=[];
+  objets.forEach((o,i)=>{ places.push(pdf.length); pdf+=`${i+1} 0 obj\n${o}\nendobj\n`; });
+  const xref=pdf.length;
+  pdf+=`xref\n0 ${objets.length+1}\n0000000000 65535 f \n`;
+  for(const p of places)pdf+=String(p).padStart(10,'0')+' 00000 n \n';
+  pdf+=`trailer\n<</Size ${objets.length+1}/Root 1 0 R/Info ${objets.length} 0 R>>\nstartxref\n${xref}\n%%EOF\n`;
+
+  const octets=new Uint8Array(pdf.length);
+  for(let i=0;i<pdf.length;i++)octets[i]=pdf.charCodeAt(i)&255;
+  return new Blob([octets],{type:'application/pdf'});
+}
+
+function telechargerInventaire(){
+  const b=bilanCave();
+  if(!b){toast("Votre cave est vide.",'err');return;}
+  const lignes=[];
+  Object.values(cave).forEach(arr=>arr.forEach(l=>{
+    if(!l.qty||l.qty<=0)return;
+    const pu=(l.price!==null&&l.price!==undefined)?l.price:tarifDeReference(l.name);
+    /* Le module s'écrit « Robusto (hermosos n° 4) » : la parenthèse donne le
+       nom cubain de la vitole, précieux dans l'app mais trop long pour une
+       colonne d'inventaire — et la tronquer laissait « Robusto (hermosos »,
+       une parenthèse ouverte sur rien. On garde ce qui précède. */
+    const format=(l.detail&&l.detail!=='—')?String(l.detail).replace(/\s*\(.*$/,'').trim():'';
+    lignes.push({ nom:l.name, format, qty:l.qty,
+      brut:(pu>0?pu*l.qty:0),
+      pu:pu>0?fmtPrix(pu).replace(/ | /g,' '):'—',
+      valeur:pu>0?fmtPrix(pu*l.qty).replace(/ | /g,' '):'—' });
+  }));
+  lignes.sort((x,y)=>x.nom.localeCompare(y.nom,'fr'));
+  const total=lignes.reduce((s,l)=>s+l.brut,0);
+  const quand=new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  const notes=['Valeur d\'achat quand elle est connue, tarif de référence sinon.'];
+  if(b.offerts)notes.push(`${b.offerts} cigare${b.offerts>1?'s':''} offert${b.offerts>1?'s':''}, compté${b.offerts>1?'s':''} à zéro.`);
+  notes.push('Établi par MENSA — mensa-club.fr');
+  const blob=pdfInventaire(lignes,{
+    titre:'MENSA - inventaire de cave',
+    sous:`Établi le ${quand}${currentUser&&currentUser.name?' pour '+currentUser.name:''}`,
+    totalLibelle:'TOTAL', nb:lignes.reduce((s,l)=>s+l.qty,0),
+    total:fmtPrix(total).replace(/ | /g,' '), notes
+  });
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='mensa-inventaire-cave.pdf';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  toast('Inventaire téléchargé.');
 }
 function renderCave(){
   const tous=[];
