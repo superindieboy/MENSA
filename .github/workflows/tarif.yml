@@ -33,6 +33,14 @@ jobs:
       - name: Chercher et appliquer la dernière nomenclature
         run: node _outils/tarif/mettre-a-jour.js --ecrire
 
+      # Un cigare homologué que le catalogue ignore y restait absent : le
+      # relevé portait les prix, il ne créait pas de fiche. L'outil ne retient
+      # que ce qu'il sait nommer sûrement — ni humidor, ni assortiment, ni
+      # cigarillo, ni sosie d'une fiche existante — et refuse d'écrire au-delà
+      # de son plafond. Les épreuves qui suivent ont le dernier mot.
+      - name: Ouvrir une fiche aux cigares nouveaux
+        run: node _outils/tarif/creer-fiches.js --ecrire
+
       - name: Contrôler avant de pousser
         run: node _outils/verifier.js
 

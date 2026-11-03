@@ -105,6 +105,10 @@ function relever(chemin) {
   const applicable = (entete.match(/applicable au (.+?)\s*$/i) || [])[1] || null;
 
   const nouveaux = {}, anciens = {}, votes = {};
+  /* On garde aussi le libellé d origine. La clé est un ensemble de mots trié :
+     on ne peut rien en tirer de lisible, et nommer une fiche neuve demande le
+     texte que la douane a écrit. */
+  const libs = {};
   let rubrique = null, produits = 0, sansPrix = 0;
   /* Six colonnes, et il faut les nommer pour ne plus s'y tromper :
        0  la référence actuelle, telle qu'elle était déjà homologuée
@@ -157,6 +161,7 @@ function relever(chemin) {
        doit pas décider pour deux qui s'accordent sur 7. À égalité, le moins
        cher l'emporte, qui est celui qu'un membre peut payer. */
     (votes[cle] = votes[cle] || []).push({ prix, avant: (ancien > 0) ? ancien : prix });
+    (libs[cle] = libs[cle] || []).push(libelle);
   }
   // dépouillement : pour chaque cigare, le prix que ses présentations disent
   // le plus souvent, et l'ancien prix de la même présentation
@@ -169,7 +174,12 @@ function relever(chemin) {
     const memes = liste.filter(v => v.prix === +gagnant);
     anciens[cle] = Math.min(...memes.map(v => v.avant));
   }
-  return { nouveaux, anciens, applicable, produits, sansPrix, lignes: lignes.length };
+  /* Le plus court des libellés d un même cigare : les autres ne s en
+     distinguent que par le conditionnement qu ils ajoutent. */
+  const libelles = {};
+  for (const [cle, liste] of Object.entries(libs))
+    libelles[cle] = liste.slice().sort((a, b) => a.length - b.length)[0];
+  return { nouveaux, anciens, applicable, produits, sansPrix, libelles, lignes: lignes.length };
 }
 
 module.exports = { relever, lignesDuTableur };

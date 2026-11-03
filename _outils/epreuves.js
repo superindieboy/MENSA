@@ -165,6 +165,14 @@ const AU_CATALOGUE = [
    taire le contrôle plutôt que régler ce qu'il signale. */
 const PLANCHERS = { fiches: 3080, chiffrees: 2745, cles: 2900 };
 
+/* Et son contraire, depuis que le relevé peut créer des fiches. Un plancher
+   voit un effondrement, pas une inflation : si l'appariement se dérègle et que
+   l'outil se met à créer une fiche par ligne de barème, le catalogue doublerait
+   sans qu'aucune épreuve ne bronche. Le plafond est donc l'autre moitié de la
+   même garde. On le relève à mesure que le catalogue grandit, délibérément —
+   jamais pour faire taire une course. */
+const PLAFONDS = { fiches: 3400 };
+
 const MOJIBAKE = /°[a-zA-ZÀ-ÿ]/;   // « ch°teau » : un accent perdu en chemin
 
 /* ------------------------------------------------------------------ Course */
@@ -239,6 +247,9 @@ function epreuves(racine) {
     if (valeur >= plancher) bon(`${valeur} ${quoi} (plancher ${plancher})`);
     else echec(`${quoi} : ${valeur}, en dessous du plancher de ${plancher}`);
   }
+  if (cat.length <= PLAFONDS.fiches) bon(`${cat.length} fiches sous le plafond de ${PLAFONDS.fiches}`);
+  else echec(`${cat.length} fiches au catalogue, au-dessus du plafond de ${PLAFONDS.fiches}`);
+
   const part = Math.round(chiffrees / cat.length * 100);
   console.log(`  · ${part} % du catalogue porte un prix`);
 
