@@ -151,7 +151,16 @@ async function principal() {
   if (relu.length !== fiches.length) throw new Error('le nombre de fiches a changé : rien écrit');
   fs.writeFileSync(path.join(RACINE, 'catalogue.json'), brut);
   fs.writeFileSync(path.join(RACINE, 'tarifs.json'), JSON.stringify(nouveaux));
-  fs.writeFileSync(path.join(RACINE, 'tarifs-precedent.json'), JSON.stringify(anciens));
+  /* Le relevé précédent ne garde que ce qui a bougé. Il ne sert qu'à dire
+     « +1,50 € depuis le dernier prix » : une clé qui vaut déjà le prix courant
+     n'a rien à raconter, et il y en avait 2 961 sur 2 992 — 97 Ko téléchargés
+     à chaque ouverture pour 31 clés utiles. Une clé absente se lit désormais
+     « ce prix n'a pas changé », ce qu'elle disait déjà. */
+  const bouge = {};
+  for (const k of Object.keys(nouveaux))
+    if (anciens[k] !== undefined && Math.abs(nouveaux[k] - anciens[k]) > 0.005) bouge[k] = anciens[k];
+  fs.writeFileSync(path.join(RACINE, 'tarifs-precedent.json'), JSON.stringify(bouge));
+  console.log(`relevé précédent            : ${Object.keys(bouge).length} clés gardées sur ${Object.keys(anciens).length}`);
 
   const html = fs.readFileSync(path.join(RACINE, 'index.html'), 'utf8');
   fs.writeFileSync(path.join(RACINE, 'index.html'),
