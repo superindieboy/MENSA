@@ -6572,6 +6572,26 @@ document.addEventListener('keydown',e=>{
 })();
 
 renderRails();renderMembers();renderFeed();renderFilters();renderDiscover();renderCave();renderProfile();
+/* L'écran de connexion, lui, n'a besoin de rien de tout cela. Il attendait
+   pourtant que 635 Ko de catalogue soient descendus et analysés : une seconde
+   d'écran noir pour un visiteur qui ne peut encore rien faire de ces données.
+
+   On pose donc la question en parallèle, et à la bibliothèque elle-même plutôt
+   qu'à son stockage : renifler sa clé ne marche pas, elle efface le jeton
+   qu'elle juge périmé dès sa construction. getSession() lit le stockage sans
+   réseau quand il n'y a rien à lire — un visiteur voit donc le formulaire en
+   quelques millisecondes — et prend le temps qu'il faut quand il y a un jeton
+   à rafraîchir, auquel cas on se tait : un membre déjà connecté ne doit pas
+   voir passer un formulaire qu'il n'a pas demandé.
+
+   Au retour d'un lien de réinitialisation on s'abstient aussi : cet écran-là
+   s'ouvre tout seul, et le devancer le ferait clignoter. */
+if(sbReady && !LIEN_RECUPERATION){
+  sb.auth.getSession()
+    .then(({data})=>{ if(!data||!data.session) document.getElementById('auth-screen').classList.add('show'); })
+    .catch(()=>{});
+}
+
 /* Rien ne peut se faire sans le catalogue : ni chercher, ni publier, ni même
    afficher une cave. On l'attend donc avant d'ouvrir l'application, et l'on
    dit pourquoi si l'on n'y arrive pas. */
