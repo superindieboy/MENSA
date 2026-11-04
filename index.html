@@ -1681,7 +1681,22 @@ body{touch-action:manipulation}
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- La version est épinglée, et son empreinte vérifiée.
+
+     « @2 » était un tag flottant : six cent deux versions existent sous lui,
+     dont deux cent soixante-dix-huit publiées cette seule année. Chaque membre
+     téléchargeait celle du jour, jamais essayée ici, sans retour en arrière
+     possible. Le risque n'est pas théorique : le mot de passe oublié repose
+     sur le flux « implicit » de cette bibliothèque, et le jour où un de ses
+     correctifs bascule ce défaut, la réinitialisation casserait en silence
+     pour tout le cercle.
+
+     L'empreinte sha384 ferme la porte restante : même un CDN compromis ne peut
+     plus substituer son code. Relever la version devient une décision, et se
+     fait en changeant ces deux chaînes ensemble. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"
+        integrity="sha384-UagCvVPT5XXA0Hx+nJYUAGBFseHT9zBgpJMSebsAxl9lciTwbT+39j5VfRjdP5Tp"
+        crossorigin="anonymous"></script>
 <script>
 /* ================= FILET =================
    Une erreur non rattrapée laissait le membre devant un écran figé, sans un
@@ -1916,7 +1931,12 @@ async function enterApp(user){
 }
 async function checkAuth(){
   if(!sbReady){
-    document.getElementById('auth-info').textContent="Configuration requise : renseignez SUPABASE_URL et SUPABASE_ANON_KEY en haut du script.";
+    /* Deux pannes très différentes se lisaient dans le même message. Dire à un
+       membre de « renseigner SUPABASE_URL » parce qu'un CDN n'a pas répondu
+       l'envoie chercher une panne qui n'existe pas. */
+    document.getElementById('auth-info').textContent = window.supabase
+      ? "Configuration requise : renseignez SUPABASE_URL et SUPABASE_ANON_KEY en haut du script."
+      : "La bibliothèque de connexion n'a pas pu être chargée. Vérifiez votre connexion, puis rechargez la page.";
     document.getElementById('auth-screen').classList.add('show');return;
   }
   if(LIEN_EXPIRE){
