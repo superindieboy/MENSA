@@ -4212,8 +4212,11 @@ function pdfInventaire(lignes,meta){
     ecrire(T,y,meta.sous,'F1',9); y-=10;
     filet(y); y-=15;
     ecrire(COL.nom,y,'RÉFÉRENCE','F2',8);
-    ecrire(COL.format,y,'FORMAT','F2',8);
-    aDroite(COL.qte,y,'QTÉ',8); aDroite(COL.pu,y,'P.U.',8); aDroite(COL.val,y,'VALEUR',8);
+    ecrire(COL.format,y,'MODULE','F2',8);
+    aDroite(COL.qte,y,'QTÉ',8); aDroite(COL.pu,y,'PRIX PAYÉ',8); aDroite(COL.val,y,'VALEUR',8);
+    /* La précision tient sur une seconde ligne : « PRIX PAYÉ (VIDE SI
+       OFFERT) » d'un seul tenant mordrait sur la colonne des quantités. */
+    y-=8; aDroite(COL.pu,y,'(vide si offert)',6);
     y-=6; filet(y); y-=13;
   }
   nouvellePage();
@@ -4223,7 +4226,8 @@ function pdfInventaire(lignes,meta){
     ecrire(COL.nom,y,l.nom.slice(0,46),'F1',9);
     if(l.format)ecrire(COL.format,y,l.format.slice(0,18),'F1',8);
     aDroite(COL.qte,y,String(l.qty),9);
-    aDroite(COL.pu,y,l.pu,9);
+    // un cigare offert laisse la case vide : inutile d'y poser un opérateur
+    if(l.pu!=='')aDroite(COL.pu,y,l.pu,9);
     aDroite(COL.val,y,l.valeur,9);
     y-=13;
   }
@@ -4264,24 +4268,42 @@ function telechargerInventaire(){
   const b=bilanCave();
   if(!b){toast("Votre cave est vide.",'err');return;}
   const lignes=[];
+  /* fmtPrix sépare les milliers d'une espace fine insécable, que l'encodage
+     WinAnsi du PDF ne connaît pas : on la ramène à une espace ordinaire. */
+  const eur=v=>fmtPrix(v).replace(/[\u00A0\u202F]/g,' ');
+  let auPrixLocal=0, sansPrixDeVente=0;
   Object.values(cave).forEach(arr=>arr.forEach(l=>{
     if(!l.qty||l.qty<=0)return;
-    const pu=(l.price!==null&&l.price!==undefined)?l.price:tarifDeReference(l.name);
+    /* Deux colonnes, deux questions. Ce que le lot a coûté est une dépense,
+       passée, propre au membre. Ce qu'il vaut est le dernier prix de vente
+       relevé : le tarif français quand le cigare y est vendu, son prix local
+       quand il ne l'est pas. La colonne unique d'avant mêlait les deux et
+       donnait un total qui n'était ni la dépense, ni la valeur. */
+    const vente=tarifDeReference(l.name);
+    const fiche=ficheByName(l.name);
+    if(vente>0){ if(fiche&&fiche.exclusivite)auPrixLocal+=l.qty; }
+    else sansPrixDeVente+=l.qty;
     /* Le module s'écrit « Robusto (hermosos n° 4) » : la parenthèse donne le
        nom cubain de la vitole, précieux dans l'app mais trop long pour une
        colonne d'inventaire — et la tronquer laissait « Robusto (hermosos »,
        une parenthèse ouverte sur rien. On garde ce qui précède. */
     const format=(l.detail&&l.detail!=='—')?String(l.detail).replace(/\s*\(.*$/,'').trim():'';
+    /* Un cigare offert n'a pas de prix payé : la case reste vide. Un prix
+       jamais saisi n'est pas la même chose, et porte un tiret. */
+    const paye=(l.price===0)?'':((l.price>0)?eur(l.price):'—');
     lignes.push({ nom:l.name, format, qty:l.qty,
-      brut:(pu>0?pu*l.qty:0),
-      pu:pu>0?fmtPrix(pu).replace(/ | /g,' '):'—',
-      valeur:pu>0?fmtPrix(pu*l.qty).replace(/ | /g,' '):'—' });
+      brut:(vente>0?vente*l.qty:0),
+      pu:paye,
+      valeur:vente>0?eur(vente*l.qty):'—' });
   }));
   lignes.sort((x,y)=>x.nom.localeCompare(y.nom,'fr'));
   const total=lignes.reduce((s,l)=>s+l.brut,0);
   const quand=new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
-  const notes=['Valeur d\'achat quand elle est connue, tarif de référence sinon.'];
-  if(b.offerts)notes.push(`${b.offerts} cigare${b.offerts>1?'s':''} offert${b.offerts>1?'s':''}, compté${b.offerts>1?'s':''} à zéro.`);
+  const pl=n=>n>1?'s':'';
+  const notes=['Valeur au dernier prix de vente relevé, multiplié par la quantité.'];
+  if(auPrixLocal)notes.push(`${auPrixLocal} cigare${pl(auPrixLocal)} compté${pl(auPrixLocal)} à son prix local, faute d'être vendu en France.`);
+  if(sansPrixDeVente)notes.push(`${sansPrixDeVente} cigare${pl(sansPrixDeVente)} sans prix de vente connu, compté${pl(sansPrixDeVente)} à zéro.`);
+  if(b.offerts)notes.push(`${b.offerts} cigare${pl(b.offerts)} offert${pl(b.offerts)} : la case « prix payé » reste vide.`);
   notes.push('Établi par MENSA — mensa-club.fr');
   const blob=pdfInventaire(lignes,{
     titre:'MENSA - inventaire de cave',
