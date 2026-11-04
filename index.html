@@ -62,7 +62,6 @@ body{
    sur fond clair, comme sur l'écran d'accueil. */
 .brand{display:flex;align-items:center;cursor:pointer}
 .brand-name{font-family:var(--serif);font-weight:600;font-size:21px;letter-spacing:0.06em;color:var(--ink)}
-.brand-name .dot{color:var(--cognac)}
 .ico-svg{display:inline-block;vertical-align:-0.14em;fill:currentColor;flex:none}
 .rail-title .ico-svg{vertical-align:-0.18em}
 /* Les chiffres alignés en colonne. Une app dont le sujet est les prix, les
@@ -1022,7 +1021,7 @@ body{touch-action:manipulation}
   <div class="topbar">
     <div class="brand" onclick="go('feed')" aria-label="MENSA">
       <svg class="ico-svg brand-fumeur" width="40" height="40" aria-hidden="true"><use href="#i-fumeur"/></svg>
-      <div class="brand-name">MENSA<span class="dot">.</span></div>
+      <div class="brand-name">MENSA</div>
     </div>
     <button class="icon-btn topbar-alerts" onclick="openFil()" aria-label="Ce qui vous concerne"><svg class="ico-svg" width="18" height="18" aria-hidden="true"><use href="#i-cloche"/></svg><span class="fil-compte" id="fil-compte" style="display:none">0</span></button>
     <button class="icon-btn topbar-search" onclick="openRecherche()" aria-label="Chercher dans tout le cercle"><svg class="ico-svg" width="18" height="18" aria-hidden="true"><use href="#i-recherche"/></svg></button>
