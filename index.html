@@ -3453,6 +3453,39 @@ function appliquerAncre(){
    une toile — le cigare, la note, les trois tiers, le cercle — et on partage
    l'image. Le texte et le lien restent le repli si le navigateur ne sait pas
    partager de fichier. */
+/* ---- Le logo, hors de l'écran ----
+   La carte de partage et l'inventaire PDF portent le mot MENSA mais ne sont
+   pas des pages : l'une est une image, l'autre un document. Le dessin doit
+   donc s'y rendre autrement qu'en SVG — sur une toile pour l'une, en
+   opérateurs de tracé pour l'autre.
+
+   Son tracé est lu dans le sprite plutôt que recopié : il y est déjà pour
+   l'écran, et dix-huit kilo-octets ne méritent pas d'être écrits deux fois. */
+const FUMEUR_CADRE={x:214, y:190, cote:867};    // le viewBox du dessin fourni
+let fumeurTrace=null, fumeurChemin=null;
+function traceDuFumeur(){
+  if(fumeurTrace===null){
+    const p=document.querySelector('#i-fumeur path');
+    fumeurTrace=p?(p.getAttribute('d')||''):'';
+  }
+  return fumeurTrace;
+}
+/* Sur une toile : Path2D comprend la syntaxe SVG telle quelle, il ne reste
+   qu'à cadrer. La règle de remplissage est pair-impair, comme à l'écran. */
+function dessinerFumeur(g,cx,yHaut,taille,encre){
+  const d=traceDuFumeur(); if(!d)return;
+  if(fumeurChemin===null){ try{ fumeurChemin=new Path2D(d); }catch(e){ fumeurChemin=false; } }
+  if(!fumeurChemin)return;
+  const e=taille/FUMEUR_CADRE.cote;
+  g.save();
+  g.translate(cx-taille/2, yHaut);
+  g.scale(e,e);
+  g.translate(-FUMEUR_CADRE.x, -FUMEUR_CADRE.y);
+  g.fillStyle=encre;
+  g.fill(fumeurChemin,'evenodd');
+  g.restore();
+}
+
 const CARTE_L=1080, CARTE_H=1350;
 function carteTexte(ctx,txt,x,y,maxL,pas){
   const mots=String(txt).split(' ');
@@ -3488,13 +3521,17 @@ function dessinerCarte(p){
   halo.addColorStop(0,teinte); halo.addColorStop(1,'#16100A');
   g.fillStyle=halo; g.fillRect(0,0,CARTE_L,CARTE_H);
 
+  /* Le logo coiffe le mot, comme sur l'écran d'accueil : la carte est une
+     affiche, et c'est souvent le premier MENSA que verra quelqu'un du dehors. */
+  dessinerFumeur(g, CARTE_L/2, 48, 150, 'rgba(240,230,215,0.92)');
+
   g.textAlign='center';
   g.fillStyle='#B06D3A';
   g.font='600 34px Georgia, serif';
-  g.fillText('MENSA', CARTE_L/2, 130);
+  g.fillText('MENSA', CARTE_L/2, 248);
   g.fillStyle='rgba(240,230,215,0.45)';
   g.font='24px Georgia, serif';
-  g.fillText('cercle privé d\'amateurs de cigares', CARTE_L/2, 174);
+  g.fillText('cercle privé d\'amateurs de cigares', CARTE_L/2, 292);
 
   /* La note, en grand, et son échelle sur la même ligne de base.
 
@@ -4124,6 +4161,30 @@ function pdfTexte(s){
 }
 const pdfLargeurCourier=(t,corps)=>t.length*corps*0.6;
 
+/* Le logo en opérateurs PDF. Le tracé fourni n'emploie que M, L, C et Z, qui
+   se traduisent un pour un en m, l, c et h — il n'y a donc rien à aplatir, les
+   courbes restent des courbes et le dessin s'agrandit sans perte.
+
+   Deux repères à retourner : le SVG compte vers le bas depuis le coin haut
+   gauche de son cadre, le PDF vers le haut depuis le bas de la page. */
+function pdfFumeur(x,yHaut,taille,gris){
+  const d=traceDuFumeur(); if(!d)return '';
+  const e=taille/FUMEUR_CADRE.cote;
+  const n=v=>(Math.round(v*100)/100).toString();
+  const X=v=>n(x+(v-FUMEUR_CADRE.x)*e), Y=v=>n(yHaut-(v-FUMEUR_CADRE.y)*e);
+  let out='q '+gris+' g\n';
+  for(const m of d.matchAll(/([MLCZ])([^MLCZ]*)/g)){
+    const v=m[2].trim()?m[2].trim().split(/[\s,]+/).map(Number):[];
+    if(m[1]==='M'){ out+=X(v[0])+' '+Y(v[1])+' m\n';
+      for(let i=2;i+1<v.length;i+=2) out+=X(v[i])+' '+Y(v[i+1])+' l\n'; }
+    else if(m[1]==='L'){ for(let i=0;i+1<v.length;i+=2) out+=X(v[i])+' '+Y(v[i+1])+' l\n'; }
+    else if(m[1]==='C'){ for(let i=0;i+5<v.length;i+=6)
+      out+=X(v[i])+' '+Y(v[i+1])+' '+X(v[i+2])+' '+Y(v[i+3])+' '+X(v[i+4])+' '+Y(v[i+5])+' c\n'; }
+    else if(m[1]==='Z') out+='h\n';
+  }
+  return out+'f*\nQ\n';            // pair-impair, comme le dessin le déclare
+}
+
 function pdfInventaire(lignes,meta){
   const L=595.28,H=841.89,M=56;             // A4, marges
   const COL={nom:M,format:300,qte:410,pu:472,val:540};
@@ -4136,11 +4197,20 @@ function pdfInventaire(lignes,meta){
   const aDroite=(x,yy,t,corps)=>ecrire(x-pdfLargeurCourier(String(t),corps),yy,t,'F3',corps);
   const filet=yy=>page.flux+=`0.6 w 0.75 G ${M} ${yy.toFixed(1)} m ${(L-M).toFixed(1)} ${yy.toFixed(1)} l S 0 G\n`;
 
+  /* Le logo à gauche du titre, comme dans la barre du haut du site : un
+     inventaire est un document, et un document porte son logo en tête de
+     lettre, non au-dessus comme une affiche. */
+  // Le dessin ne remplit pas sa boîte : il s'arrête à 7,6 pt du bord droit.
+  // L'écart posé ici s'ajoute donc à ce vide. 7 pt d'écart font 14,6 pt d'air
+  // réelle, soit une hauteur de capitale du MENSA de 17 pt qui suit.
+  const LOGO=40, APRES_LOGO=7;
   function nouvellePage(){
     page={flux:''}; pages.push(page); y=H-M;
-    ecrire(M,y,'MENSA','F2',17); y-=16;
-    ecrire(M,y,'Inventaire de cave','F1',11); y-=13;
-    ecrire(M,y,meta.sous,'F1',9); y-=10;
+    page.flux+=pdfFumeur(M, y+11, LOGO, '0.12');
+    const T=M+LOGO+APRES_LOGO;
+    ecrire(T,y,'MENSA','F2',17); y-=16;
+    ecrire(T,y,'Inventaire de cave','F1',11); y-=13;
+    ecrire(T,y,meta.sous,'F1',9); y-=10;
     filet(y); y-=15;
     ecrire(COL.nom,y,'RÉFÉRENCE','F2',8);
     ecrire(COL.format,y,'FORMAT','F2',8);
