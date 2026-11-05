@@ -4186,7 +4186,11 @@ function pdfFumeur(x,yHaut,taille,gris){
 
 function pdfInventaire(lignes,meta){
   const L=595.28,H=841.89,M=56;             // A4, marges
-  const COL={nom:M,format:300,qte:410,pu:472,val:540};
+  /* La colonne des quantités s'arrête à 400 et non à 410 : la ligne de total
+     porte désormais deux sommes à 10 pt, et « 12 345,60 € » aligné à droite
+     sur 472 commence à 406. Dix points de plus et elle entrait dans le compte
+     des cigares — un chiffre collé à un autre en fait un troisième. */
+  const COL={nom:M,format:300,qte:400,pu:472,val:540};
   const objets=[];                           // 1 Catalog · 2 Pages · 3 Fonts · puis les pages
   const pages=[];
   let page=null,y=0;
@@ -4233,8 +4237,16 @@ function pdfInventaire(lignes,meta){
   }
   y-=4; filet(y); y-=15;
   ecrire(COL.nom,y,meta.totalLibelle,'F2',10);
-  aDroite(COL.qte,y,String(meta.nb),10);
-  aDroite(COL.val,y,meta.total,10);
+  /* Les sommes gardent le corps des lignes, 9 et non 10 : la ligne de total
+     en porte désormais deux, et « 12 345,60 € » à 10 pt occupe 66 pt — les
+     deux colonnes ne sont séparées que de 68. Une cave à cinq chiffres, qui
+     n'a rien d'extraordinaire, voyait ses deux sommes se toucher. Le filet
+     au-dessus et le libellé en gras suffisent à marquer la ligne. */
+  aDroite(COL.qte,y,String(meta.nb),9);
+  // ce que la cave a coûté, en regard de ce qu'elle vaut : les deux sommes
+  // ne portent pas sur le même panier, et le pied de page le dit
+  if(meta.totalPaye)aDroite(COL.pu,y,meta.totalPaye,9);
+  aDroite(COL.val,y,meta.total,9);
   y-=20;
   for(const note of meta.notes){ ecrire(M,y,note,'F1',8); y-=11; }
 
@@ -4271,7 +4283,7 @@ function telechargerInventaire(){
   /* fmtPrix sépare les milliers d'une espace fine insécable, que l'encodage
      WinAnsi du PDF ne connaît pas : on la ramène à une espace ordinaire. */
   const eur=v=>fmtPrix(v).replace(/[\u00A0\u202F]/g,' ');
-  let auPrixLocal=0, sansPrixDeVente=0;
+  let auPrixLocal=0, sansPrixDeVente=0, sansPrixPaye=0;
   Object.values(cave).forEach(arr=>arr.forEach(l=>{
     if(!l.qty||l.qty<=0)return;
     /* Deux colonnes, deux questions. Ce que le lot a coûté est une dépense,
@@ -4291,6 +4303,7 @@ function telechargerInventaire(){
     /* Un cigare offert n'a pas de prix payé : la case reste vide. Un prix
        jamais saisi n'est pas la même chose, et porte un tiret. */
     const paye=(l.price===0)?'':((l.price>0)?eur(l.price):'—');
+    if(l.price===null||l.price===undefined)sansPrixPaye+=l.qty;
     lignes.push({ nom:l.name, format, qty:l.qty,
       brut:(vente>0?vente*l.qty:0),
       pu:paye,
@@ -4303,12 +4316,14 @@ function telechargerInventaire(){
   const notes=['Valeur au dernier prix de vente relevé, multiplié par la quantité.'];
   if(auPrixLocal)notes.push(`${auPrixLocal} cigare${pl(auPrixLocal)} compté${pl(auPrixLocal)} à son prix local, faute d'être vendu en France.`);
   if(sansPrixDeVente)notes.push(`${sansPrixDeVente} cigare${pl(sansPrixDeVente)} sans prix de vente connu, compté${pl(sansPrixDeVente)} à zéro.`);
-  if(b.offerts)notes.push(`${b.offerts} cigare${pl(b.offerts)} offert${pl(b.offerts)} : la case « prix payé » reste vide.`);
+  if(b.offerts)notes.push(`${b.offerts} cigare${pl(b.offerts)} offert${pl(b.offerts)} : la case « prix payé » reste vide, et compte pour zéro au total payé.`);
+  if(sansPrixPaye)notes.push(`${sansPrixPaye} cigare${pl(sansPrixPaye)} sans prix d'achat saisi : hors du total payé.`);
   notes.push('Établi par MENSA — mensa-club.fr');
   const blob=pdfInventaire(lignes,{
     titre:'MENSA - inventaire de cave',
     sous:`Établi le ${quand}${currentUser&&currentUser.name?' pour '+currentUser.name:''}`,
     totalLibelle:'TOTAL', nb:lignes.reduce((s,l)=>s+l.qty,0),
+    totalPaye:(b.nb>0)?eur(b.total):'—',
     total:fmtPrix(total).replace(/ | /g,' '), notes
   });
   const a=document.createElement('a');
