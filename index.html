@@ -454,6 +454,30 @@ input[type=number],.f-num{font-variant-numeric:tabular-nums}
 .f-err{color:#E08A7A;font-size:13px;text-align:center;margin:4px 0 2px;min-height:18px}
 .pd-head{display:flex;gap:12px;align-items:center;margin-bottom:14px}
 .pd-visual{position:relative;border-radius:14px;height:180px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:14px}
+/* La vignette recadre ; le bouton qui la porte dit qu'on peut la déplier. */
+.pd-photo{position:absolute;inset:0;padding:0;border:none;background:none;cursor:zoom-in;display:block}
+.pd-photo img{width:100%;height:100%;object-fit:cover;display:block}
+/* La photo en entier. Elle passe au-dessus des panneaux — z-index 100 pour
+   tous — afin de ne pas avoir à refermer la dégustation pour s'afficher. */
+.photo-plein{
+  position:fixed;inset:0;z-index:200;background:rgba(14,9,5,0.94);
+  display:none;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;
+}
+.photo-plein.open{display:flex}
+.photo-plein img{
+  max-width:100%;max-height:100%;object-fit:contain;display:block;
+  border-radius:6px;animation:photoParait .18s ease;
+}
+@keyframes photoParait{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:none}}
+/* Le bouton se pose sur la photo quand celle-ci remplit l'écran. Un fond
+   clair le ferait disparaître sur une bague pâle : il porte donc son propre
+   fond sombre et un filet, pour rester lisible quelle que soit l'image. */
+.photo-plein-x{
+  position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px;
+  width:40px;height:40px;border-radius:50%;cursor:pointer;
+  border:1px solid rgba(244,238,223,0.28);
+  background:rgba(14,9,5,0.72);color:#F4EEDF;font-size:26px;line-height:1;
+}
 .pd-name{font-size:20px;margin-bottom:4px;color:var(--ink)}
 .pd-origin{font-size:13px;color:var(--ink-3);margin-bottom:6px}
 .pd-thirds{display:flex;gap:8px;margin:14px 0}
@@ -1646,6 +1670,16 @@ body{touch-action:manipulation}
       <button class="btn-primary" id="badge-submit-btn" onclick="decernerBadgeLibre()">Décerner</button>
     </div>
   </div>
+</div>
+
+<!-- ===== LA PHOTO EN ENTIER =====
+     La vignette d'une dégustation recadre : 180 px de haut, le reste est
+     rogné. Une bague photographiée de près y perd ce qu'on voulait montrer.
+     Cette vue-ci ne recadre rien et ne referme pas la dégustation derrière
+     elle — on revient d'où l'on vient. -->
+<div class="photo-plein" id="photo-plein" role="dialog" aria-modal="true" aria-label="La photo en entier" onclick="fermerPhoto()">
+  <img id="photo-plein-img" alt="">
+  <button class="photo-plein-x" aria-label="Fermer la photo">&times;</button>
 </div>
 
 <!-- ===== ÉCRAN DE CONNEXION ===== -->
@@ -5719,7 +5753,7 @@ function openPostDetail(id){
       <div><div class="post-user">${echapper(p.user)}</div><div class="post-meta">${p.time}</div></div>
     </div>
     <div class="pd-visual" style="background:${pal.fill}">${p.photoUrl
-      ? `<img src="${echapper(p.photoUrl)}" alt="Bague de ${echapper(p.name)}" style="width:100%;height:100%;object-fit:cover">`
+      ? `<button class="pd-photo" onclick="ouvrirPhoto('${p.id}')" aria-label="Voir la photo en entier"><img src="${echapper(p.photoUrl)}" alt="Bague de ${echapper(p.name)}"></button>`
       : cigarHtml(p.terroir,130)}
       <div class="post-rating"><span style="color:var(--gold)">●</span> ${(p.rating||0).toFixed(1)}</div>
     </div>
@@ -6152,6 +6186,29 @@ function closeSheet(id){
 function ouvrirSeul(id){
   document.querySelectorAll('.overlay.open').forEach(o=>{ if(o.id!==id)closeSheet(o.id); });
   document.getElementById(id).classList.add('open');
+}
+/* La photo en entier.
+   Elle ne passe pas par ouvrirSeul : la dégustation doit rester ouverte
+   dessous, sans quoi refermer la photo rendrait le membre au Fil plutôt qu'à
+   ce qu'il était en train de lire. D'où son plan à part, au-dessus des
+   panneaux qui partagent tous le z-index 100. */
+function ouvrirPhoto(id){
+  const p=feed.find(x=>x.id===id);
+  if(!p||!p.photoUrl)return;
+  const img=document.getElementById('photo-plein-img');
+  img.src=p.photoUrl;
+  img.alt=`Bague de ${p.name}, photographiée par ${p.user}`;
+  document.getElementById('photo-plein').classList.add('open');
+}
+/* Renvoie ce qu'elle a fait : Échap s'en sert pour savoir s'il lui reste un
+   panneau à fermer derrière. */
+function fermerPhoto(){
+  const vue=document.getElementById('photo-plein');
+  if(!vue.classList.contains('open'))return false;
+  vue.classList.remove('open');
+  // une image fermée n'a plus à être retenue par le navigateur
+  document.getElementById('photo-plein-img').removeAttribute('src');
+  return true;
 }
 const BIO_PLACEHOLDER='Aucune bio pour le moment.';
 function openBioSheet(){
@@ -6618,6 +6675,8 @@ document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{
 }));
 /* Navigation par ancre : coller un lien ou revenir en arrière rouvre la cible. */
 window.addEventListener('hashchange',()=>{
+  // revenir en arrière ne doit pas laisser une photo flotter sur le Fil
+  fermerPhoto();
   if(!currentUser)return;
   if(location.hash)appliquerAncre();
   else{ closeSheet('post-overlay'); closeSheet('detail-overlay'); }
@@ -6632,6 +6691,8 @@ window.addEventListener('hashchange',()=>{
    dessus : les panneaux se fermaient au clic extérieur mais pas au clavier. */
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape')return;
+  // la photo couvre tout le reste : elle part la première
+  if(fermerPhoto())return;
   const ac=[...document.querySelectorAll('.ac-list.open')].pop();
   if(ac){ac.classList.remove('open');return;}
   const sheet=[...document.querySelectorAll('.overlay.open')].pop();
