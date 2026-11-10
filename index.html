@@ -5413,12 +5413,6 @@ function specCardHtml(c,badge,modifiable){
         ${c.wrapper?`<div class="spec-row"><span class="spec-k">Cape</span><span class="spec-v">${echapper(c.wrapper)}</span></div>`:''}
         ${c.binder?`<div class="spec-row"><span class="spec-k">Sous-cape</span><span class="spec-v">${echapper(c.binder)}</span></div>`:''}
         ${c.filler?`<div class="spec-row"><span class="spec-k">Tripe</span><span class="spec-v">${echapper(c.filler)}</span></div>`:''}
-        ${/* Le conditionnement : un cigare se vend à la boîte autant qu'à la
-              pièce, et savoir qu'elle en contient cinq ou vingt change ce
-              qu'on s'apprête à dépenser. Le relevé des douanes, lui, efface
-              cette mention des libellés — elle ne peut venir que de la fiche
-              du fabricant, saisie à la main. */''}
-        ${c.boite>0?`<div class="spec-row"><span class="spec-k">Boîte</span><span class="spec-v">${c.boite} cigares</span></div>`:''}
         ${strengthRow}
         ${/* La note du cercle et le nombre de dégustations s'affichent toujours,
               même à zéro. Une moyenne qu'on ne voit que lorsqu'elle existe
